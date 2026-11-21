@@ -33,7 +33,7 @@ export default async function PdiCertificate({ params }: { params: Promise<{ vin
     <div style={{ maxWidth: '780px', margin: '0 auto', padding: '32px 24px', fontFamily: 'Arial, Helvetica, sans-serif', color: '#0F172A', position: 'relative' }}>
       <PrintOnLoad />
       <style>{'@page { size: A4; margin: 14mm }'}</style>
-      <DocumentHeader organisation={organisation} branch={branch} logoUrl={`${portalBaseUrl()}/images/logo/logo.png`} documentTitle="Pre-Delivery Inspection Certificate" referenceNumber={p.pdi ? `${p.vin} · ${p.pdi.number}` : p.vin} statusLabel={passed ? 'PDI passed' : v.state === 'not-recorded' ? 'PDI not recorded' : 'PDI not passed'} accentColor="#16A34A" />
+      <DocumentHeader organisation={organisation} branch={branch} logoUrl={`${portalBaseUrl()}/images/logo/logo.png`} documentTitle="Pre-Delivery Inspection Certificate" referenceNumber={p.pdi ? `${p.vin} · ${p.pdi.number}` : p.vin} statusLabel={passed ? 'PDI passed' : v.state === 'not-recorded' ? 'PDI not recorded' : 'PDI not passed'} accentColor="#D6890B" />
       {!passed ? (
         <p role="alert" style={{ marginTop: '14px', padding: '10px 12px', border: '2px solid #B91C1C', color: '#B91C1C', fontWeight: 700, fontSize: '13px', textAlign: 'center' }}>
           NOT A CERTIFICATE — {v.state === 'not-recorded' ? 'no pre-delivery inspection is recorded for this vehicle yet.' : p.pdi && p.pdi.status !== 'PASSED' ? 'the pre-delivery inspection has not been completed and approved yet.' : 'the pre-delivery inspection has checks that have not passed.'}

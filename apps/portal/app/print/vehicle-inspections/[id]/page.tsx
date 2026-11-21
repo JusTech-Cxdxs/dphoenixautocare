@@ -135,7 +135,7 @@ export default async function PrintVehicleInspectionPage({
         documentTitle="Vehicle Inspection Report"
         referenceNumber={service.serviceNumber}
         statusLabel={statusLabel}
-        accentColor="#16A34A"
+        accentColor="#D6890B"
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px', marginTop: '20px' }}>

@@ -1,4 +1,4 @@
-import { PLATFORM } from '@/lib/brand';
+import { LOGO, PLATFORM } from '@/lib/brand';
 type OrganisationInfo = {
   name: string;
   legalName: string | null;
@@ -73,7 +73,7 @@ export function DocumentHeader({
                 {/* Fixed width and height (the logo's aspect ratio): some PDF engines
                     squash an image with width:auto. Height equals the wordmark's. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={logoUrl} alt={organisation.name} style={{ width: '39px', height: '47px', display: 'block', marginRight: '4px' }} />
+                <img src={logoUrl} alt={organisation.name} style={{ width: `${Math.round(47 * (LOGO.width / LOGO.height))}px`, height: '47px', display: 'block', marginRight: '4px' }} />
                 <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch' }}>
                   <div style={{ fontSize: '26px', fontWeight: 800, color: '#0F172A', letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{wordmarkTop}</div>
                   {wordmarkBottom ? (
@@ -88,7 +88,8 @@ export function DocumentHeader({
               </div>
             </td>
             <td style={{ verticalAlign: 'top', textAlign: 'right', whiteSpace: 'nowrap' }}>
-              <div style={{ fontSize: '15px', fontWeight: 700, color: accentColor }}>{documentTitle}</div>
+              {/* The logo gold is for lines; on white text it is too light to read, so titles in the brand colour print navy. */}
+              <div style={{ fontSize: '15px', fontWeight: 700, color: accentColor.toUpperCase() === '#D6890B' ? '#0A1628' : accentColor }}>{documentTitle}</div>
               {divisionName ? <div style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginTop: '1px' }}>{divisionName}</div> : null}
               <div style={{ fontSize: '13px', color: '#0F172A', marginTop: '2px' }}>{referenceNumber}</div>
               {statusLabel ? <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>{statusLabel}</div> : null}

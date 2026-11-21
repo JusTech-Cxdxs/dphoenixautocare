@@ -64,7 +64,7 @@ const PUPIL = '#170d09';
 
 /** Styles shared by every avatar on the page (React hoists and de-duplicates this tag). */
 const CSS = `
-.enyo-av{--enyo-av-bg:#dcefe3;--enyo-av-ring:#22983f;display:inline-block;flex:none;line-height:0}
+.enyo-av{--enyo-av-bg:#fdf1dc;--enyo-av-ring:#d6890b;display:inline-block;flex:none;line-height:0}
 :root[data-theme='dark'] .enyo-av{--enyo-av-bg:#285a3e}
 @media (prefers-color-scheme: dark){:root:not([data-theme='light']) .enyo-av{--enyo-av-bg:#285a3e}}
 .enyo-av svg{display:block;overflow:visible}

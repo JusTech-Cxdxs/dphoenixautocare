@@ -72,7 +72,7 @@ export default async function PrintPartRequestSlipPage({
         documentTitle={isOrgCopy ? 'Store Parts Request' : 'Parts Collection Receipt'}
         referenceNumber={slip.referenceNumber}
         statusLabel={STATUS_LABEL[slip.status] ?? slip.status}
-        accentColor="#16A34A"
+        accentColor="#D6890B"
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px', marginTop: '20px' }}>

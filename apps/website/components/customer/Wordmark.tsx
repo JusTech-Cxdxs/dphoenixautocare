@@ -2,6 +2,7 @@
 // Copied from apps/portal/components (the apps never import across each other) — keep in step.
 
 import { useState } from 'react';
+import { LOGO } from '@/lib/brand';
 
 /**
  * The organisation's wordmark — the same lockup as the printed document
@@ -19,7 +20,7 @@ export function Wordmark({ name, size = 'md', tone = 'default' }: { name: string
   const top = words[0] ?? name;
   const bottom = words.slice(1).join(' ');
   const logoH = size === 'lg' ? 52 : size === 'sm' ? 30 : 40;
-  const logoW = Math.round(logoH * (537 / 650));
+  const logoW = Math.round(logoH * (LOGO.width / LOGO.height));
   const topText = tone === 'onDark' ? 'text-white' : 'text-[var(--ejo-text)]';
   const bottomText = tone === 'onDark' ? 'text-white/75' : 'text-[var(--ejo-text-muted)]';
   return (

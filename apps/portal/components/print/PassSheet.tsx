@@ -2,7 +2,7 @@ import { portalBaseUrl } from '@/lib/portal-url';
 import type { ReactNode } from 'react';
 import { PLATFORM } from '@/lib/brand';
 
-const ACCENT = '#16A34A';
+const ACCENT = '#D6890B'; // the logo gold
 
 /**
  * A pass on a POS receipt roll (58 / 80 mm): fills the roll's width, with

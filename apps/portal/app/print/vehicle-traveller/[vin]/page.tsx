@@ -28,7 +28,7 @@ export default async function TravellerSheet({ params }: { params: Promise<{ vin
     <div style={{ maxWidth: '780px', margin: '0 auto', padding: '24px', fontFamily: 'Arial, Helvetica, sans-serif', color: '#0F172A' }}>
       <PrintOnLoad />
       <style>{'@page { size: A4; margin: 12mm } tr { break-inside: avoid }'}</style>
-      <DocumentHeader organisation={organisation} branch={branch} logoUrl={`${portalBaseUrl()}/images/logo/logo.png`} documentTitle="Vehicle Traveller Sheet" referenceNumber={p.vin} statusLabel={p.now ? `Now: ${p.now}` : undefined} accentColor="#16A34A" />
+      <DocumentHeader organisation={organisation} branch={branch} logoUrl={`${portalBaseUrl()}/images/logo/logo.png`} documentTitle="Vehicle Traveller Sheet" referenceNumber={p.vin} statusLabel={p.now ? `Now: ${p.now}` : undefined} accentColor="#D6890B" />
       <div style={{ display: 'flex', gap: '16px', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px', padding: '10px', border: '1px solid #CBD5E1' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '3px 10px', fontSize: '12px' }}>
           <b>VIN</b><span style={{ fontFamily: 'ui-monospace, Menlo, Consolas, monospace', letterSpacing: '0.05em' }}>{p.vin}</span>

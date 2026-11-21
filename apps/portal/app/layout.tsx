@@ -24,8 +24,8 @@ export const viewport: Viewport = {
   // Lets the app use the whole screen on phones with a notch; the shell pads itself with env(safe-area-inset-*).
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#16a34a' },
-    { media: '(prefers-color-scheme: dark)', color: '#0b1220' },
+    { media: '(prefers-color-scheme: light)', color: '#0a1628' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a1628' },
   ],
 };
 

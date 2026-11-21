@@ -30,6 +30,16 @@ export const PLATFORM = {
   website: 'https://justech-dev.vercel.app',
 } as const;
 
+/**
+ * The organisation's logo file (public/images/logo/logo.png): its shape, so
+ * the wordmark, the sidebar and the printed letterhead size it without
+ * squashing. D'Phoenix Autocare's crest is square.
+ */
+export const LOGO = {
+  width: 500,
+  height: 500,
+} as const;
+
 /** "Kewalram Chanrai Group" → "KCG": the installed app's home-screen name. */
 export function appShortName(organisationName: string, override?: string | null): string {
   const o = (override ?? '').trim();

@@ -6,14 +6,14 @@
    feel like one ecosystem, per the branding spec. See that app's
    globals.css comment for the full explanation. */
 :root {
-  --ejo-primary: #16a34a;
-  /* The exact green of the organisation's logo — the wordmark rule. */
-  --ejo-brand: #22983f;
-  --ejo-secondary: #0f172a;
-  --ejo-accent: #22c55e;
-  --ejo-success: #16a34a;
+  --ejo-primary: #f09e2c;
+  /* The gold of the organisation's logo — the wordmark rule. */
+  --ejo-brand: #d6890b;
+  --ejo-secondary: #0a1628;
+  --ejo-accent: #f09e2c;
+  --ejo-success: #15803d;
   --ejo-warning: #f59e0b;
-  --ejo-error: #dc2626;
+  --ejo-error: #e40014;
   --ejo-info: #2563eb;
   /* Amber text that is readable on a light background (chips, hints). */
   --ejo-warning-text: #b45309;
@@ -21,7 +21,7 @@
   --ejo-bg: #ffffff;
   --ejo-surface: #f8fafc;
   --ejo-border: #e2e8f0;
-  --ejo-text: #0f172a;
+  --ejo-text: #0a1628;
   --ejo-text-muted: #64748b;
 
   --ejo-radius-md: 10px;
@@ -38,8 +38,8 @@
   --ejo-secondary: #020617;
   --ejo-error: #ef4444;
   --ejo-info: #3b82f6;
-  --ejo-bg: #0b1220;
-  --ejo-surface: #111a2e;
+  --ejo-bg: #0a1628;
+  --ejo-surface: #111f36;
   --ejo-border: #24324a;
   --ejo-text: #e8eef7;
   --ejo-text-muted: #94a3b8;
@@ -51,8 +51,8 @@
   --ejo-secondary: #020617;
   --ejo-error: #ef4444;
   --ejo-info: #3b82f6;
-  --ejo-bg: #0b1220;
-  --ejo-surface: #111a2e;
+  --ejo-bg: #0a1628;
+  --ejo-surface: #111f36;
   --ejo-border: #24324a;
   --ejo-text: #e8eef7;
   --ejo-text-muted: #94a3b8;
@@ -95,10 +95,10 @@ body {
    panel until real photography is available. */
 .ejo-media-placeholder {
   background:
-    radial-gradient(circle at 20% 20%, rgba(34, 197, 94, 0.55), transparent 55%),
-    radial-gradient(circle at 80% 30%, rgba(21, 128, 61, 0.5), transparent 50%),
+    radial-gradient(circle at 20% 20%, rgba(240, 158, 44, 0.35), transparent 55%),
+    radial-gradient(circle at 80% 30%, rgba(214, 137, 11, 0.3), transparent 50%),
     radial-gradient(circle at 50% 90%, rgba(15, 23, 42, 0.6), transparent 60%),
-    linear-gradient(135deg, #0f2417 0%, #143d24 50%, #0b1a11 100%);
+    linear-gradient(135deg, #0a1628 0%, #13233d 50%, #070f1c 100%);
 }
 
 @keyframes ejo-shimmer {
@@ -106,7 +106,7 @@ body {
   100% { background-position: 200% 0; }
 }
 .ejo-shimmer {
-  background: linear-gradient(90deg, var(--ejo-accent) 0%, #d1fae5 50%, var(--ejo-accent) 100%);
+  background: linear-gradient(90deg, var(--ejo-accent) 0%, #ffe2b8 50%, var(--ejo-accent) 100%);
   background-size: 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -414,3 +414,22 @@ body { overscroll-behavior-y: none; }
 @media print {
   .ejo-print-watermark { background-size: 78% auto; opacity: 0.06; }
 }
+
+/* ── D'Phoenix Autocare edition ─────────────────────────────────────────
+   Brand colours from the website: navy #0A1628, orange #F09E2C (hover
+   #D48E1B), logo gold #D6890B. The orange is light, so anything written on
+   it is navy (8.3:1, never white at 2.2:1), and orange used as text takes a
+   deeper shade on light screens (4.7:1) and the brand orange on dark ones.
+   One layer here instead of edits across the shared components, so updates
+   to EJO 100 still apply cleanly. */
+:root { --ejo-on-primary: #0a1628; --ejo-primary-text: #a8620c; }
+:root[data-theme='dark'] { --ejo-primary-text: #f09e2c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { --ejo-primary-text: #f09e2c; } }
+[class~="bg-[var(--ejo-primary)]"][class~="text-white"],
+[class~="bg-[var(--ejo-primary-dark)]"][class~="text-white"],
+[class~="bg-[var(--ejo-accent)]"][class~="text-white"] { color: var(--ejo-on-primary); }
+[class~="text-[var(--ejo-primary)]"],
+[class~="text-[var(--ejo-primary-dark)]"] { color: var(--ejo-primary-text); }
+[class~="hover:text-[var(--ejo-primary)]"]:hover,
+[class~="group-hover:text-[var(--ejo-primary)]"]:is(.group:hover *) { color: var(--ejo-primary-text); }
+.ejo-shimmer-soft { background-image: linear-gradient(90deg, var(--ejo-primary-text) 0%, var(--ejo-text) 50%, var(--ejo-primary-text) 100%); }
