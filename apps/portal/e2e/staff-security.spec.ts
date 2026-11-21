@@ -102,7 +102,8 @@ test('the technician sees both visitors, opens one, and is told when they arrive
   }
 
   await open(page, '/dashboard');
-  await expect(page.getByText(`Your visitor has arrived — ${S.walkIn}`).first()).toBeVisible();
+  // In "Needs your attention": the same title is also in Enyo's brief, which is closed (hidden) until opened, and may be first on the page.
+  await expect(page.locator('#attention').getByText(`Your visitor has arrived — ${S.walkIn}`).first()).toBeVisible();
 });
 
 test('someone else does not see the technician’s visitors, even by address', async ({ page }) => {

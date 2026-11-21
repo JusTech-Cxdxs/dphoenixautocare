@@ -199,7 +199,10 @@ test.describe('a Job Card, followed by its customer', () => {
       await expect(panel).toContainText(`Your estimate for ${S.number} is ready`);
       const item = panel.getByRole('link', { name: new RegExp(`Your estimate for ${S.number} is ready`) });
       await expect(item.getByLabel('Unread')).toHaveCount(1);
+      // The panel clears at once; the server records it a moment later — wait for that before leaving the page.
+      const saved = page.waitForResponse((r) => r.request().method() === 'POST' && Boolean(r.request().headers()['next-action']));
       await panel.getByRole('button', { name: 'Mark all as read' }).click();
+      await saved;
       // (Checked on the item itself: a broadcast from another spec may arrive at any moment.)
       await expect(item.getByLabel('Unread')).toHaveCount(0);
     });

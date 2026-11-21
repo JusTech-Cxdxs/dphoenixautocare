@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { as, uniq, open, signIn, signOut, latestMail, linkIn, countMail } from './helpers';
 import { db } from './db';
 import { who } from './people';
+import { IMPORT_SOURCE } from './edition';
 
 /**
  * P7 — the organisation's people from SAP HR: each becomes an EJO account in
@@ -73,7 +74,7 @@ test('the staff file: refusals and the totals; the Organisation Administrator ap
 
   const people = await db().user.findMany({ where: { email: { in: [mail(1), mail(2), mail(3)] } }, orderBy: { email: 'asc' }, include: { roles: { include: { role: { select: { slug: true } } } }, accounts: { select: { providerId: true, password: true } } } });
   expect(people.map((u) => u.email)).toEqual([mail(1), mail(2), mail(3)]);
-  expect(people.every((u) => !u.isActive && !u.invitedAt && u.importJobId && u.branchId === branch.id && u.externalSource === 'SAP')).toBe(true);
+  expect(people.every((u) => !u.isActive && !u.invitedAt && u.importJobId && u.branchId === branch.id && u.externalSource === IMPORT_SOURCE)).toBe(true);
   expect(people[0]!.employeeId).toBe(`P7-${D}-1`);
   expect(people[0]!.departmentId).toBe(dept.id);
   expect(people[1]!.employeeId).toMatch(/^[A-Z0-9]+-[A-Z0-9]+-\d{4}$/); // issued by EJO for the branch

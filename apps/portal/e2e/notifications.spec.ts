@@ -42,8 +42,11 @@ test('a Workshop Manager sees both and marks one read', async ({ page }) => {
     await expect(page.getByRole('heading', { name: S.role })).toBeVisible({ timeout: 5_000 });
   });
   const cardOf = (title: string) => page.locator('div[id]').filter({ has: page.getByRole('heading', { name: title }) }).first();
+  // The button flips at once; the read is saved in the background — wait for that before reloading.
+  const saved = page.waitForResponse((r) => r.request().method() === 'POST' && Boolean(r.request().headers()['next-action']));
   await cardOf(S.role).getByRole('button', { name: 'Mark read' }).click();
   await expect(cardOf(S.role).getByRole('button', { name: 'Mark unread' })).toBeVisible();
+  await saved;
   await page.reload();
   await expect(cardOf(S.role).getByRole('button', { name: 'Mark unread' })).toBeVisible();
   // The bell follows (its summary is cached briefly on the server).

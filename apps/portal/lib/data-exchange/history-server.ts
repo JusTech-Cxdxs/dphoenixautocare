@@ -22,7 +22,7 @@
  * delete — and loading the same file again restores the voided rows.
  */
 import { prisma, type Prisma } from '@ejo/database';
-import { checkInvoiceRow, checkJobRow, checkRegisterRow, type JobValues, type RegisterKind } from './check-history';
+import { checkInvoiceRow, checkJobRow, checkRegisterRow, invoiceRange, type JobValues, type RegisterKind } from './check-history';
 import type { Issue } from './check';
 import type { EntityKey, Mapping } from './fields';
 import { findCustomers } from './lookup-server';
@@ -41,15 +41,29 @@ const dayDate = (d: string) => new Date(`${d}T00:00:00.000Z`);
 
 // ── Lookups ───────────────────────────────────────────────────────────
 
-/** Invoices already in the history (voided ones too: a reload restores them). */
-/** The numbering range an invoice row belongs to: "LEGACY" for an old system's file, else SAP's (with company code and year when given). */
-const rangeOf = (job: HistoryJob, v: { source: string }) => (src(job.sourceSystem) === 'LEGACY' ? 'LEGACY' : v.source);
+/** The numbering range an invoice row belongs to: SAP's, or the old system's (each with company code and year when the file gives either). */
+const rangeOf = (job: HistoryJob, v: { source: string }) => invoiceRange(src(job.sourceSystem), v.source);
 const invKey = (range: string, number: string) => `${range}|${number.toUpperCase()}`;
 
+type KnownInvoice = { id: string; voided: boolean; importJobId: string | null; fiscalYear: number | null; companyCode: string | null };
+
+/** Invoices already in the history (voided ones too: a reload restores them). */
 async function findInvoices(db: Db, organisationId: string, numbers: string[]) {
-  if (!numbers.length) return new Map<string, { id: string; voided: boolean; importJobId: string | null }>();
-  const rows = await db.historicalInvoice.findMany({ where: { organisationId, invoiceNumber: { in: [...new Set(numbers)] } }, select: { id: true, invoiceNumber: true, externalSource: true, voidedAt: true, importJobId: true } });
-  return new Map(rows.map((r) => [invKey(r.externalSource, r.invoiceNumber), { id: r.id, voided: Boolean(r.voidedAt), importJobId: r.importJobId }]));
+  if (!numbers.length) return new Map<string, KnownInvoice>();
+  const rows = await db.historicalInvoice.findMany({ where: { organisationId, invoiceNumber: { in: [...new Set(numbers)] } }, select: { id: true, invoiceNumber: true, externalSource: true, voidedAt: true, importJobId: true, fiscalYear: true, companyCode: true } });
+  return new Map(rows.map((r) => [invKey(r.externalSource, r.invoiceNumber), { id: r.id, voided: Boolean(r.voidedAt), importJobId: r.importJobId, fiscalYear: r.fiscalYear, companyCode: r.companyCode }]));
+}
+
+/**
+ * The invoice already in the history for this row. An old system's invoice loaded before its file's year
+ * counted is stored under plain "LEGACY": it is the same invoice when its year and company code agree.
+ */
+function knownInvoice(existing: Map<string, KnownInvoice>, job: HistoryJob, v: { source: string; invoiceNumber: string; fiscalYear: number; companyCode: string | null }): KnownInvoice | undefined {
+  const range = rangeOf(job, v);
+  const hit = existing.get(invKey(range, v.invoiceNumber));
+  if (hit || range === 'LEGACY' || !range.startsWith('LEGACY/')) return hit;
+  const old = existing.get(invKey('LEGACY', v.invoiceNumber));
+  return old && old.fiscalYear === v.fiscalYear && (old.companyCode ?? null) === (v.companyCode ?? null) ? old : undefined;
 }
 
 /** The organisation's vehicles with these chassis numbers (as stored: capitals, no spaces). */
@@ -153,7 +167,7 @@ export async function checkHistoryRows(entity: HistoryEntity, job: HistoryJob, m
           const veh = v.vinKey ? vehicles.get(v.vinKey) : undefined;
           if (v.vinKey && !veh) { issues.push({ field: 'vin', level: 'warning', message: 'The vehicle is not in the system yet, so the invoice is kept on the customer only (it links to the vehicle once the vehicle is imported and the file loaded again).' }); }
           else if (veh && veh.customerId !== owner) { issues.push({ field: 'vin', level: 'warning', message: 'The vehicle now belongs to another customer; the invoice stays with this customer and on the vehicle’s history.' }); }
-          const hit = existing.get(invKey(rangeOf(job, v), v.invoiceNumber));
+          const hit = knownInvoice(existing, job, v);
           if (hit && !hit.voided && hit.importJobId !== job.id) { matchedId = hit.id; matchedBy = 'inv'; issues.push({ field: 'invoiceNumber', level: 'warning', message: 'Already in the history (loaded before); left as it is.' }); }
           if (status === 'GOOD' && issues.length) status = 'WARNING';
         }
@@ -315,7 +329,7 @@ async function loadInvoices(tx: Tx, job: HistoryJob, mapping: Mapping, rows: Loa
     const owner = (v.customer.externalId && cust.ext.get(v.customer.externalId.toUpperCase())) || (v.customer.phone && cust.phone.get(v.customer.phone.slice(-10))) || null;
     if (!owner) { results.push({ id: r.id, status: 'SKIPPED', resultId: null, note: 'The customer is no longer in the system; not loaded.' }); continue; }
     const k = invKey(rangeOf(job, v), v.invoiceNumber);
-    const hit = existing.get(k);
+    const hit = knownInvoice(existing, job, v);
     if (hit && !hit.voided) { results.push({ id: r.id, status: 'SKIPPED', resultId: hit.id, note: 'Already in the history; left as it is.' }); continue; }
     if (hit && hit.voided) { restore.push({ rowId: r.id, id: hit.id }); continue; }
     if (seen.has(k)) { results.push({ id: r.id, status: 'SKIPPED', resultId: null, note: 'The same invoice number appears earlier in the file; loaded once.' }); continue; }

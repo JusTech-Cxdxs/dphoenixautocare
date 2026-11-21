@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { E2E_PASSWORD, OTHER_ORG_ADMIN, OTHER_PORTAL_CUSTOMER, SWITCH_CUSTOMER, who } from './people';
 import { as, bellText, signIn, signOut, latestMail, linkIn, uniq, urlOrExplain } from './helpers';
 import { WEB, customerSignedIn, portal, submitSignIn, websiteUp } from './customer';
-import { resetCustomerAccount } from './db';
+import { db, resetCustomerAccount } from './db';
 import { publishBroadcast } from './workflows';
 
 /**
@@ -185,6 +185,9 @@ test.describe('Ada, a long-standing customer', () => {
 
   test('front desk: edit details (audited) and add a note', async ({ page }) => {
     test.skip(!adaUrl, 'needs Ada\'s page from the first step');
+    // Fixture: start from the seeded details, so a second run on the same database still has a change to save
+    // (otherwise the page rightly answers "Nothing to save").
+    await db().customer.update({ where: { id: adaUrl.split('/').pop()! }, data: { altPhone: null, tags: [] } });
     await signIn(page, who('receptionist').email, E2E_PASSWORD);
     await page.goto(`${adaUrl}?edit=1`);
     const form = page.getByRole('form', { name: 'Edit customer' });
@@ -195,9 +198,11 @@ test.describe('Ada, a long-standing customer', () => {
     await expect(page.getByText('0809 555 0101').first()).toBeVisible();
 
     await page.goto(`${adaUrl}?tab=notes`);
-    await page.getByLabel('New note').fill('Prefers calls after 4 pm.');
+    // A note of this run's own (an earlier run's note on the same database is still listed).
+    const note = `Prefers calls after 4 pm. (${uniq()})`;
+    await page.getByLabel('New note').fill(note);
     await page.getByRole('button', { name: 'Add note' }).click();
-    await expect(page.getByText('Prefers calls after 4 pm.')).toBeVisible();
+    await expect(page.getByText(note)).toBeVisible();
 
     await page.goto(`${adaUrl}?tab=activity`);
     await expect(page.getByText('Details updated').first()).toBeVisible();

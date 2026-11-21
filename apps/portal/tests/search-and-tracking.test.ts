@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { sapNumberQuery } from '../lib/search-plan';
 import { isFiltered, lagosDayBound, matchesSource, normaliseImportNumber, parseSourceFilter, sourceWhere } from '../lib/source-filter';
-import { checkInvoiceRow, sapRange } from '../lib/data-exchange/check-history';
+import { checkInvoiceRow, invoiceRange, sapRange } from '../lib/data-exchange/check-history';
 import { autoMap } from '../lib/data-exchange/fields';
 
 const read = (p: string) => readFileSync(join(__dirname, '..', '..', p), 'utf8');
@@ -41,6 +41,20 @@ test('SAP invoices keep company code and fiscal year; a reused number in another
   assert.equal(c.values?.source, 'SAP');
   assert.equal(c.values?.fiscalYear, 2024);
   assert.equal(sapRange(null, null, false), 'SAP');
+});
+
+test('an old system\'s invoices: the same number in another year (or company code) is kept as a different invoice', () => {
+  const m = autoMap('invoices', ['BELNR', 'BUKRS', 'GJAHR', 'BUDAT', 'KUNNR', 'DMBTR']);
+  const a = checkInvoiceRow(['125262', '1000', '2024', '10.05.2024', '1000123', '1000'], m, '2026-11-01');
+  const b = checkInvoiceRow(['125262', '1000', '2025', '12.06.2025', '1000123', '1000'], m, '2026-11-01');
+  assert.equal(invoiceRange('LEGACY', a.values!.source), 'LEGACY/1000/2024');
+  assert.equal(invoiceRange('LEGACY', b.values!.source), 'LEGACY/1000/2025');
+  // A file without company code or year (a Zoho export, say): one range, numbers unique in it.
+  const c = checkInvoiceRow(['INV-000123', '', '', '14.03.2024', '1000123', '1000'], m, '2026-11-01');
+  assert.equal(invoiceRange('LEGACY', c.values!.source), 'LEGACY');
+  // SAP's own file keeps SAP's range.
+  assert.equal(invoiceRange('SAP', a.values!.source), 'SAP/1000/2024');
+  assert.equal(invoiceRange('SAP', 'SAP'), 'SAP');
 });
 
 test('source and date filters: created here or imported, which import, when entered, original date', () => {
