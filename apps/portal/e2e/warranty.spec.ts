@@ -3,6 +3,7 @@ import { SEED_WARRANTY } from './people';
 import { as, open, expectNoUrlError, uniq, visitHealthy, waitOutcome } from './helpers';
 import { freshVehicle } from './db';
 import { jcForm, pickSearchable, reveal } from './workflows';
+import { WARRANTY_ENABLED, WARRANTY_OFF } from './edition';
 
 /**
  * Warranty, A to Z: the HOD sets up a provider and a vehicle policy → an
@@ -12,6 +13,7 @@ import { jcForm, pickSearchable, reveal } from './workflows';
  * the provider's decision is recorded and the money settled. Analytics and
  * the part warranty issued automatically by the Store are visible too.
  */
+test.skip(!WARRANTY_ENABLED, WARRANTY_OFF);
 test.describe.configure({ mode: 'serial' });
 
 const tag = uniq();

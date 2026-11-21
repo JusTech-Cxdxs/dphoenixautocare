@@ -29,7 +29,7 @@
 import { readFileSync, readdirSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { BASE, FORGED_COOKIE, action, actionById, actionMap, closeDb, concretePath, digestMessages, isEmptyValue, redact, report, signIn, sql, type Check } from './lib';
-import { E2E_PASSWORD, MASTER, OTHER_ORG_ADMIN, PEOPLE } from '../people';
+import { E2E_PASSWORD, MASTER, ORGANISATION_SLUG, OTHER_ORG_ADMIN, PEOPLE } from '../people';
 import { decide, PERMISSIONS, type PermissionKey, type Principal } from '../../lib/authz/catalogue';
 
 const FIX = JSON.parse(readFileSync(process.env.SEC_FIXTURES ?? 'sec-fixtures.json', 'utf8'));
@@ -91,7 +91,7 @@ async function cron(): Promise<Check[]> {
       detail: `none=${none.status} wrong=${wrong.status} ?key=${query.status} no-Bearer=${raw.status} POST=${post.status} correct=${right.status}` });
   }
   // The Enyo trainer's door: never open without its own token (404 when not set up, 401 otherwise).
-  for (const p of ['/api/ml/datasets/jobs?organisation=kewalram-nigeria', '/api/ml/datasets/parts?organisation=kewalram-nigeria']) {
+  for (const p of [`/api/ml/datasets/jobs?organisation=${ORGANISATION_SLUG}`, `/api/ml/datasets/parts?organisation=${ORGANISATION_SLUG}`]) {
     const none = await fetch(`${BASE}${p}`, { redirect: 'manual' });
     const forged = await fetch(`${BASE}${p}`, { headers: { cookie: FORGED_COOKIE, authorization: 'Bearer forged-token' }, redirect: 'manual' });
     checks.push({ id: 'AC-ML', title: p.split('?')[0]!, pass: [none, forged].every((r) => r.status === 401 || r.status === 404), detail: `none=${none.status} forged=${forged.status}` });
@@ -388,7 +388,8 @@ async function main() {
   if (run('idor')) failures += report('Access control — cross-organisation server actions (IDOR sweep)', await idorSweep(theirs, master));
   if (run('anon')) failures += report('Access control — signed-out calls to every server action', await anonSweep());
   if (run('priv')) failures += report('Access control — privilege escalation', await privilege(cookies.get('tech@e2e.test')!, theirs[1]!));
-  if (run('mw')) failures += report('Access control — middleware, flood limit, open redirect', await middlewareAndRedirect(cookies.get('store@e2e.test')!, cookies.get('frontdesk@e2e.test')!));
+  // The Store Manager's session; the Manager's where the edition has no Store (e2e/edition.ts).
+  if (run('mw')) failures += report('Access control — middleware, flood limit, open redirect', await middlewareAndRedirect((cookies.get('store@e2e.test') ?? cookies.get('manager@e2e.test'))!, cookies.get('frontdesk@e2e.test')!));
   writeFileSync(process.env.SEC_ACCESS_OUT ?? 'sec-access.json', JSON.stringify(evidence, null, 1));
   await closeDb();
   process.exit(failures ? 1 : 0);

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { E2E_PASSWORD, RESET, who } from './people';
+import { E2E_PASSWORD, ORGANISATION_NAME, RESET, who } from './people';
 import { signIn, latestMail, linkIn } from './helpers';
 
 test.describe('Sign-in', () => {
@@ -8,7 +8,8 @@ test.describe('Sign-in', () => {
     expect(res?.headers()['x-frame-options']).toBe('SAMEORIGIN');
     expect(res?.headers()['content-security-policy']).toContain("frame-ancestors 'self'");
     await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
-    await expect(page.getByText('Chanrai Group').first()).toBeVisible();
+    // The wordmark's second line: the organisation's name after its first word ("Autocare").
+    await expect(page.getByText(ORGANISATION_NAME.split(/\s+/).slice(1).join(' ') || ORGANISATION_NAME).first()).toBeVisible();
     const pw = page.getByLabel('Password', { exact: true });
     await pw.fill('secret-value');
     await expect(pw).toHaveAttribute('type', 'password');

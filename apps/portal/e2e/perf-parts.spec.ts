@@ -3,6 +3,7 @@ import { writeFileSync } from 'node:fs';
 import { as } from './helpers';
 import { db } from './db';
 import { who } from './people';
+import { INVENTORY_ENABLED, INVENTORY_OFF } from './edition';
 
 /**
  * The measured speed run (docs/DATA_MIGRATION.md): a full SAP material master
@@ -10,6 +11,7 @@ import { who } from './people';
  * Not part of CI: run with PERF_FILE=/path/SAP_parts_800000.csv (and
  * PERF_OUT for the timings) against a throwaway database.
  */
+test.skip(!INVENTORY_ENABLED, INVENTORY_OFF);
 test.skip(!process.env.PERF_FILE, 'Speed run only: set PERF_FILE');
 test.setTimeout(4 * 60 * 60 * 1000);
 

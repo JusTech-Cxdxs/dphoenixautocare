@@ -3,9 +3,10 @@ import { join } from 'node:path';
 import { test, expect } from '@playwright/test';
 import { db } from './db';
 import { expectHealthy, gotoSettled, signIn } from './helpers';
-import { DEMO_E2E_PASSWORD } from './people';
+import { DEMO_E2E_PASSWORD, ORGANISATION_SLUG } from './people';
 import { DEMO_STAFF, demoPerson } from '../lib/demo/people';
 import { tourFor } from '../lib/demo/tour';
+import { DEMO_ENABLED, DEMO_OFF } from './edition';
 
 /**
  * D4 — the role tour of docs/KEWALRAM_DEMO.md, in the browser: every demo
@@ -17,6 +18,7 @@ import { tourFor } from '../lib/demo/tour';
  */
 
 // Each person is independent: spread over the workers.
+test.skip(!DEMO_ENABLED, DEMO_OFF);
 test.describe.configure({ mode: 'parallel' });
 
 for (const person of DEMO_STAFF) {
@@ -49,7 +51,7 @@ for (const person of DEMO_STAFF) {
 }
 
 async function demoJob(where: Record<string, unknown>) {
-  const org = await db().organisation.findUniqueOrThrow({ where: { slug: 'kewalram-nigeria' }, select: { id: true } });
+  const org = await db().organisation.findUniqueOrThrow({ where: { slug: ORGANISATION_SLUG }, select: { id: true } });
   return db().jobCard.findFirstOrThrow({ where: { customer: { organisationId: org.id, externalSource: 'EJO-DEMO' }, ...where }, orderBy: { createdAt: 'desc' }, select: { id: true, jobNumber: true } });
 }
 

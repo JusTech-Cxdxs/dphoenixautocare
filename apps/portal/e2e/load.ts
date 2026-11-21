@@ -8,7 +8,7 @@
  *   1. Live pulse — 50 concurrent clients polling /api/live/pulse back to back
  *      (≈ the load of several hundred open tabs at the real 10-second interval).
  *   2. Pages — 10 concurrent signed-in people opening the heaviest everyday
- *      pages back to back (dashboard, Job Cards, inventory, analytics, users).
+ *      pages back to back (dashboard, Job Cards, inventory or Vehicle Services, analytics, users).
  *   3. Sign-in — 20 sign-ins, 5 at a time.
  *
  * Writes p50 / p95 / p99, throughput and error rate to the job summary and as
@@ -16,6 +16,7 @@
  */
 import { appendFileSync } from 'node:fs';
 import { E2E_PASSWORD, MASTER, PEOPLE } from './people';
+import { INVENTORY_ENABLED } from './edition';
 
 const BASE = process.env.E2E_BASE_URL ?? 'http://localhost:3001';
 const SECONDS = Number(process.env.LOAD_SECONDS ?? 30);
@@ -73,7 +74,8 @@ async function main() {
     return r.ok;
   }));
 
-  const pages = ['/dashboard', '/workshop/job-cards', '/inventory', '/analytics', '/users'];
+  // The Store only where the edition has it (edition.ts); else the Vehicle Services list.
+  const pages = ['/dashboard', '/workshop/job-cards', INVENTORY_ENABLED ? '/inventory' : '/workshop/vehicle-service', '/analytics', '/users'];
   results.push(await run('Pages (10 concurrent, Master Admin)', 10, async (i) => {
     const r = await fetch(`${BASE}${pages[i % pages.length]}`, { headers: { cookie: master.cookie }, redirect: 'manual' });
     await r.arrayBuffer();

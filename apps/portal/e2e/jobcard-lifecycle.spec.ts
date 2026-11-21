@@ -6,6 +6,7 @@ import {
   addLine, assignTechnician, expectStatus, jobNumber, jcForm, nextStep, notifyCustomer, openJobCard, recordPayment,
   requestStoreMatching, statusPanel, storeMatchesAll, submitEstimate, supervisorApproves, supervisorApprovesEstimate, technicianAccepts,
 } from './workflows';
+import { EXTERNAL_PROCUREMENT_ENABLED, EXTERNAL_PROCUREMENT_OFF, INVENTORY_ENABLED, INVENTORY_OFF, WARRANTY_ENABLED, WARRANTY_OFF } from './edition';
 
 /**
  * One Job Card, A to Z, by the people who really do each step:
@@ -20,6 +21,10 @@ import {
  * outside purchase: Finance review → Manager → Finance disburses → quality
  * check → completed → ready → balance paid → close requested → Manager
  * approves → checked out. Audit trail and notifications checked on the way.
+ * The D'Phoenix edition has no Store, Warranty or outside purchases
+ * (edition.ts): there the brake pads are an outside part the technician
+ * prices, and the parts request, the part warranty and the outside purchase
+ * are skipped — the rest of the story is the same.
  */
 test.describe.configure({ mode: 'serial' });
 
@@ -28,7 +33,7 @@ const S = { url: '', id: '', number: '', plate: '', partUrl: '', stockBefore: { 
 test.beforeAll(async () => {
   const v = await freshVehicle('JCL');
   S.plate = v.plate;
-  S.partUrl = `/inventory/parts/${await idOfPart(SEED_PARTS.brakePads.number)}`;
+  if (INVENTORY_ENABLED) S.partUrl = `/inventory/parts/${await idOfPart(SEED_PARTS.brakePads.number)}`;
 });
 
 test('front desk opens the Job Card; the supervisor approves and assigns; the technician accepts', async ({ page }) => {
@@ -50,7 +55,7 @@ test('front desk opens the Job Card; the supervisor approves and assigns; the te
   await expect(page.getByText('Accepted', { exact: true })).toBeVisible();
 });
 
-test('the estimate is drafted by the technician and the supervisor, and Store prices the part', async ({ page }) => {
+test(`the estimate is drafted by the technician and the supervisor${INVENTORY_ENABLED ? ', and Store prices the part' : ''}`, async ({ page }) => {
   await as(page, 'technician');
   await open(page, S.url);
   await test.step('a technician cannot price labour (the supervisor does)', async () => {
@@ -59,11 +64,15 @@ test('the estimate is drafted by the technician and the supervisor, and Store pr
     await expect(form.locator('input[name="unitPrice"]')).toHaveCount(0);
     await expect(form.getByText('Priced by supervisor')).toBeVisible();
   });
-  await addLine(page, { type: 'STORE_PART', partType: SEED_PARTS.brakePads.type, qty: 2 });
+  // Without the Store (the D'Phoenix edition) the pads are bought outside, at the same price.
+  if (INVENTORY_ENABLED) await addLine(page, { type: 'STORE_PART', partType: SEED_PARTS.brakePads.type, qty: 2 });
+  else await addLine(page, { type: 'EXTERNAL_PART', description: 'Front brake pad set (outside supplier)', qty: 2, price: SEED_PARTS.brakePads.price });
   await addLine(page, { type: 'EXTERNAL_PART', description: 'Brake disc skimming (outside machine shop)', price: 8000 });
-  await expect(page.getByText('Awaiting Store match')).toBeVisible();
-  // Submission is held until Store has priced the part.
-  await expect(page.getByRole('button', { name: 'Submit for validation' })).toHaveCount(0);
+  if (INVENTORY_ENABLED) {
+    await expect(page.getByText('Awaiting Store match')).toBeVisible();
+    // Submission is held until Store has priced the part.
+    await expect(page.getByRole('button', { name: 'Submit for validation' })).toHaveCount(0);
+  }
 
   await as(page, SUPERMANAGER);
   await open(page, S.url);
@@ -73,12 +82,14 @@ test('the estimate is drafted by the technician and the supervisor, and Store pr
     const form = page.locator('form').filter({ has: page.locator('select[name="type"]') });
     await expect(form.locator('select[name="type"] option[value="SUNDRY"]')).toHaveCount(0);
   });
-  await requestStoreMatching(page);
-  await storeMatchesAll(page, S.id, who('store-officer'));
+  if (INVENTORY_ENABLED) {
+    await requestStoreMatching(page);
+    await storeMatchesAll(page, S.id, who('store-officer'));
 
-  await as(page, SUPERMANAGER);
-  await open(page, S.url);
-  await expect(page.getByText(`Matched: ${SEED_PARTS.brakePads.name}`).first()).toBeVisible();
+    await as(page, SUPERMANAGER);
+    await open(page, S.url);
+    await expect(page.getByText(`Matched: ${SEED_PARTS.brakePads.name}`).first()).toBeVisible();
+  }
   // 2 × 15,000 + 8,000 + 20,000 + 1,500 = 59,500
   await expect(page.getByText('Total Estimate').locator('..')).toContainText('₦59,500.00');
 });
@@ -134,6 +145,7 @@ test('Finance records the 70% deposit — a double click records ONE payment —
 });
 
 test('parts: technician requests → HOD approves → Store reserves → Store releases (stock moves, warranty issued)', async ({ page }) => {
+  test.skip(!INVENTORY_ENABLED, INVENTORY_OFF);
   await as(page, 'store-manager');
   S.stockBefore = await readStock(page, S.partUrl);
 
@@ -167,7 +179,7 @@ test('parts: technician requests → HOD approves → Store reserves → Store r
     await open(page, S.prsUrl);
     await page.getByRole('button', { name: 'Release', exact: true }).click();
     await expect(page.getByText('Released.', { exact: true })).toBeVisible();
-    await expect(page.getByText(/Warranties issued with this release/)).toBeVisible();
+    if (WARRANTY_ENABLED) await expect(page.getByText(/Warranties issued with this release/)).toBeVisible();
     const s = await readStock(page, S.partUrl);
     expect(s.onHand).toBe(S.stockBefore.onHand - 2);
     expect(s.reserved).toBe(S.stockBefore.reserved);
@@ -175,11 +187,12 @@ test('parts: technician requests → HOD approves → Store reserves → Store r
   await test.step('the Job Card resumes and lists the part warranty', async () => {
     await open(page, S.url);
     await expectStatus(page, 'In Progress');
-    await expect(page.getByRole('heading', { name: 'Warranties issued' })).toBeVisible();
+    if (WARRANTY_ENABLED) await expect(page.getByRole('heading', { name: 'Warranties issued' })).toBeVisible();
   });
 });
 
 test('the data-change journal records the part warranty issued with the release', async () => {
+  test.skip(!INVENTORY_ENABLED || !WARRANTY_ENABLED, !INVENTORY_ENABLED ? INVENTORY_OFF : WARRANTY_OFF);
   const warranties = await db().warranty.findMany({ where: { jobCardId: S.id }, select: { id: true } });
   expect(warranties.length, 'a part warranty was issued').toBeGreaterThan(0);
   const rows = await db().auditLog.count({ where: { entityType: 'db:Warranty', action: 'data.create', metadata: { path: ['after', 'jobCardId'], equals: S.id } } });
@@ -187,12 +200,14 @@ test('the data-change journal records the part warranty issued with the release'
 });
 
 test('each journal row names the record it changed (the issued warranty)', async () => {
+  test.skip(!INVENTORY_ENABLED || !WARRANTY_ENABLED, !INVENTORY_ENABLED ? INVENTORY_OFF : WARRANTY_OFF);
   const warranties = await db().warranty.findMany({ where: { jobCardId: S.id }, select: { id: true } });
   const linked = await db().auditLog.count({ where: { entityType: 'db:Warranty', entityId: { in: warranties.map((w) => w.id) } } });
   expect(linked, 'journal rows that name the issued warranties').toBe(warranties.length);
 });
 
 test('outside purchase: technician requests → Finance reviews → Manager approves → Finance disburses', async ({ page }) => {
+  test.skip(!EXTERNAL_PROCUREMENT_ENABLED, EXTERNAL_PROCUREMENT_OFF);
   await as(page, 'technician');
   await open(page, S.url);
   await expect(page.getByRole('link', { name: '+ Request Procurement' })).toHaveAttribute('href', `${S.url}/request-procurement`);
@@ -292,7 +307,7 @@ test('the whole story is on the audit trail and in the Audit Logs', async ({ pag
   await open(page, S.url);
   const trail = page.getByRole('heading', { name: 'Audit trail' }).locator('..');
   await trail.getByRole('button', { name: /^Show all/ }).click();
-  for (const label of ['Job Card created', 'Job Card approved', 'Technician accepted assignment', 'Estimate submitted for validation', 'Estimate approved by manager', 'Customer notified of approved estimate', 'Payment recorded', 'Parts request released', 'Close requested', 'Left through the gate']) {
+  for (const label of ['Job Card created', 'Job Card approved', 'Technician accepted assignment', 'Estimate submitted for validation', 'Estimate approved by manager', 'Customer notified of approved estimate', 'Payment recorded', ...(INVENTORY_ENABLED ? ['Parts request released'] : []), 'Close requested', 'Left through the gate']) {
     await expect(trail.getByText(label).first(), label).toBeVisible();
   }
   await as(page, 'administrator');

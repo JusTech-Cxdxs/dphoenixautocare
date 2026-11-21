@@ -1,7 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
 import { as, uniq, open } from './helpers';
 import { db } from './db';
-import { who } from './people';
+import { WORKSHOP_BRANCH, who } from './people';
+import { SAP_ENABLED } from './edition';
 
 /**
  * P6b — the routine services still in the workshop on the cut-over day and
@@ -55,13 +56,13 @@ test('the diary and the open services: refusals, the totals, approval and load �
   await as(page, 'it-administrator');
   importUrl = await upload(page, csv([
     ['Booking number', 'KUNUM', 'VHVIN', 'LICENSE_NUM', 'Stage', 'Booked for', 'Time', 'Checked in on', 'RECDV', 'Work requested', 'Technician', 'Notes', 'Branch'],
-    [bk(1), '', vin(1), '', 'Booked', sap(lagosDay(5)), '10:30', '', '', 'Service 10,000 km; check the brakes', '', 'Customer will wait', 'Isolo Branch'],
-    [bk(2), '', '', plate(2), '', sap(lagosDay(6)), '', '', '', 'Service 20,000 km', '', '', 'Isolo Branch'],
-    [bk(3), '', vin(3), '', 'In service', '', '', sap(lagosDay(-2)), '10,900', 'Service; replace the wiper blades', tech.employeeId ?? tech.fullName, '', 'Isolo Branch'],
-    [bk(4), '', vin(4), '', 'Booked', sap(lagosDay(7)), '09:00', '', '', 'Service', '', '', 'Isolo Branch'],
-    [bk(5), '', vin(2), '', 'Collected', '', '', sap(lagosDay(-9)), '', 'Done last week', '', '', 'Isolo Branch'],
-    [bk(6), '', vin(3), '', 'Booked', '', '', '', '', 'No day', '', '', 'Isolo Branch'],
-    [bk(7), '', vin(1), '', 'Booked', sap(lagosDay(9)), '', '', '', 'The same vehicle again', '', '', 'Isolo Branch'],
+    [bk(1), '', vin(1), '', 'Booked', sap(lagosDay(5)), '10:30', '', '', 'Service 10,000 km; check the brakes', '', 'Customer will wait', WORKSHOP_BRANCH],
+    [bk(2), '', '', plate(2), '', sap(lagosDay(6)), '', '', '', 'Service 20,000 km', '', '', WORKSHOP_BRANCH],
+    [bk(3), '', vin(3), '', 'In service', '', '', sap(lagosDay(-2)), '10,900', 'Service; replace the wiper blades', tech.employeeId ?? tech.fullName, '', WORKSHOP_BRANCH],
+    [bk(4), '', vin(4), '', 'Booked', sap(lagosDay(7)), '09:00', '', '', 'Service', '', '', WORKSHOP_BRANCH],
+    [bk(5), '', vin(2), '', 'Collected', '', '', sap(lagosDay(-9)), '', 'Done last week', '', '', WORKSHOP_BRANCH],
+    [bk(6), '', vin(3), '', 'Booked', '', '', '', '', 'No day', '', '', WORKSHOP_BRANCH],
+    [bk(7), '', vin(1), '', 'Booked', sap(lagosDay(9)), '', '', '', 'The same vehicle again', '', '', WORKSHOP_BRANCH],
   ]), branchId);
   await expect(page.getByText(new RegExp(`This vehicle already has an open visit in EJO \\(${jc.jobNumber}\\)`))).toBeVisible();
   await expect(page.getByText(/Stage “Collected”: a closed, collected or cancelled service is history/)).toBeVisible();
@@ -107,7 +108,7 @@ test('the booking page says when the customer is expected and where it came from
   await open(page, '/dashboard');
   const box = page.getByRole('combobox', { name: 'Search everything' });
   await box.fill(bk(1));
-  await expect(box.locator('xpath=ancestor::div[2]').getByText(`SAP booking ${bk(1)} → ${b1.serviceNumber}`)).toBeVisible();
+  await expect(box.locator('xpath=ancestor::div[2]').getByText(`${SAP_ENABLED ? 'SAP' : 'Old system'} booking ${bk(1)} → ${b1.serviceNumber}`)).toBeVisible();
   // The customer arrives: the front desk checks the booking in.
   await open(page, `/workshop/vehicle-service/${b1.id}`);
   const odometer = page.locator('input[name="odometerAtService"]');

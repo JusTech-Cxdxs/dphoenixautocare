@@ -1,7 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
 import { as, uniq, open } from './helpers';
 import { db } from './db';
-import { who } from './people';
+import { WORKSHOP_BRANCH, who } from './people';
+import { SAP_ENABLED } from './edition';
 
 /**
  * P5 — the job cards still open on the cut-over day become live EJO job
@@ -59,13 +60,13 @@ test('the file: refusals, the totals, approval and load — live job cards at th
   await as(page, 'it-administrator');
   importUrl = await upload(page, `iw38-${T}.csv`, csv([
     ['AUFNR', 'KUNUM', 'VHVIN', 'LICENSE_NUM', 'ERDAT', 'STAT', 'RECDV', 'KTEXT', 'LTXA1', 'Technician', 'Labour', 'Parts', 'Estimate approved', 'Parts issued', 'Paid', 'Payment method', 'Receipt', 'Branch'],
-    [jobNo(1), kunnr(0), vin(1), '', '30.10.2026', 'CRTD', '21000', 'Carry out service', '', '', '', '', '', '', '', '', '', 'Isolo Branch'],
-    [jobNo(2), '', '', plate(2), '28.10.2026', 'REL', '22000', 'Brakes squeal; steering pulls left', 'Front pads worn to the metal', tech.employeeId ?? tech.fullName, '45000', '112200', 'Yes', `${part?.partNumber ?? 'Brake pad set'} x1 @45000; Tie rod end x2 @33600`, '60000', 'Bank transfer', 'RCPT-1041', 'Isolo Branch'],
-    [jobNo(3), kunnr(0), vin(3), '', '25.10.2026', 'TECO', '23000', 'A/C not cooling', 'System recharged', '', '25000', '38000', 'Yes', '', '63000', 'Cash', 'RCPT-1030', 'Isolo Branch'],
-    [jobNo(4), kunnr(0), vin(1), '', '31.10.2026', 'CRTD', '', 'Same vehicle again', '', '', '', '', '', '', '', '', '', 'Isolo Branch'],
-    [jobNo(5), kunnr(0), vin(2), '', '20.10.2026', 'CLSD', '', 'Closed already', '', '', '', '', '', '', '', '', '', 'Isolo Branch'],
-    [jobNo(6), kunnr(0), '', '', '20.10.2026', 'REL', '', 'No vehicle', '', '', '', '', '', '', '', '', '', 'Isolo Branch'],
-    [jobNo(7), '0009999999', 'JAANLR85EL7999999', '', '20.10.2026', 'REL', '', 'Unknown vehicle', '', '', '', '', '', '', '', '', '', 'Isolo Branch'],
+    [jobNo(1), kunnr(0), vin(1), '', '30.10.2026', 'CRTD', '21000', 'Carry out service', '', '', '', '', '', '', '', '', '', WORKSHOP_BRANCH],
+    [jobNo(2), '', '', plate(2), '28.10.2026', 'REL', '22000', 'Brakes squeal; steering pulls left', 'Front pads worn to the metal', tech.employeeId ?? tech.fullName, '45000', '112200', 'Yes', `${part?.partNumber ?? 'Brake pad set'} x1 @45000; Tie rod end x2 @33600`, '60000', 'Bank transfer', 'RCPT-1041', WORKSHOP_BRANCH],
+    [jobNo(3), kunnr(0), vin(3), '', '25.10.2026', 'TECO', '23000', 'A/C not cooling', 'System recharged', '', '25000', '38000', 'Yes', '', '63000', 'Cash', 'RCPT-1030', WORKSHOP_BRANCH],
+    [jobNo(4), kunnr(0), vin(1), '', '31.10.2026', 'CRTD', '', 'Same vehicle again', '', '', '', '', '', '', '', '', '', WORKSHOP_BRANCH],
+    [jobNo(5), kunnr(0), vin(2), '', '20.10.2026', 'CLSD', '', 'Closed already', '', '', '', '', '', '', '', '', '', WORKSHOP_BRANCH],
+    [jobNo(6), kunnr(0), '', '', '20.10.2026', 'REL', '', 'No vehicle', '', '', '', '', '', '', '', '', '', WORKSHOP_BRANCH],
+    [jobNo(7), '0009999999', 'JAANLR85EL7999999', '', '20.10.2026', 'REL', '', 'Unknown vehicle', '', '', '', '', '', '', '', '', '', WORKSHOP_BRANCH],
   ]), branchId);
   await expect(page.getByText(/Stage “CLSD”: a closed, checked-out or cancelled job card belongs in the job card history file/)).toBeVisible();
   await expect(page.getByText(/Which vehicle is it\?/)).toBeVisible();
@@ -114,7 +115,7 @@ test('the job card page carries its origin; search finds it by the SAP number; F
   await open(page, '/dashboard');
   const box = page.getByRole('combobox', { name: 'Search everything' });
   await box.fill(jobNo(2));
-  await expect(box.locator('xpath=ancestor::div[2]').getByText(`SAP job card ${jobNo(2)} → ${second.jobNumber}`)).toBeVisible();
+  await expect(box.locator('xpath=ancestor::div[2]').getByText(`${SAP_ENABLED ? 'SAP' : 'Old system'} job card ${jobNo(2)} → ${second.jobNumber}`)).toBeVisible();
   // Finance confirms the totals (the manager approved, so cannot).
   await open(page, importUrl);
   await expect(page.getByText('Waiting for Finance to confirm the totals.')).toBeVisible();

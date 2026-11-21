@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { as, open } from './helpers';
 import { db } from './db';
+import { PLANT_ENABLED, PLANT_OFF } from './edition';
 
 /**
  * D1 — the assembly plant's PDI, on screen, end to end:
@@ -11,6 +12,7 @@ import { db } from './db';
  *   one item (R) → put right again → accepted (A) → the vehicle is in the
  *   yard; its page shows the PDI; its certificate certifies.
  */
+test.skip(!PLANT_ENABLED, PLANT_OFF);
 test.describe.configure({ mode: 'serial' });
 
 const STAMP = String(Date.now()).slice(-10);

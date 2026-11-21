@@ -12,6 +12,7 @@ import { expect, test, type APIResponse, type Page } from '@playwright/test';
 import { as } from './helpers';
 import { db } from './db';
 import { SEED_PARTS } from './people';
+import { INVENTORY_ENABLED, INVENTORY_OFF, NO_PUBLIC_WEBSITE, PUBLIC_WEBSITE } from './edition';
 
 type Event = { type: string; [k: string]: unknown };
 
@@ -103,6 +104,7 @@ test.describe('Enyo staff assistant (API)', () => {
   });
 
   test('part_lookup works for a technician: price and stock, never the purchase cost', async ({ page }) => {
+    test.skip(!INVENTORY_ENABLED, INVENTORY_OFF);
     await as(page, 'technician');
     const part = SEED_PARTS.oilFilter;
     const r = await ask(page, `[[tool:part_lookup {"query":"${part.number}"}]]`);
@@ -118,6 +120,7 @@ test.describe('Enyo staff assistant (API)', () => {
   });
 
   test('guide_search answers "how do I" with the steps and a link to the page', async ({ page }) => {
+    test.skip(!INVENTORY_ENABLED, INVENTORY_OFF);
     await as(page, 'technician');
     const r = await ask(page, '[[tool:guide_search {"query":"request parts from the store"}]]');
     expect(tool(r.events, 'guide_search')).toMatchObject({ ok: true });
@@ -190,6 +193,7 @@ test.describe('Enyo staff assistant (API)', () => {
   });
 
   test('staff read the website through Enyo: store prices, offers, refer and earn', async ({ page }) => {
+    test.skip(!PUBLIC_WEBSITE, NO_PUBLIC_WEBSITE);
     await as(page, 'receptionist');
     const r = await ask(page, '[[tool:website_content {"show":"all","query":"S07"}]]');
     expect(tool(r.events, 'website_content')?.ok).toBe(true);

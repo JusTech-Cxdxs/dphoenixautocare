@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { WEB, websiteUp } from './customer';
 import { as, open, uniq, waitOutcome } from './helpers';
+import { NO_PUBLIC_WEBSITE, PUBLIC_WEBSITE } from './edition';
 
 /**
  * The public website, as a visitor on a phone and on a desk, and the people
@@ -9,6 +10,7 @@ import { as, open, uniq, waitOutcome } from './helpers';
  * contact form becomes a support request the support team can find, and a
  * story written in the staff portal (News & media) appears on the website.
  */
+test.skip(!PUBLIC_WEBSITE, NO_PUBLIC_WEBSITE);
 test.beforeAll(async ({ request }) => {
   const up = await websiteUp(request);
   if (process.env.CI) expect(up, `the website must be running at ${WEB}`).toBe(true);

@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { as, uniq, open } from './helpers';
 import { db } from './db';
 import { who } from './people';
+import { WARRANTY_ENABLED, WARRANTY_OFF } from './edition';
 
 /**
  * P6 — the warranties sold before EJO and the warranty claims still open on
@@ -15,6 +16,7 @@ import { who } from './people';
  * and policy. Undo bins only what nobody has used since; a warranty and its
  * claim restore from the bin.
  */
+test.skip(!WARRANTY_ENABLED, WARRANTY_OFF);
 test.describe.configure({ mode: 'serial' });
 
 const T = uniq().replace(/[^A-Z0-9]/g, '').slice(-6);

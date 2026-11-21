@@ -1,12 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { as, expectHealthy, expectNoUrlError, readStock, uniq, visitHealthy, waitOutcome } from './helpers';
 import { jcForm, pickSearchable, reveal } from './workflows';
+import { INVENTORY_ENABLED, INVENTORY_OFF } from './edition';
 
 /**
  * The Store's own day: a new category and part type, a new part in the
  * catalog, a goods receipt with its cost (stock goes up), a selling price,
  * and the pricing, matching and analytics pages a store manager watches.
  */
+test.skip(!INVENTORY_ENABLED, INVENTORY_OFF);
 test.describe.configure({ mode: 'serial' });
 
 const tag = uniq();

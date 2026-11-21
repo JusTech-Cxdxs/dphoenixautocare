@@ -1,12 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { E2E_PASSWORD, MASTER, who } from './people';
 import { signIn } from './helpers';
+import { INVENTORY_ENABLED } from './edition';
 
 /** What each role is shown — and that typing the address is refused just the same. */
 const CASES: { role: string; sees: string[]; hidden: string[]; refused: string[] }[] = [
   { role: 'technician', sees: ['Dashboard', 'Workshop'], hidden: ['Users', 'Roles', 'Business Analytics', 'Settings'], refused: ['/users', '/roles', '/analytics', '/settings'] },
   { role: 'receptionist', sees: ['Dashboard', 'Workshop'], hidden: ['Users', 'Roles', 'Settings'], refused: ['/users', '/permissions'] },
-  { role: 'store-manager', sees: ['Inventory'], hidden: ['Users', 'Roles'], refused: ['/users'] },
+  // The Store only where the edition has it (edition.ts).
+  ...(INVENTORY_ENABLED ? [{ role: 'store-manager', sees: ['Inventory'], hidden: ['Users', 'Roles'], refused: ['/users'] }] : []),
   { role: 'administrator', sees: ['Users', 'Roles', 'Permissions', 'Organisation', 'Branches'], hidden: [], refused: [] },
 ];
 

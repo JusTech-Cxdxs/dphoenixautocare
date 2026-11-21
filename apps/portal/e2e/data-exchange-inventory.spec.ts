@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { as, uniq, open } from './helpers';
 import { db } from './db';
 import { who } from './people';
+import { INVENTORY_ENABLED, INVENTORY_OFF } from './edition';
 
 /**
  * Data Exchange A2: the Store's records from SAP — suppliers, the parts
@@ -10,6 +11,7 @@ import { who } from './people';
  * Group IT prepares, the Store Manager approves, Finance confirms the value,
  * and the opening stock can be reversed while nothing has been issued.
  */
+test.skip(!INVENTORY_ENABLED, INVENTORY_OFF);
 test.describe.configure({ mode: 'serial' });
 
 const T = uniq().replace(/[^A-Z0-9]/g, '').slice(-6);

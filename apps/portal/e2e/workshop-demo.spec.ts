@@ -1,9 +1,10 @@
 import { test, expect, type Page } from '@playwright/test';
 import { db } from './db';
 import { expectHealthy, gotoSettled, signIn, signOut, visitHealthy } from './helpers';
-import { DEMO_E2E_PASSWORD } from './people';
+import { DEMO_E2E_PASSWORD, ORGANISATION_SLUG } from './people';
 import { customerSignedIn, websiteUp } from './customer';
 import { DEMO_CUSTOMERS, demoPerson } from '../lib/demo/people';
+import { DEMO_ENABLED, DEMO_OFF } from './edition';
 
 /**
  * D2 — the workshop demo (lib/workshop/demo). The CI seed loaded it
@@ -14,6 +15,7 @@ import { DEMO_CUSTOMERS, demoPerson } from '../lib/demo/people';
  * rules are proved in tests/workshop-demo.test.ts; this proves the portal
  * renders what the plan made.
  */
+test.skip(!DEMO_ENABLED, DEMO_OFF);
 test.describe.configure({ mode: 'serial' });
 
 const P = DEMO_E2E_PASSWORD;
@@ -21,7 +23,7 @@ const as = async (page: Page, role: string, branch?: 'HQ' | 'ISOLO' | 'AFPRINT')
 const walk = async (page: Page, urls: string[]) => { for (const u of urls) await visitHealthy(page, u); };
 
 async function demoOrgId(): Promise<string> {
-  return (await db().organisation.findUniqueOrThrow({ where: { slug: 'kewalram-nigeria' }, select: { id: true } })).id;
+  return (await db().organisation.findUniqueOrThrow({ where: { slug: ORGANISATION_SLUG }, select: { id: true } })).id;
 }
 
 test('the demo is in place: records registered, job cards at every status, the plant’s sold vehicles point at their customers', async () => {

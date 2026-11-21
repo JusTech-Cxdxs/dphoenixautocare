@@ -223,6 +223,6 @@ test.describe('Ada, a long-standing customer', () => {
     await signIn(page, OTHER_ORG_ADMIN.email, E2E_PASSWORD);
     await page.goto(adaUrl);
     await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
-    await expect(page.getByText('Plot 3, Isolo')).toHaveCount(0);
+    await expect(page.getByText('Plot 3, Adeola Odeku')).toHaveCount(0);
   });
 });

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { as, expectHealthy, noSidewaysScroll } from './helpers';
+import { INVENTORY_ENABLED } from './edition';
 
 /**
  * Phone (375 × 812) smoke of the pages people use on the move: they render,
@@ -12,7 +13,8 @@ const PAGES: { role: string; urls: string[] }[] = [
   { role: 'receptionist', urls: ['/dashboard', '/workshop/job-cards', '/workshop/vehicle-service', '/security/visitors', '/notifications'] },
   { role: 'technician', urls: ['/dashboard', '/workshop/job-cards', '/security/exit-passes/new'] },
   { role: 'security-officer', urls: ['/security', '/security/on-premises', '/security/deliveries/new'] },
-  { role: 'store-manager', urls: ['/inventory', '/inventory/parts'] },
+  // The Store only where the edition has it (edition.ts).
+  ...(INVENTORY_ENABLED ? [{ role: 'store-manager', urls: ['/inventory', '/inventory/parts'] }] : []),
 ];
 
 for (const { role, urls } of PAGES) {

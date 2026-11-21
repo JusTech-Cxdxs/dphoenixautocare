@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { as, open, uniq, waitOutcome } from './helpers';
 import { db } from './db';
+import { ORGANISATION_SLUG } from './people';
+import { INVENTORY_ENABLED } from './edition';
 
 /**
  * Enyo's machine learning, end to end without Python: the trainer's machine
@@ -23,12 +25,12 @@ let levelsBefore: unknown = null;
 
 test.beforeAll(async () => {
   test.skip(TOKEN.length < 32, 'ML_SERVICE_TOKEN is not set for this run');
-  const org = await db().organisation.findUniqueOrThrow({ where: { slug: 'kewalram-nigeria' } });
+  const org = await db().organisation.findUniqueOrThrow({ where: { slug: ORGANISATION_SLUG } });
   levelsBefore = (await db().enyoSetting.findUnique({ where: { organisationId: org.id }, select: { capabilityLevels: true } }))?.capabilityLevels ?? null;
 });
 
 test.afterAll(async () => {
-  const org = await db().organisation.findUnique({ where: { slug: 'kewalram-nigeria' } });
+  const org = await db().organisation.findUnique({ where: { slug: ORGANISATION_SLUG } });
   if (!org) return;
   await db().enyoModel.deleteMany({ where: { organisationId: org.id, version: { startsWith: 'complaint-themes-tfidf-kmeans-e2e-' } } });
   if (levelsBefore === null) await db().$executeRaw`UPDATE enyo_settings SET "capabilityLevels" = NULL WHERE "organisationId" = ${org.id}`;
@@ -37,17 +39,17 @@ test.afterAll(async () => {
 
 test('the trainer\'s door: no token, a wrong token or a token in the address are all refused', async ({ request }) => {
   for (const [what, res] of [
-    ['none', await request.get(`${BASE}/api/ml/datasets/jobs?organisation=kewalram-nigeria`)],
-    ['wrong', await request.get(`${BASE}/api/ml/datasets/jobs?organisation=kewalram-nigeria`, { headers: { authorization: 'Bearer wrong-token-wrong-token-wrong-token' } })],
-    ['address', await request.get(`${BASE}/api/ml/datasets/jobs?organisation=kewalram-nigeria&token=${encodeURIComponent(TOKEN)}`)],
-    ['upload', await request.post(`${BASE}/api/ml/models`, { data: { organisation: 'kewalram-nigeria' } })],
+    ['none', await request.get(`${BASE}/api/ml/datasets/jobs?organisation=${ORGANISATION_SLUG}`)],
+    ['wrong', await request.get(`${BASE}/api/ml/datasets/jobs?organisation=${ORGANISATION_SLUG}`, { headers: { authorization: 'Bearer wrong-token-wrong-token-wrong-token' } })],
+    ['address', await request.get(`${BASE}/api/ml/datasets/jobs?organisation=${ORGANISATION_SLUG}&token=${encodeURIComponent(TOKEN)}`)],
+    ['upload', await request.post(`${BASE}/api/ml/models`, { data: { organisation: ORGANISATION_SLUG } })],
   ] as const) expect(res.status(), what).toBe(401);
-  expect((await request.get(`${BASE}/api/ml/datasets/everything?organisation=kewalram-nigeria`, { headers: auth })).status()).toBe(404);
+  expect((await request.get(`${BASE}/api/ml/datasets/everything?organisation=${ORGANISATION_SLUG}`, { headers: auth })).status()).toBe(404);
   expect((await request.get(`${BASE}/api/ml/datasets/jobs?organisation=no-such-org`, { headers: auth })).status()).toBe(404);
 });
 
 test('datasets come out de-identified, in the shape the trainer reads', async ({ request }) => {
-  const jobs = await request.get(`${BASE}/api/ml/datasets/jobs?organisation=kewalram-nigeria`, { headers: auth });
+  const jobs = await request.get(`${BASE}/api/ml/datasets/jobs?organisation=${ORGANISATION_SLUG}`, { headers: auth });
   expect(jobs.status()).toBe(200);
   expect(jobs.headers()['content-type']).toContain('application/x-ndjson');
   expect(jobs.headers()['cache-control']).toContain('no-store');
@@ -57,7 +59,9 @@ test('datasets come out de-identified, in the shape the trainer reads', async ({
     const text = JSON.stringify(r);
     for (const bad of ['@e2e.test', 'customerId', 'plateNumber', 'jobNumber', 'JC-20']) expect(text).not.toContain(bad);
   }
-  const parts = await request.get(`${BASE}/api/ml/datasets/parts?organisation=kewalram-nigeria`, { headers: auth });
+  // The Store's parts demand only where the edition has the Store (edition.ts).
+  if (!INVENTORY_ENABLED) return;
+  const parts = await request.get(`${BASE}/api/ml/datasets/parts?organisation=${ORGANISATION_SLUG}`, { headers: auth });
   expect(parts.status()).toBe(200);
   const first = (await parts.text()).trim().split('\n')[0];
   if (first) {
@@ -69,7 +73,7 @@ test('datasets come out de-identified, in the shape the trainer reads', async ({
 
 test('a trained model arrives as a candidate; a broken one or a repeat is refused', async ({ request }) => {
   const body = {
-    organisation: 'kewalram-nigeria', task: 'COMPLAINT_THEMES', version: VERSION, algorithm: 'tfidf-kmeans', metrics: { rows: 600, themes: fixture.artifact.themes.length, silhouette: 0.5 },
+    organisation: ORGANISATION_SLUG, task: 'COMPLAINT_THEMES', version: VERSION, algorithm: 'tfidf-kmeans', metrics: { rows: 600, themes: fixture.artifact.themes.length, silhouette: 0.5 },
     baseline: null, gate: { passed: true, reasons: ['E2E fixture.'] }, artifact: fixture.artifact, rows: 600, dataFrom: '2024-01-08', dataTo: '2025-10-01', trainer: 'ejo-ml e2e', trainedAt: new Date().toISOString(),
   };
   const ok = await request.post(`${BASE}/api/ml/models`, { headers: auth, data: body });
@@ -118,6 +122,8 @@ test('a technician cannot open the models page or the reorder suggestions', asyn
   await as(page, 'technician');
   await open(page, '/enyo/models');
   await expect(page).toHaveURL(/\/access-denied/);
-  await open(page, '/inventory/reorder');
-  await expect(page).toHaveURL(/\/access-denied/);
+  if (INVENTORY_ENABLED) {
+    await open(page, '/inventory/reorder');
+    await expect(page).toHaveURL(/\/access-denied/);
+  }
 });

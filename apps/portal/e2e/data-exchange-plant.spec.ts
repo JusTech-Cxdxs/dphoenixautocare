@@ -1,8 +1,9 @@
 import { test, expect, type Page } from '@playwright/test';
 import { as, open } from './helpers';
 import { db } from './db';
-import { PLANT_BRANCH } from './people';
+import { PLANT_BRANCH, WORKSHOP_BRANCH } from './people';
 import { DEFAULT_ROUTES } from '../lib/plant/line';
+import { PLANT_ENABLED, PLANT_OFF } from './edition';
 
 /**
  * P8 — the assembly plant's records at the cut-over, end to end, in their
@@ -16,6 +17,7 @@ import { DEFAULT_ROUTES } from '../lib/plant/line';
  * issue on it stays (reported) until the issues are undone; then the kits go
  * to the Recycle bin and one comes back whole, checklist and all.
  */
+test.skip(!PLANT_ENABLED, PLANT_OFF);
 test.describe.configure({ mode: 'serial' });
 
 const STAMP = String(Date.now()).slice(-8);
@@ -56,10 +58,10 @@ test('shipments: refusals in plain words, the totals, approved by the Plant Mana
     [ref(1), 'Isuzu Motors Ltd', 'Yokohama, Japan', BL, 'MV Hoegh Trident', `MSKU${STAMP}1; MSKU${STAMP}2`, ago(20), '4500099001', PLANT_BRANCH],
     [ref(2), 'Soueast Motor', 'Fuzhou, China', '', 'MV Grande Lagos', '', ago(12, '14:00'), '', ''],
     [ref(3), '', 'Yokohama, Japan', '', '', '', ago(5), '', ''],
-    [ref(4), 'Isuzu Motors Ltd', '', '', '', '', ago(5), '', 'Isolo Branch'],
+    [ref(4), 'Isuzu Motors Ltd', '', '', '', '', ago(5), '', WORKSHOP_BRANCH],
   ]), async (p) => {
     await expect(p.getByText('Say who shipped the kits (the supplier).')).toBeVisible();
-    await expect(p.getByText(new RegExp(`This row is for “Isolo Branch”, but this import loads into ${PLANT_BRANCH}`))).toBeVisible();
+    await expect(p.getByText(new RegExp(`This row is for “${WORKSHOP_BRANCH}”, but this import loads into ${PLANT_BRANCH}`))).toBeVisible();
     await expect(p.getByTestId('plant-import-totals')).toContainText('2 shipments');
   });
   const s = await db().plantShipment.findMany({ where: { externalId: { in: [ref(1), ref(2)] } }, orderBy: { externalId: 'asc' } });

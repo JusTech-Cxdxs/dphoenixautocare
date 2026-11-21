@@ -26,7 +26,7 @@ const MUSA = `Musa Noemail ${T}`;
 function customersCsv(): string {
   const rows = [
     ['KUNNR', 'NAME1', 'NAME2', 'TELF1', 'SMTP_ADDR', 'STRAS', 'ORT01'],
-    [`000${kunnr(1)}`, ADA, '', phone(1), `ada.${tag}@e2e.test`, 'Plot 3, Cheesebrough Road', 'Isolo'],
+    [`000${kunnr(1)}`, ADA, '', phone(1), `ada.${tag}@e2e.test`, 'Plot 3, Adeola Odeku Street', 'Victoria Island'],
     [kunnr(2), MUSA, '', phone(2), '', 'Oshodi Road', 'Lagos'],
     [kunnr(3), '', '', phone(3), '', '', ''],
     [kunnr(1), `${ADA} again`, '', '', '', '', ''],
@@ -117,7 +117,7 @@ test('the front desk cannot open Data Exchange; the manager approves, it loads, 
   await loadAndReport(page);
   await expect(page.getByText('5 rows in the file = 3 added + 0 filled in + 0 not added + 2 rejected.')).toBeVisible();
   const ada = await db().customer.findFirst({ where: { fullName: ADA }, select: { email: true, externalSource: true, externalId: true, address: true, importJobId: true } });
-  expect(ada).toMatchObject({ email: `ada.${tag}@e2e.test`, externalSource: 'SAP', externalId: kunnr(1), address: 'Plot 3, Cheesebrough Road, Isolo' });
+  expect(ada).toMatchObject({ email: `ada.${tag}@e2e.test`, externalSource: 'SAP', externalId: kunnr(1), address: 'Plot 3, Adeola Odeku Street, Victoria Island' });
   expect(ada?.importJobId).toBeTruthy();
   // A customer with no email is a full record — and never given a made-up address.
   const musa = await db().customer.findFirst({ where: { fullName: MUSA }, select: { email: true, phone: true } });

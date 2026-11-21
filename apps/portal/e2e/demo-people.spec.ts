@@ -3,9 +3,10 @@ import { join } from 'node:path';
 import { test, expect } from '@playwright/test';
 import { db } from './db';
 import { expectSignedIn, gotoSettled, signIn, signOut } from './helpers';
-import { DEMO_E2E_PASSWORD } from './people';
+import { DEMO_E2E_PASSWORD, ORGANISATION_SLUG } from './people';
 import { customerSignedIn, websiteUp } from './customer';
-import { DEMO_CUSTOMERS, DEMO_STAFF, demoPerson } from '../lib/demo/people';
+import { DEMO_CUSTOMERS, DEMO_DOMAIN, DEMO_STAFF, demoPerson } from '../lib/demo/people';
+import { DEMO_ENABLED, DEMO_OFF } from './edition';
 
 /**
  * D1 — the demo people with sign-ins (lib/demo). The CI seed ran
@@ -16,6 +17,7 @@ import { DEMO_CUSTOMERS, DEMO_STAFF, demoPerson } from '../lib/demo/people';
  * password); RESET_DEMO_PASSWORDS=yes sets them again and signs everyone
  * out; a demo person in an organisation that is not a demo is switched off.
  */
+test.skip(!DEMO_ENABLED, DEMO_OFF);
 test.describe.configure({ mode: 'serial' });
 
 const ROOT = join(__dirname, '..', '..', '..');
@@ -29,7 +31,7 @@ async function hashes(): Promise<Map<string, string | null>> {
 }
 
 test('every demo person exists once, on the right branch and department, with their roles, employee number and a sign-in; the organisation is marked as the demo', async () => {
-  const org = await db().organisation.findUniqueOrThrow({ where: { slug: 'kewalram-nigeria' }, select: { id: true, isDemo: true } });
+  const org = await db().organisation.findUniqueOrThrow({ where: { slug: ORGANISATION_SLUG }, select: { id: true, isDemo: true } });
   expect(org.isDemo).toBe(true);
   const users = await db().user.findMany({ where: { email: { in: staffEmails } }, select: { email: true, organisationId: true, employeeId: true, fullName: true, isActive: true, emailVerified: true, branch: { select: { type: true, code: true } }, department: { select: { slug: true } }, roles: { select: { role: { select: { slug: true } } } }, accounts: { select: { providerId: true } }, employeeProfile: { select: { jobTitle: true } } } });
   expect(users).toHaveLength(DEMO_STAFF.length);
@@ -89,11 +91,11 @@ test('the customer-portal sign-ins work: the individual and the fleet company ea
 
 test('a second run changes nothing — no new account, no password touched; with RESET_DEMO_PASSWORDS=yes every sign-in is set again and open sessions are signed out', async ({ page }) => {
   const before = await hashes();
-  const usersBefore = await db().user.count({ where: { email: { endsWith: '@demo.kewalram.local' } } });
+  const usersBefore = await db().user.count({ where: { email: { endsWith: `@${DEMO_DOMAIN}` } } });
   const out = run({ DEMO_STAFF_PASSWORD: DEMO_E2E_PASSWORD });
   expect(out).toMatch(/0 staff created, 0 renamed, 0 refreshed, 0 staff passwords set, 0 customers created, 0 customer-portal passwords set/);
   expect(await hashes()).toEqual(before);
-  expect(await db().user.count({ where: { email: { endsWith: '@demo.kewalram.local' } } })).toBe(usersBefore);
+  expect(await db().user.count({ where: { email: { endsWith: `@${DEMO_DOMAIN}` } } })).toBe(usersBefore);
   // Nothing printed that should not be.
   expect(out).not.toContain(DEMO_E2E_PASSWORD);
   // A signed-in demo person…
@@ -114,7 +116,7 @@ test('a second run changes nothing — no new account, no password touched; with
 test('a demo person in an organisation that is not a demo is switched off and signed out; a short or missing password makes nothing and stops nothing', async () => {
   const slug = `e2e-not-demo-${Date.now().toString(36)}`;
   const other = await db().organisation.create({ data: { name: 'Not A Demo Ltd', slug }, select: { id: true } });
-  const stray = await db().user.create({ data: { email: `stray.${Date.now().toString(36)}@demo.kewalram.local`, fullName: 'Stray Demo', organisationId: other.id, accountType: 'EMPLOYEE', isActive: true }, select: { id: true } });
+  const stray = await db().user.create({ data: { email: `stray.${Date.now().toString(36)}@${DEMO_DOMAIN}`, fullName: 'Stray Demo', organisationId: other.id, accountType: 'EMPLOYEE', isActive: true }, select: { id: true } });
   await db().session.create({ data: { userId: stray.id, token: `e2e-${Date.now()}`, expiresAt: new Date(Date.now() + 3600_000) } });
   const out = run({ DEMO_STAFF_PASSWORD: DEMO_E2E_PASSWORD });
   expect(out).toMatch(/1 stray demo accounts switched off/);

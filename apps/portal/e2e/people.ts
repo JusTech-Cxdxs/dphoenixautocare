@@ -1,39 +1,31 @@
+import { INVENTORY_ENABLED, PLANT_ENABLED, WARRANTY_ENABLED } from './edition';
+
+/** The organisation the seed creates (packages/database/prisma/seed.ts) — every fixture hangs off it. */
+export const ORGANISATION_SLUG = 'dphoenix-autocare';
+/** Its display name, as the workflows set it (E2E_ORG_NAME, else NEXT_PUBLIC_ORGANISATION_NAME). */
+export const ORGANISATION_NAME = process.env.E2E_ORG_NAME || process.env.NEXT_PUBLIC_ORGANISATION_NAME || "D'Phoenix Autocare";
+
 /** The test accounts (throwaway test database only). */
 export const E2E_PASSWORD = 'E2e-Test-Pass-2026!';
 export const MASTER = { email: 'master@e2e.test', password: 'E2e-Master-Pass-2026!' };
 /** The demo people's sign-in (lib/demo/people.ts) in CI: the workflow runs `npm run demo:people` with DEMO_STAFF_PASSWORD set to this. */
 export const DEMO_E2E_PASSWORD = 'Demo-E2e-Pass-2026!';
 
-/** `branch: 'plant'` puts the person on the assembly-plant branch (Afprint); everyone else works at the workshop branch. */
+/** `branch: 'plant'` puts the person on the assembly-plant branch (only with E2E_PLANT=1); everyone else works at the workshop branch. */
 export type Person = { email: string; name: string; role: string; dept?: string; extraRoles?: string[]; branch?: 'plant' };
 
-/** One account per role (the FIRST person with a role is the one `who(role)` returns). */
-export const PEOPLE: readonly Person[] = [
-  { email: 'admin@e2e.test', name: 'Hannah Admin', role: 'administrator' },
-  { email: 'branchadmin@e2e.test', name: 'Bola Branchadmin', role: 'branch-administrator' },
-  { email: 'frontdesk@e2e.test', name: 'Funmi Frontdesk', role: 'receptionist' },
-  { email: 'supervisor@e2e.test', name: 'Sam Supervisor', role: 'workshop-supervisor', dept: 'workshop-passenger' },
-  { email: 'tech@e2e.test', name: 'Tunde Technician', role: 'technician', dept: 'workshop-passenger' },
-  { email: 'manager@e2e.test', name: 'Mary Manager', role: 'workshop-manager' },
-  { email: 'finance@e2e.test', name: 'Femi Finance', role: 'finance-officer' },
+/** The Store (E2E_INVENTORY=1). */
+const STORE_PEOPLE: readonly Person[] = [
   { email: 'store@e2e.test', name: 'Stella Store', role: 'store-manager', dept: 'store' },
-  { email: 'security@e2e.test', name: 'Sule Security', role: 'security-officer' },
   { email: 'storeofficer@e2e.test', name: 'Oscar Storeofficer', role: 'store-officer', dept: 'store' },
-  { email: 'chiefsecurity@e2e.test', name: 'Chika Chiefsecurity', role: 'chief-security-officer' },
+];
+/** Warranty (E2E_WARRANTY=1). */
+const WARRANTY_PEOPLE: readonly Person[] = [
   { email: 'warrantyhod@e2e.test', name: 'Wale Warrantyhod', role: 'warranty-hod' },
   { email: 'warrantyofficer@e2e.test', name: 'Wura Warrantyofficer', role: 'warranty-officer' },
-  { email: 'depthead@e2e.test', name: 'Dayo Depthead', role: 'department-head', dept: 'workshop-passenger' },
-  { email: 'calendar@e2e.test', name: 'Cora Calendar', role: 'calendar-user' },
-  { email: 'scheduler@e2e.test', name: 'Sade Scheduler', role: 'scheduling-admin' },
-  { email: 'broadcaster@e2e.test', name: 'Bimbo Broadcaster', role: 'broadcaster' },
-  // Helps colleagues on their behalf (assisted sessions).
-  { email: 'assistant@e2e.test', name: 'Ada Assistant', role: 'branch-assistant' },
-  // Leadership, IT and the support department.
-  { email: 'executive@e2e.test', name: 'Eze Executive', role: 'executive' },
-  { email: 'itadmin@e2e.test', name: 'Ifeoma Itadmin', role: 'it-administrator' },
-  { email: 'care@e2e.test', name: 'Chidi Care', role: 'customer-care' },
-  // Heads customer care across the organisation; with the Administrator, handles customers' data requests (one records, the other confirms who is asking).
-  { email: 'carelead@e2e.test', name: 'Lola Carelead', role: 'customer-care-lead' },
+];
+/** The assembly plant (E2E_PLANT=1). */
+const PLANT_PEOPLE: readonly Person[] = [
   // The assembly plant: PDI inspector, PDI supervisor (approves colleagues' PDIs) and the plant manager.
   { email: 'pdi@e2e.test', name: 'Pius Pdiinspector', role: 'pdi-inspector', branch: 'plant', dept: 'plant-pdi' },
   { email: 'pdisupervisor@e2e.test', name: 'Peace Pdisupervisor', role: 'pdi-supervisor', branch: 'plant', dept: 'plant-pdi' },
@@ -46,18 +38,58 @@ export const PEOPLE: readonly Person[] = [
   { email: 'operator@e2e.test', name: 'Obi Operator', role: 'line-operator', branch: 'plant', dept: 'plant-production' },
   { email: 'qc@e2e.test', name: 'Queen Qcinspector', role: 'qc-inspector', branch: 'plant', dept: 'plant-quality' },
   { email: 'qa@e2e.test', name: 'Qasim Qaauditor', role: 'qa-auditor', branch: 'plant', dept: 'plant-quality' },
+];
+/** The roles the flags above need, which the D'Phoenix edition's seed does not create (slug → name); the e2e seed upserts them. */
+export const EDITION_ROLES: Record<string, string> = {
+  'store-manager': 'Store Manager', 'store-officer': 'Store Officer',
+  'warranty-hod': 'Warranty HOD', 'warranty-officer': 'Warranty Officer',
+  'plant-manager': 'Plant Manager', 'pdi-inspector': 'PDI Inspector', 'pdi-supervisor': 'PDI Supervisor',
+  'kit-inspector': 'Kit Inspector', 'quality-supervisor': 'Quality Supervisor', 'production-supervisor': 'Production Supervisor',
+  'line-operator': 'Line Operator', 'qc-inspector': 'QC Inspector', 'qa-auditor': 'QA Auditor',
+};
+
+/** One account per role (the FIRST person with a role is the one `who(role)` returns). */
+export const PEOPLE: readonly Person[] = [
+  { email: 'admin@e2e.test', name: 'Hannah Admin', role: 'administrator' },
+  { email: 'branchadmin@e2e.test', name: 'Bola Branchadmin', role: 'branch-administrator' },
+  { email: 'frontdesk@e2e.test', name: 'Funmi Frontdesk', role: 'receptionist' },
+  { email: 'supervisor@e2e.test', name: 'Sam Supervisor', role: 'workshop-supervisor', dept: 'workshop-passenger' },
+  { email: 'tech@e2e.test', name: 'Tunde Technician', role: 'technician', dept: 'workshop-passenger' },
+  { email: 'manager@e2e.test', name: 'Mary Manager', role: 'workshop-manager' },
+  { email: 'finance@e2e.test', name: 'Femi Finance', role: 'finance-officer' },
+  { email: 'security@e2e.test', name: 'Sule Security', role: 'security-officer' },
+  { email: 'chiefsecurity@e2e.test', name: 'Chika Chiefsecurity', role: 'chief-security-officer' },
+  { email: 'depthead@e2e.test', name: 'Dayo Depthead', role: 'department-head', dept: 'workshop-passenger' },
+  { email: 'calendar@e2e.test', name: 'Cora Calendar', role: 'calendar-user' },
+  { email: 'scheduler@e2e.test', name: 'Sade Scheduler', role: 'scheduling-admin' },
+  { email: 'broadcaster@e2e.test', name: 'Bimbo Broadcaster', role: 'broadcaster' },
+  // Helps colleagues on their behalf (assisted sessions).
+  { email: 'assistant@e2e.test', name: 'Ada Assistant', role: 'branch-assistant' },
+  // Leadership, IT and the support department.
+  { email: 'executive@e2e.test', name: 'Eze Executive', role: 'executive' },
+  { email: 'itadmin@e2e.test', name: 'Ifeoma Itadmin', role: 'it-administrator' },
+  { email: 'care@e2e.test', name: 'Chidi Care', role: 'customer-care' },
+  // Heads customer care across the organisation; with the Administrator, handles customers' data requests (one records, the other confirms who is asking).
+  { email: 'carelead@e2e.test', name: 'Lola Carelead', role: 'customer-care-lead' },
   // Holds BOTH Workshop Supervisor and Workshop Manager — for the
   // segregation-of-duties checks (approves as supervisor, so may not also
   // give the Manager's final approval).
   { email: 'supermanager@e2e.test', name: 'Mike Supermanager', role: 'workshop-supervisor', dept: 'workshop-passenger', extraRoles: ['workshop-manager'] },
   // Only for user-administration tests (given roles / switched off during the run).
   { email: 'switchable@e2e.test', name: 'Sola Switchable', role: 'calendar-user' },
+  // The Store, Warranty and the assembly plant are off in the D'Phoenix edition (edition.ts): their people
+  // are only seeded — with their roles, which the edition's seed does not create — when the flag is on.
+  ...(INVENTORY_ENABLED ? STORE_PEOPLE : []),
+  ...(WARRANTY_ENABLED ? WARRANTY_PEOPLE : []),
+  ...(PLANT_ENABLED ? PLANT_PEOPLE : []),
 ];
 /** Only for the forgot-password test (its password changes during the run). */
 export const RESET: Person = { email: 'reset@e2e.test', name: 'Rita Reset', role: 'calendar-user' };
 export const SUPERMANAGER = PEOPLE.find((p) => p.email === 'supermanager@e2e.test')!;
 export const SWITCHABLE = PEOPLE.find((p) => p.email === 'switchable@e2e.test')!;
 export const OTHER_ORG_ADMIN = { email: 'other-admin@e2e.test', name: 'Olu Otheradmin' };
+/** The workshop branch the seed creates (packages/database/prisma/seed.ts) — where everyone above works. */
+export const WORKSHOP_BRANCH = 'Victoria Island Workshop';
 /** A technician in a SECOND branch of the same organisation — for the branch fences. */
 export const OTHER_BRANCH_TECH: Person = { email: 'otherbranch@e2e.test', name: 'Bisi Otherbranch', role: 'technician' };
 export const SECOND_BRANCH = 'E2E Lekki Branch';
@@ -79,7 +111,7 @@ export const SWITCH_CUSTOMER = { email: 'portal-switch@e2e.test', name: 'Funmi S
 /** Every customer with a portal password, seeded with a vehicle each. */
 export const PORTAL_CUSTOMERS = [PORTAL_CUSTOMER, OTHER_PORTAL_CUSTOMER, PASSWORD_CUSTOMER, SWITCH_CUSTOMER] as const;
 
-/** Store data seeded for the workflow specs (each spec uses its own part, so stock numbers never collide). */
+/** Store data seeded for the workflow specs (each spec uses its own part, so stock numbers never collide) — only with E2E_INVENTORY=1. */
 export const SEED_PARTS = {
   /** Job Card lifecycle — carries the seeded part warranty. */
   brakePads: { type: 'E2E Brake Pads', name: 'E2E Brake Pad Set', number: 'E2ES-001', price: 15000, stock: 100 },
@@ -91,5 +123,5 @@ export const SEED_PARTS = {
 export const SEED_CATEGORY = { name: 'E2E Seed Parts', code: 'E2ES' };
 export const SEED_WARRANTY = { provider: 'E2E Parts Warranty Co', policyCode: 'E2E-PART-12', policyName: 'E2E 12-month part warranty', vehiclePolicyCode: 'E2E-VEH-24', vehiclePolicyName: 'E2E 24-month vehicle warranty' };
 
-/** The assembly plant branch the seed creates (prisma/seed.ts): Afprint, SAP plant 1100. */
-export const PLANT_BRANCH = 'Afprint Assembly Plant';
+/** The assembly plant branch the e2e seed creates with E2E_PLANT=1 (the D'Phoenix edition has none): SAP plant 1100. */
+export const PLANT_BRANCH = 'E2E Assembly Plant';

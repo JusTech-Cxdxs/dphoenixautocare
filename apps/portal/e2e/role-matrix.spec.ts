@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { decide, type PermissionKey, type Principal } from '../lib/authz/catalogue';
-import { AREAS, EVERYONE } from '../lib/authz/page-areas';
+import { AREAS as ALL_AREAS, EVERYONE } from '../lib/authz/page-areas';
 import { E2E_PASSWORD, MASTER, PEOPLE, SUPERMANAGER, SWITCHABLE } from './people';
 import { expectHealthy, gotoSettled, menuLinks, signIn, watchServerErrors } from './helpers';
+import { inEdition } from './edition';
 
 /**
  * Every role × every page: the menu's pages all open cleanly, and the
@@ -13,6 +14,9 @@ import { expectHealthy, gotoSettled, menuLinks, signIn, watchServerErrors } from
 
 const principalFor = (roles: string[]): Principal => ({ userId: 'x', isSuperAdmin: false, roleSlugs: roles, branchId: 'b', departmentId: null });
 const mayOpen = (roles: string[], needs: PermissionKey[]) => needs.some((k) => decide(principalFor(roles), k).allowed);
+
+// The areas of this edition: a switched-off module's pages are not found (edition.ts), whoever asks.
+const AREAS = ALL_AREAS.filter((a) => inEdition(a.url));
 
 // Each role is independent — spread them over the workers.
 test.describe.configure({ mode: 'parallel' });

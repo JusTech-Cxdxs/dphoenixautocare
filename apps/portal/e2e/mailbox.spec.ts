@@ -22,7 +22,8 @@ const HOST = process.env.E2E_IMAP_HOST ?? 'localhost';
 const IMAP_PORT = Number(process.env.E2E_IMAP_PORT ?? 3143);
 const SMTP_PORT = Number(process.env.E2E_SMTP_PORT ?? 3025);
 const BOX = { address: 'wura@mail.e2e.test', username: 'wura@mail.e2e.test', password: 'wura-mail-pass' };
-const OWNER = who('warranty-officer'); // Wura Warrantyofficer
+// Customer care (Chidi Care): the D'Phoenix edition has no Warranty Officer, whose mailbox this was in EJO 100.
+const OWNER = who('customer-care');
 const tag = uniq();
 const SUBJECT = `Brake noise again ${tag}`;
 const HTML_SUBJECT = `Newsletter ${tag}`;

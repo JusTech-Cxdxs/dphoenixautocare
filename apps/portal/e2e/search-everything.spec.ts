@@ -1,8 +1,9 @@
 import { test, expect, type Page } from '@playwright/test';
 import { Prisma } from '@prisma/client';
-import { CUSTOMER, E2E_PASSWORD, OTHER_BRANCH_TECH, OTHER_ORG_ADMIN, SEED_WARRANTY } from './people';
+import { CUSTOMER, E2E_PASSWORD, ORGANISATION_SLUG, OTHER_BRANCH_TECH, OTHER_ORG_ADMIN, SEED_WARRANTY } from './people';
 import { as, expectHealthy, signIn } from './helpers';
 import { db } from './db';
+import { EXTERNAL_PROCUREMENT_ENABLED, INVENTORY_ENABLED, WARRANTY_ENABLED } from './edition';
 
 /**
  * The header search finds EVERY kind of numbered record — by its prefix
@@ -28,10 +29,14 @@ const GROUP: Record<string, string> = {
   WC: 'Warranty claims', VIS: 'Visitors', EP: 'Exit passes', VX: 'Vehicle exits', RT: 'Road tests', INC: 'Incidents', DLV: 'Deliveries', CTR: 'Contractors',
   APT: 'Appointments', BC: 'Broadcasts',
 };
+/** The kinds of the Store, outside purchases and Warranty: searched only where the edition has them (edition.ts). */
+const OFF_KINDS = [...(INVENTORY_ENABLED ? [] : ['PRS', 'GRN']), ...(EXTERNAL_PROCUREMENT_ENABLED ? [] : ['EPR']), ...(WARRANTY_ENABLED ? [] : ['WR', 'WC'])];
+const inEdition = (prefixes: string[]) => prefixes.filter((p) => !OFF_KINDS.includes(p));
+const SEARCHED = inEdition(Object.keys(GROUP));
 
 async function fixtures() {
   const prisma = db();
-  const org = await prisma.organisation.findUniqueOrThrow({ where: { slug: 'kewalram-nigeria' } });
+  const org = await prisma.organisation.findUniqueOrThrow({ where: { slug: ORGANISATION_SLUG } });
   const branch = await prisma.branch.findFirstOrThrow({ where: { businessUnit: { organisationId: org.id } }, orderBy: { createdAt: 'asc' } });
   const u = (email: string) => prisma.user.findUniqueOrThrow({ where: { email } });
   const [admin, front, sec, tech] = await Promise.all([u('admin@e2e.test'), u('frontdesk@e2e.test'), u('security@e2e.test'), u('tech@e2e.test')]);
@@ -53,17 +58,20 @@ async function fixtures() {
   PAGE.GRN = `/inventory/goods-receipts/${grn.id}`;
   await prisma.refund.upsert({ where: { referenceNumber: num('RF') }, update: {}, create: { referenceNumber: num('RF'), jobCardId: jc.id, amount: new Prisma.Decimal(500), method: 'CASH', paidToName: 'Ada Customer', reason: 'Search fixture', recordedById: admin.id, recordedAt: OLD, createdAt: OLD } });
   PAGE.RF = PAGE.JC;
-  const policy = await prisma.warrantyPolicy.findUniqueOrThrow({ where: { code: SEED_WARRANTY.vehiclePolicyCode } });
-  const wr = await prisma.warranty.upsert({
-    where: { warrantyNumber: num('WR') }, update: {},
-    create: { warrantyNumber: num('WR'), kind: policy.kind, policyId: policy.id, providerId: policy.providerId, customerId: customer.id, vehicleId: vehicle.id, subjectDescription: 'Honda Accord SRCH-731042', startsAt: OLD, endsAt: new Date('2021-06-01T09:00:00Z'), coverageSnapshot: 'Search fixture cover', origin: 'MANUAL', createdAt: OLD },
-  });
-  PAGE.WR = `/warranty/${wr.id}`;
-  const wc = await prisma.warrantyClaim.upsert({
-    where: { claimNumber: num('WC') }, update: {},
-    create: { claimNumber: num('WC'), warrantyId: wr.id, providerId: policy.providerId, customerId: customer.id, vehicleId: vehicle.id, complaint: 'Search fixture', cause: 'Fixture', correction: 'Fixture', causalPart: 'Fixture part', failureDate: OLD, createdById: admin.id, createdAt: OLD },
-  });
-  PAGE.WC = `/warranty/claims/${wc.id}`;
+  // The warranty and its claim need the seeded vehicle policy (E2E_WARRANTY=1).
+  if (WARRANTY_ENABLED) {
+    const policy = await prisma.warrantyPolicy.findUniqueOrThrow({ where: { code: SEED_WARRANTY.vehiclePolicyCode } });
+    const wr = await prisma.warranty.upsert({
+      where: { warrantyNumber: num('WR') }, update: {},
+      create: { warrantyNumber: num('WR'), kind: policy.kind, policyId: policy.id, providerId: policy.providerId, customerId: customer.id, vehicleId: vehicle.id, subjectDescription: 'Honda Accord SRCH-731042', startsAt: OLD, endsAt: new Date('2021-06-01T09:00:00Z'), coverageSnapshot: 'Search fixture cover', origin: 'MANUAL', createdAt: OLD },
+    });
+    PAGE.WR = `/warranty/${wr.id}`;
+    const wc = await prisma.warrantyClaim.upsert({
+      where: { claimNumber: num('WC') }, update: {},
+      create: { claimNumber: num('WC'), warrantyId: wr.id, providerId: policy.providerId, customerId: customer.id, vehicleId: vehicle.id, complaint: 'Search fixture', cause: 'Fixture', correction: 'Fixture', causalPart: 'Fixture part', failureDate: OLD, createdById: admin.id, createdAt: OLD },
+    });
+    PAGE.WC = `/warranty/claims/${wc.id}`;
+  }
   const vis = await prisma.visit.upsert({ where: { visitNumber: num('VIS') }, update: {}, create: { ...base, visitNumber: num('VIS'), passNumber: num('VP'), status: 'CANCELLED', visitorName: 'Search Fixture Visitor', purpose: 'Search fixture', hostUserId: admin.id, registeredById: sec.id } });
   PAGE.VIS = `/security/visitors/${vis.id}`;
   PAGE.VP = PAGE.VIS;
@@ -112,8 +120,8 @@ test('every reference type is found by full number, prefix + running number and 
   await page.goto('/dashboard');
   // The running number alone finds every type's record at once.
   const all = await search(page, SEQ);
-  for (const prefix of Object.keys(GROUP)) await expect(option(all, num(prefix)), `${SEQ} finds ${num(prefix)}`).toBeVisible();
-  for (const prefix of Object.keys(GROUP)) {
+  for (const prefix of SEARCHED) await expect(option(all, num(prefix)), `${SEQ} finds ${num(prefix)}`).toBeVisible();
+  for (const prefix of SEARCHED) {
     await test.step(prefix, async () => {
       const n = num(prefix);
       // Typed in lower case without dashes; and the prefix with the running number: "vx 731042".
@@ -133,7 +141,7 @@ test('every reference type is found by full number, prefix + running number and 
 test('a prefix on its own (no digits) lists that kind of record: VX, RT, PRS, EP, GRN, V', async ({ page }) => {
   await as(page, 'administrator');
   await page.goto('/dashboard');
-  for (const prefix of ['VX', 'RT', 'PRS', 'EP', 'GRN', 'INC', 'DLV', 'CTR', 'VIS', 'WC']) {
+  for (const prefix of inEdition(['VX', 'RT', 'PRS', 'EP', 'GRN', 'INC', 'DLV', 'CTR', 'VIS', 'WC'])) {
     const panel = await search(page, prefix);
     await expect(panel, `"${prefix}" must not come back empty`).not.toContainText('Nothing found for');
     await expect(panel.getByRole('option', { name: new RegExp(`^${prefix}-\\d{4}-\\d{6}`) }).first(), `"${prefix}" lists ${GROUP[prefix]}`).toBeVisible();

@@ -3,6 +3,7 @@ import { CUSTOMER, SEED_PARTS } from './people';
 import { as, open, expectNoUrlError, latestMail, readStock, waitOutcome } from './helpers';
 import { freshVehicle, idOfPart } from './db';
 import { card, expectStatus, jcForm, jobCardInProgress, openJobCard } from './workflows';
+import { INVENTORY_ENABLED, INVENTORY_OFF } from './edition';
 
 /**
  * A paid Job Card is cancelled while Store is holding parts for it:
@@ -10,6 +11,8 @@ import { card, expectStatus, jcForm, jobCardInProgress, openJobCard } from './wo
  * the deposit becomes a refund owed, Finance refunds it (receipt emailed),
  * and only then can the front desk hand the vehicle back. The vehicle can
  * then come in again on a new Job Card.
+ * The D'Phoenix edition has no Store (edition.ts): there the oil filter is an
+ * outside part, nothing is reserved, and the rest of the story is the same.
  */
 test.describe.configure({ mode: 'serial' });
 
@@ -17,17 +20,21 @@ const S = { url: '', id: '', number: '', plate: '', partUrl: '', before: { onHan
 
 test.beforeAll(async () => {
   S.plate = (await freshVehicle('CXL')).plate;
-  S.partUrl = `/inventory/parts/${await idOfPart(SEED_PARTS.oilFilter.number)}`;
+  if (INVENTORY_ENABLED) S.partUrl = `/inventory/parts/${await idOfPart(SEED_PARTS.oilFilter.number)}`;
 });
 
-test('a Job Card is paid (70%) and Store reserves its parts', async ({ page }) => {
+test(`a Job Card is paid (70%)${INVENTORY_ENABLED ? ' and Store reserves its parts' : ''}`, async ({ page }) => {
   test.setTimeout(240_000);
   const jc = await jobCardInProgress(page, {
     plate: S.plate,
     complaint: 'Service light on, oil leak',
-    lines: [{ type: 'STORE_PART', partType: SEED_PARTS.oilFilter.type, qty: 3 }, { type: 'LABOUR', description: 'Oil leak diagnosis', price: 5000 }],
+    lines: [
+      INVENTORY_ENABLED ? { type: 'STORE_PART', partType: SEED_PARTS.oilFilter.type, qty: 3 } : { type: 'EXTERNAL_PART', description: 'Oil filter (outside supplier)', qty: 3, price: SEED_PARTS.oilFilter.price },
+      { type: 'LABOUR', description: 'Oil leak diagnosis', price: 5000 },
+    ],
   });
   Object.assign(S, jc);
+  if (!INVENTORY_ENABLED) return;
   await as(page, 'store-manager');
   S.before = await readStock(page, S.partUrl);
 
@@ -73,6 +80,7 @@ test('front desk asks to cancel; the Manager sees the refund it authorises and a
 });
 
 test('the open parts request is withdrawn and the reserved stock is back on the shelf', async ({ page }) => {
+  test.skip(!INVENTORY_ENABLED, INVENTORY_OFF);
   await as(page, 'store-manager');
   const after = await readStock(page, S.partUrl);
   expect(after.reserved, 'reserved stock returned').toBe(S.before.reserved);

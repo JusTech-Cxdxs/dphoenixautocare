@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { as, open } from './helpers';
 import { db } from './db';
 import { PLANT_BRANCH } from './people';
+import { PLANT_ENABLED, PLANT_OFF } from './edition';
 
 /**
  * P9 — the cut-over checklist: every branch with how far it has come; a
@@ -12,6 +13,8 @@ import { PLANT_BRANCH } from './people';
  * mark it; another organisation's branch, or one that is not a branch at all,
  * is not found.
  */
+// The checklist walked here is the assembly plant's.
+test.skip(!PLANT_ENABLED, PLANT_OFF);
 test.describe.configure({ mode: 'serial' });
 
 test('the Plant Manager: the plant’s checklist in order, a step marked not needed with its reason and needed again, the sign-off waiting', async ({ page }) => {

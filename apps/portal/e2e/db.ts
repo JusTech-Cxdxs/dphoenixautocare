@@ -9,7 +9,7 @@
  * the browser, as the right person. CI only (throwaway test database).
  */
 import { PrismaClient } from '@prisma/client';
-import { CUSTOMER, SECOND_BRANCH } from './people';
+import { CUSTOMER, ORGANISATION_SLUG, SECOND_BRANCH } from './people';
 
 let client: PrismaClient | null = null;
 export function db(): PrismaClient {
@@ -87,10 +87,11 @@ export const PREDICT_PART = { type: 'E2E Predict Brake Pads', name: 'E2E Predict
  * matches for a new complaint with the same tag. `main` are in the first
  * branch, `other` in the second branch (outside a branch-scoped person's
  * reach). Every job had the Store part and brake labour; two had a sundry.
+ * Needs the Store (E2E_INVENTORY=1): the seeded part category is its.
  */
 export async function seedPastBrakeJobs(tag: string, counts: { main: number; other: number }): Promise<{ main: string[]; other: string[]; partTypeId: string }> {
   const prisma = db();
-  const org = await prisma.organisation.findUniqueOrThrow({ where: { slug: 'kewalram-nigeria' } });
+  const org = await prisma.organisation.findUniqueOrThrow({ where: { slug: ORGANISATION_SLUG } });
   const branch = await prisma.branch.findFirstOrThrow({ where: { businessUnit: { organisationId: org.id } }, orderBy: { createdAt: 'asc' } });
   const second = await prisma.branch.findFirstOrThrow({ where: { businessUnitId: branch.businessUnitId, name: SECOND_BRANCH } });
   const store = await prisma.user.findUniqueOrThrow({ where: { email: 'store@e2e.test' } });
@@ -144,11 +145,11 @@ export async function seedPastBrakeJobs(tag: string, counts: { main: number; oth
 
 /** The organisation's Enyo prediction mode (null when never saved), and a way to set it. */
 export async function predictionsMode(): Promise<string | null> {
-  const org = await db().organisation.findUniqueOrThrow({ where: { slug: 'kewalram-nigeria' } });
+  const org = await db().organisation.findUniqueOrThrow({ where: { slug: ORGANISATION_SLUG } });
   return (await db().enyoSetting.findUnique({ where: { organisationId: org.id }, select: { predictionsMode: true } }))?.predictionsMode ?? null;
 }
 export async function setPredictionsMode(mode: 'SHADOW' | 'SUGGEST' | 'OFF'): Promise<void> {
-  const org = await db().organisation.findUniqueOrThrow({ where: { slug: 'kewalram-nigeria' } });
+  const org = await db().organisation.findUniqueOrThrow({ where: { slug: ORGANISATION_SLUG } });
   await db().enyoSetting.upsert({ where: { organisationId: org.id }, update: { predictionsMode: mode }, create: { organisationId: org.id, predictionsMode: mode } });
 }
 

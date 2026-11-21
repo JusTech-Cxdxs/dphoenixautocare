@@ -6,6 +6,7 @@ import { freshVehicle, resetCustomerAccount } from './db';
 import {
   addLine, jcForm, jobCardReadyForEstimate, jobNumber, managerApprovesEstimate, notifyCustomer, recordPayment, submitEstimate, supervisorApprovesEstimate,
 } from './workflows';
+import { WARRANTY_ENABLED, WARRANTY_OFF } from './edition';
 
 /**
  * The customer portal (apps/website, :3002 in CI), as customers use it:
@@ -222,6 +223,7 @@ test.describe('a Job Card, followed by its customer', () => {
   });
 
   test('a warranty registered on the vehicle appears under Warranties', async ({ page }) => {
+    test.skip(!WARRANTY_ENABLED, WARRANTY_OFF);
     await as(page, 'warranty-officer');
     await page.goto(`/warranty/register?q=${encodeURIComponent(S.plate)}`);
     await page.getByRole('link', { name: new RegExp(S.plate) }).first().click();

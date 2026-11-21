@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { as, open } from './helpers';
 import { db, freshVehicle } from './db';
 import { who } from './people';
+import { DATA_REQUESTS_ENABLED, DATA_REQUESTS_OFF } from './edition';
 
 /**
  * A4c1 — a customer's data request (NDPA 2023), end to end:
@@ -14,6 +15,7 @@ import { who } from './people';
  *   the staff who handled them, its SHA-256 as the request keeps it; the
  *   request is closed as answered. The front desk never sees any of it.
  */
+test.skip(!DATA_REQUESTS_ENABLED, DATA_REQUESTS_OFF);
 test.describe.configure({ mode: 'serial' });
 
 const STAMP = String(Date.now()).slice(-8);

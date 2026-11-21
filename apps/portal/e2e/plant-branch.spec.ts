@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { as, open } from './helpers';
-import { OTHER_ORG_ADMIN, PLANT_BRANCH } from './people';
+import { OTHER_ORG_ADMIN, PLANT_BRANCH, WORKSHOP_BRANCH } from './people';
 import { db } from './db';
+import { PLANT_ENABLED, PLANT_OFF } from './edition';
 
 /**
  * P1 — the assembly plant is its own branch (kind ASSEMBLY_PLANT):
@@ -13,6 +14,7 @@ import { db } from './db';
  *   its kind keeps that kind; Headquarters lists both branches.
  */
 
+test.skip(!PLANT_ENABLED, PLANT_OFF);
 test('the plant team works at the assembly plant: the plant pages name it, and its vehicles are there', async ({ page }) => {
   await as(page, 'plant-manager');
   await open(page, '/plant');
@@ -45,11 +47,11 @@ test('an administrator looking at the workshop through the lens is told the plan
   await open(page, '/plant');
   // All branches: the plant shows, and on the plant's pages the bar offers only branches with a line — never the workshop.
   await expect(page.getByTestId('plant-reach')).toHaveCount(0);
-  await expect(page.getByTestId('branch-lens').getByRole('button', { name: /^Isolo Branch/ })).toHaveCount(0);
+  await expect(page.getByTestId('branch-lens').getByRole('button', { name: new RegExp(`^${WORKSHOP_BRANCH}`) })).toHaveCount(0);
   // The workshop is chosen on a page every branch has.
   await open(page, '/dashboard');
-  await page.getByTestId('branch-lens').getByRole('button', { name: /^Isolo Branch/ }).click();
-  await expect(page.getByTestId('branch-lens').getByRole('status')).toContainText('Isolo Branch only');
+  await page.getByTestId('branch-lens').getByRole('button', { name: new RegExp(`^${WORKSHOP_BRANCH}`) }).click();
+  await expect(page.getByTestId('branch-lens').getByRole('status')).toContainText(`${WORKSHOP_BRANCH} only`);
   await open(page, '/plant');
   await expect(page.getByTestId('plant-reach')).toContainText('You are looking at a branch that is not an assembly plant.');
   await page.getByRole('button', { name: `Look at ${PLANT_BRANCH}` }).click();
@@ -93,7 +95,7 @@ test('branches show their kind; the plant keeps its kind while it holds plant re
 test('Headquarters lists the workshop and the assembly plant, each with its own figures', async ({ page }) => {
   await as(page, 'executive');
   await open(page, '/headquarters');
-  await expect(page.getByRole('rowheader', { name: /Isolo Branch/ })).toBeVisible();
+  await expect(page.getByRole('rowheader', { name: new RegExp(WORKSHOP_BRANCH) })).toBeVisible();
   const plantRow = page.getByRole('rowheader', { name: new RegExp(PLANT_BRANCH) });
   await expect(plantRow).toBeVisible();
   await expect(plantRow).toContainText('Assembly plant');

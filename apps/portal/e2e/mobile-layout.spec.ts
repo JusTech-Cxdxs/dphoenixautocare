@@ -3,6 +3,7 @@ import { CUSTOMER, SUPERMANAGER } from './people';
 import { as, open, expectHealthy, noSidewaysScroll } from './helpers';
 import { db, freshVehicle } from './db';
 import { addLine, assignTechnician, card, jcForm, managerApprovesEstimate, notifyCustomer, openJobCard, recordPayment, submitEstimate, supervisorApproves, supervisorApprovesEstimate, technicianAccepts } from './workflows';
+import { EXTERNAL_PROCUREMENT_ENABLED, INVENTORY_ENABLED, WARRANTY_ENABLED } from './edition';
 
 /**
  * Phone layout regressions the owner reported, on a small Android phone
@@ -171,9 +172,10 @@ test('busy pages do not scroll sideways on a phone', async ({ page }) => {
   const customer = await db().customer.findUniqueOrThrow({ where: { email: CUSTOMER.email }, select: { id: true } });
   const visits: { who: string; urls: string[] }[] = [
     { who: 'receptionist', urls: ['/reminders', '/mail', '/workshop/job-cards', '/workshop/vehicle-service', '/workshop/customers', '/workshop/vehicles', '/crm', `/crm/customers/${customer.id}`, `/crm/customers/${customer.id}?tab=jobs`, '/notifications'] },
-    { who: 'workshop-manager', urls: ['/workshop/refunds', '/workshop/external-procurement', '/workshop/parts-requests', '/analytics'] },
-    { who: 'store-manager', urls: ['/inventory/parts', '/inventory/goods-receipts'] },
-    { who: 'warranty-hod', urls: ['/warranty', '/warranty/claims'] },
+    // The Store, outside purchases and Warranty only where the edition has them (edition.ts).
+    { who: 'workshop-manager', urls: ['/workshop/refunds', ...(EXTERNAL_PROCUREMENT_ENABLED ? ['/workshop/external-procurement'] : []), ...(INVENTORY_ENABLED ? ['/workshop/parts-requests'] : []), '/analytics'] },
+    ...(INVENTORY_ENABLED ? [{ who: 'store-manager', urls: ['/inventory/parts', '/inventory/goods-receipts'] }] : []),
+    ...(WARRANTY_ENABLED ? [{ who: 'warranty-hod', urls: ['/warranty', '/warranty/claims'] }] : []),
     { who: 'administrator', urls: ['/settings', '/settings/enyo', '/enyo/learning', '/enyo/models', '/users', '/roles', '/structure', '/audit-logs'] },
   ];
   if (S.url) visits[0]!.urls.unshift(S.url);

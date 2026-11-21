@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { as, open } from './helpers';
 import { db, freshVehicle } from './db';
 import { who, type Person } from './people';
+import { PLANT_ENABLED, PLANT_OFF, SAP_ENABLED, SAP_OFF } from './edition';
 
 /**
  * C1b — the plant's events and refunds in the postings for SAP:
@@ -13,6 +14,7 @@ import { who, type Person } from './people';
  *   At the workshop, a refund goes in the refunds file with its reason and
  *   shows on its job card's page, waiting for SAP.
  */
+test.skip(!SAP_ENABLED, SAP_OFF);
 test.describe.configure({ mode: 'serial' });
 
 const STAMP = String(Date.now()).slice(-9);
@@ -44,6 +46,7 @@ async function makeFile(page: Page, person: Person['role'], branchId: string, ki
 const cellsOf = (csv: string, id: string) => csv.split('\r\n').filter((l) => l.includes(id)).map((l) => l.slice(1, -1).split('","'));
 
 test('the plant: a PDI rejected then accepted is two usage decisions, R then A, with SAP’s zeros on the order and equipment', async ({ page }) => {
+  test.skip(!PLANT_ENABLED, PLANT_OFF);
   const pm = await liveBranch('plant-manager');
   ids.plant = pm.branchId!;
   const vin = `JAAE2ESAP${STAMP}`.slice(0, 17);
@@ -68,6 +71,7 @@ test('the plant: a PDI rejected then accepted is two usage decisions, R then A, 
 });
 
 test('the vehicle is received into the yard once: movement 101 from its order; the next file never has it again', async ({ page }) => {
+  test.skip(!PLANT_ENABLED, PLANT_OFF);
   const file = (await makeFile(page, 'plant-manager', ids.plant, 'PRODUCTION_RECEIPT'))!;
   expect(file).toBeTruthy();
   const mine = await db().sapPostingLine.findMany({ where: { fileId: file, entityId: ids.vehicle } });
@@ -79,6 +83,7 @@ test('the vehicle is received into the yard once: movement 101 from its order; t
 });
 
 test('SAP’s answer shows on the PDI’s page under “Sent to SAP”', async ({ page }) => {
+  test.skip(!PLANT_ENABLED, PLANT_OFF);
   await as(page, 'plant-manager');
   await open(page, `/data-exchange/sap/${ids.udFile}`);
   const answers = Buffer.from([['ZZ_EJO_LINE', 'STATUS', 'BELNR', 'MESSAGE'], [ids.udLines[0]!, 'S', '', ''], [ids.udLines[1]!, 'S', '30000123', '']].map((r) => r.join(',')).join('\r\n'));

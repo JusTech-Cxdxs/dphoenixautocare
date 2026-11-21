@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { as, menuLinks, open, visitHealthy } from './helpers';
 import { PLANT_BRANCH } from './people';
+import { INVENTORY_ENABLED, INVENTORY_OFF, PLANT_ENABLED, PLANT_OFF } from './edition';
 
 /**
  * Headquarters roles in a real browser: the branch bar on every page (all
@@ -48,6 +49,7 @@ test('an executive chooses a branch in the bar; every page follows; All branches
 const area = (page: import('@playwright/test').Page, name: string) => menuLinks(page).filter({ hasText: new RegExp(`^\\s*${name}\\s*$`) });
 
 test('the branch bar and the menu follow the kind of branch: the plant is not a choice under Inventory, and has no Inventory of its own', async ({ page }) => {
+  test.skip(!PLANT_ENABLED || !INVENTORY_ENABLED, !PLANT_ENABLED ? PLANT_OFF : INVENTORY_OFF);
   await as(page, 'executive');
   // A director oversees every branch: Workshop, Inventory and the Assembly plant are all in the menu.
   await visitHealthy(page, '/dashboard');
@@ -82,18 +84,23 @@ test('the branch bar and the menu follow the kind of branch: the plant is not a 
 });
 
 test('the plant’s people are not offered Workshop or Inventory; the workshop’s people are not offered the Assembly plant', async ({ page }) => {
-  await as(page, 'plant-manager');
-  await visitHealthy(page, '/dashboard');
-  await expect(area(page, 'Assembly plant')).toHaveCount(1);
-  for (const name of ['Workshop', 'Inventory']) await expect(area(page, name), name).toHaveCount(0);
+  // The plant team and the Store only where the edition has them (edition.ts).
+  if (PLANT_ENABLED) {
+    await as(page, 'plant-manager');
+    await visitHealthy(page, '/dashboard');
+    await expect(area(page, 'Assembly plant')).toHaveCount(1);
+    for (const name of ['Workshop', 'Inventory']) await expect(area(page, name), name).toHaveCount(0);
+  }
   await as(page, 'workshop-manager');
   await visitHealthy(page, '/dashboard');
   await expect(area(page, 'Workshop')).toHaveCount(1);
   await expect(area(page, 'Assembly plant')).toHaveCount(0);
-  await as(page, 'store-manager');
-  await visitHealthy(page, '/dashboard');
-  await expect(area(page, 'Inventory')).toHaveCount(1);
-  await expect(area(page, 'Assembly plant')).toHaveCount(0);
+  if (INVENTORY_ENABLED) {
+    await as(page, 'store-manager');
+    await visitHealthy(page, '/dashboard');
+    await expect(area(page, 'Inventory')).toHaveCount(1);
+    await expect(area(page, 'Assembly plant')).toHaveCount(0);
+  }
 });
 
 test('an IT administrator has the IT control room; the branch bar too', async ({ page }) => {

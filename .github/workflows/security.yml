@@ -128,7 +128,7 @@ jobs:
       BETTER_AUTH_URL: 'http://localhost:3001'
       NEXT_PUBLIC_PORTAL_URL: 'http://localhost:3001'
       NEXT_PUBLIC_WEBSITE_URL: 'http://localhost:3000'
-      NEXT_PUBLIC_ORGANISATION_NAME: 'Kewalram Chanrai Group'
+      NEXT_PUBLIC_ORGANISATION_NAME: "D'Phoenix Autocare"
       SMTP_HOST: 'localhost'
       SMTP_PORT: '1025'
       SMTP_FROM: 'EJO 100 <no-reply@e2e.test>'
@@ -272,7 +272,7 @@ jobs:
       BETTER_AUTH_URL: 'http://localhost:3001'
       NEXT_PUBLIC_PORTAL_URL: 'http://localhost:3001'
       NEXT_PUBLIC_WEBSITE_URL: 'http://localhost:3000'
-      NEXT_PUBLIC_ORGANISATION_NAME: 'Kewalram Chanrai Group'
+      NEXT_PUBLIC_ORGANISATION_NAME: "D'Phoenix Autocare"
       SMTP_HOST: 'localhost'
       SMTP_PORT: '1025'
       SMTP_FROM: 'EJO 100 <no-reply@e2e.test>'

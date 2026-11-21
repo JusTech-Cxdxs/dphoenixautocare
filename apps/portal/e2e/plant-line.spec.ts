@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { as, open } from './helpers';
 import { PLANT_BRANCH } from './people';
 import { db } from './db';
+import { PLANT_ENABLED, PLANT_OFF } from './edition';
 
 /**
  * D3 — the line, end to end: a vehicle released from its kit is on the line
@@ -14,6 +15,7 @@ import { db } from './db';
  * PDI → the QA auditor audits it; an A finding fails the audit and sends it
  * back to the line → the board, the vehicle page, search and the exports.
  */
+test.skip(!PLANT_ENABLED, PLANT_OFF);
 test.describe.configure({ mode: 'serial' });
 
 const STAMP = String(Date.now()).slice(-8);

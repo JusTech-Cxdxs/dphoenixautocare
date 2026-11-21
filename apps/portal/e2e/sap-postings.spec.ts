@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { as, open } from './helpers';
 import { db, freshVehicle } from './db';
 import { who } from './people';
+import { SAP_ENABLED, SAP_OFF } from './edition';
 
 /**
  * C1a — the daily postings for SAP, end to end at a workshop signed off as
@@ -14,6 +15,7 @@ import { who } from './people';
  * goes again only once sent again, then in the next file in place of the old.
  * A payment is in one file at a time, never two.
  */
+test.skip(!SAP_ENABLED, SAP_OFF);
 test.describe.configure({ mode: 'serial' });
 
 const STAMP = Number(String(Date.now()).slice(-5));

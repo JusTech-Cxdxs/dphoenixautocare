@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { as, open } from './helpers';
 import { db } from './db';
 import { PLANT_BRANCH } from './people';
+import { PLANT_ENABLED, PLANT_OFF } from './edition';
 
 /**
  * D2 — kits arriving at the plant, on screen, end to end:
@@ -16,6 +17,7 @@ import { PLANT_BRANCH } from './people';
  *   the kit; search finds the kit and the shipment → the second kit is
  *   rejected (R). Exports list both.
  */
+test.skip(!PLANT_ENABLED, PLANT_OFF);
 test.describe.configure({ mode: 'serial' });
 
 const STAMP = String(Date.now()).slice(-9);

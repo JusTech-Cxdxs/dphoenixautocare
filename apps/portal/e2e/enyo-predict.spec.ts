@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { as, open, uniq, expectNoUrlError } from './helpers';
-import { OTHER_BRANCH_TECH, who } from './people';
+import { ORGANISATION_SLUG, OTHER_BRANCH_TECH, who } from './people';
 import { db, freshVehicle, predictionFor, predictionsMode, seedPastBrakeJobs, setPredictionsMode, PREDICT_PART } from './db';
 import { card, jobCardReadyForEstimate, managerApprovesEstimate, requestStoreMatching, storeMatchesAll, submitEstimate, supervisorApprovesEstimate } from './workflows';
+import { INVENTORY_ENABLED, INVENTORY_OFF } from './edition';
 
 /**
  * Enyo's first learning loop, end to end:
@@ -20,6 +21,8 @@ import { card, jobCardReadyForEstimate, managerApprovesEstimate, requestStoreMat
  *    Enyo's similar_past_jobs tool.
  * The organisation's mode is put back as it was, whatever happens.
  */
+// Every past job and the new one carry the Store part, matched by the Store.
+test.skip(!INVENTORY_ENABLED, INVENTORY_OFF);
 test.describe.configure({ mode: 'serial' });
 
 const TAG = uniq('Q').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -42,7 +45,7 @@ test.afterAll(async () => {
   // Leave the organisation as it was for every other spec.
   if (S.modeBefore === 'SHADOW' || S.modeBefore === 'SUGGEST' || S.modeBefore === 'OFF') await setPredictionsMode(S.modeBefore);
   else {
-    const org = await db().organisation.findUniqueOrThrow({ where: { slug: 'kewalram-nigeria' } });
+    const org = await db().organisation.findUniqueOrThrow({ where: { slug: ORGANISATION_SLUG } });
     await db().enyoSetting.updateMany({ where: { organisationId: org.id }, data: { predictionsMode: 'SHADOW' } });
   }
 });

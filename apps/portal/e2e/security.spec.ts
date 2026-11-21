@@ -3,6 +3,7 @@ import { who } from './people';
 import { as, open, eventually, expectHealthy, expectNoUrlError, uniq, waitOutcome } from './helpers';
 import { freshVehicle } from './db';
 import { jcForm, openJobCard, pickSearchable } from './workflows';
+import { INVENTORY_ENABLED, INVENTORY_OFF } from './edition';
 
 /**
  * The gate and reception, as Security, the front desk, Store and the
@@ -98,6 +99,7 @@ test('a contractor team: requested, approved by the Manager, signed in and out a
 });
 
 test('a delivery at the gate is received by the Store and the vehicle leaves', async ({ page }) => {
+  test.skip(!INVENTORY_ENABLED, INVENTORY_OFF);
   const supplier = `ABC Auto Parts ${uniq()}`;
   await as(page, 'security-officer');
   await page.goto('/security/deliveries/new');
@@ -179,7 +181,7 @@ test('a road test permit: requested on a Job Card, approved, out and back with t
   const form = jcForm(page, 'Request approval');
   await pickStaff(page, form, who('technician').name);
   await form.locator('input[name="purpose"]').fill('Vibration at 80 km/h');
-  await form.locator('input[name="route"]').fill('Isolo → Oshodi and back');
+  await form.locator('input[name="route"]').fill('Victoria Island → Lekki and back');
   await form.locator('select[name="expectedMinutes"]').selectOption({ index: 1 });
   await form.getByRole('button', { name: 'Request approval' }).click();
   await waitOutcome(page, /\/security\/road-tests\/[^/?]+\?status=requested/);

@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { as, uniq, open } from './helpers';
 import { db } from './db';
 import { who } from './people';
+import { SAP_ENABLED, SAP_OFF } from './edition';
 
 /**
  * Data Exchange A3: SAP history feeding EJO's own pages. A customer's SAP
@@ -11,6 +12,8 @@ import { who } from './people';
  * deleted; a reload restores them). The plant's PDI register shows on the
  * vehicle by its VIN.
  */
+// SAP's history before EJO (and the plant's PDI register): the D'Phoenix edition words it as an old system's.
+test.skip(!SAP_ENABLED, SAP_OFF);
 test.describe.configure({ mode: 'serial' });
 
 const T = uniq().replace(/[^A-Z0-9]/g, '').slice(-6);

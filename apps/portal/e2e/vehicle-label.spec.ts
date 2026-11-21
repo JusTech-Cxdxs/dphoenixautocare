@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { as, open } from './helpers';
 import { db } from './db';
 import { who } from './people';
+import { PLANT_ENABLED, PLANT_OFF } from './edition';
 
 /**
  * One label per vehicle, tied to its VIN: a QR code that opens the vehicle's
@@ -10,6 +11,8 @@ import { who } from './people';
  * signed in and permission-checked. The label, traveller sheet and PDI
  * certificate print with the same codes; every print is recorded.
  */
+// The vehicle labels, traveller sheet and PDI certificate are the assembly plant's (not found without it).
+test.skip(!PLANT_ENABLED, PLANT_OFF);
 test.describe.configure({ mode: 'serial' });
 
 const STAMP = String(Date.now()).slice(-10);

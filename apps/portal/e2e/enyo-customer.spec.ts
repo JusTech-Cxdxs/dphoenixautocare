@@ -1,9 +1,10 @@
 import { test, expect, type Page } from '@playwright/test';
-import { OTHER_PORTAL_CUSTOMER, PORTAL_CUSTOMER } from './people';
+import { ORGANISATION_SLUG, OTHER_PORTAL_CUSTOMER, PORTAL_CUSTOMER } from './people';
 import { as, latestMail, open, uniq } from './helpers';
 import { WEB, customerSignedIn, portal, websiteUp } from './customer';
 import { db, freshVehicle } from './db';
 import { jobNumber, openJobCard } from './workflows';
+import { NO_PUBLIC_WEBSITE, PUBLIC_WEBSITE } from './edition';
 
 /**
  * Enyo for customers and website visitors, end to end, against the stand-in
@@ -134,17 +135,18 @@ test.describe('a signed-in customer', () => {
 });
 
 test.describe('a website visitor', () => {
+  test.skip(!PUBLIC_WEBSITE, NO_PUBLIC_WEBSITE);
   test('asks about the company and gets its details', async ({ page }) => {
     await page.goto(`${WEB}/`);
     const answer = await ask(page, '[[tool:organisation_info]]');
     await expect(answer).toContainText('Here is what I found');
-    await expect(answer).toContainText('Kewalram');
+    await expect(answer).toContainText("D'Phoenix");
     await expect(answer.getByTestId('enyo-error')).toHaveCount(0);
   });
 
   test('greetings, "who is" one of our people, how to reach us and the offers are answered from the records at once', async ({ page }) => {
     // One of the people the organisation publishes (Organisation → People we publish).
-    const org = await db().organisation.findFirstOrThrow({ where: { slug: process.env.WEBSITE_ORGANISATION_SLUG || 'kewalram-nigeria' }, select: { id: true } });
+    const org = await db().organisation.findFirstOrThrow({ where: { slug: process.env.WEBSITE_ORGANISATION_SLUG || ORGANISATION_SLUG }, select: { id: true } });
     // A real-looking name (letters only), unique to this run.
     const tag = uniq().replace(/[^A-Z]/g, '').toLowerCase().replace(/^./, (c) => c.toUpperCase()) || 'Okafor';
     const name = `Sudeep Mittal${tag}`;

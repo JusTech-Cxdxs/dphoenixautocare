@@ -3,6 +3,7 @@ import { CUSTOMER, SEED_PARTS, who } from './people';
 import { as, open, expectNoUrlError, latestMail, readStock, waitOutcome } from './helpers';
 import { freshVehicle, idOfPart } from './db';
 import { card, jcForm, pickSearchable } from './workflows';
+import { INVENTORY_ENABLED } from './edition';
 
 /**
  * Vehicle Service (routine maintenance), by the people who do it:
@@ -12,7 +13,8 @@ import { card, jcForm, pickSearchable } from './workflows';
  * notified (email) → 70% deposit moves it In Service → completed → ready →
  * balance → close approved → collected. Also: a cancelled booking is
  * handed back, and a service that turns into a repair is escalated to a
- * Job Card.
+ * Job Card. Without the Store (the D'Phoenix edition, edition.ts) the spark
+ * plugs are an Internal Job line the supervisor prices, and nothing is matched.
  */
 
 // The status chip beside the title (PageTitle wraps the h1; the chip is the title block's next sibling).
@@ -77,7 +79,7 @@ test.describe('Vehicle Service — the full visit', () => {
   const S = { url: '', id: '', number: '', plate: '', partUrl: '' };
   test.beforeAll(async () => {
     S.plate = (await freshVehicle('VSL', { make: 'Honda', model: 'Civic' })).plate;
-    S.partUrl = `/inventory/parts/${await idOfPart(SEED_PARTS.sparkPlug.number)}`;
+    if (INVENTORY_ENABLED) S.partUrl = `/inventory/parts/${await idOfPart(SEED_PARTS.sparkPlug.number)}`;
   });
 
   test('booked, and only the front desk can check it in', async ({ page }) => {
@@ -98,12 +100,14 @@ test.describe('Vehicle Service — the full visit', () => {
     await page.getByRole('button', { name: 'Continue with Normal Service' }).click();
     await waitOutcome(page, /status=estimate_started/);
 
-    const form = page.locator('form').filter({ has: page.locator('select[name="type"]') });
-    await form.locator('select[name="type"]').selectOption('STORE_PART');
-    await pickSearchable(form, page, SEED_PARTS.sparkPlug.type, new RegExp(SEED_PARTS.sparkPlug.type), 'Search Part Types…');
-    await form.locator('input[name="quantity"]').fill('4');
-    await form.getByRole('button', { name: 'Add', exact: true }).click();
-    await waitOutcome(page, /status=line_added/);
+    if (INVENTORY_ENABLED) {
+      const form = page.locator('form').filter({ has: page.locator('select[name="type"]') });
+      await form.locator('select[name="type"]').selectOption('STORE_PART');
+      await pickSearchable(form, page, SEED_PARTS.sparkPlug.type, new RegExp(SEED_PARTS.sparkPlug.type), 'Search Part Types…');
+      await form.locator('input[name="quantity"]').fill('4');
+      await form.getByRole('button', { name: 'Add', exact: true }).click();
+      await waitOutcome(page, /status=line_added/);
+    }
 
     await as(page, 'workshop-supervisor');
     await open(page, S.url);
@@ -113,6 +117,18 @@ test.describe('Vehicle Service — the full visit', () => {
     await f2.locator('input[name="unitPrice"]').fill('6000');
     await f2.getByRole('button', { name: 'Add', exact: true }).click();
     await waitOutcome(page, /status=line_added/);
+    if (!INVENTORY_ENABLED) {
+      // Without the Store (the D'Phoenix edition) the spark plugs go on an Internal Job line, priced by the supervisor.
+      await open(page, S.url);
+      const f3 = page.locator('form').filter({ has: page.locator('select[name="type"]') });
+      await f3.locator('select[name="type"]').selectOption('INTERNAL_JOB');
+      await f3.locator('input[name="description"]').fill('Spark plugs (fitted)');
+      await f3.locator('input[name="quantity"]').fill('4');
+      await f3.locator('input[name="unitPrice"]').fill(String(SEED_PARTS.sparkPlug.price));
+      await f3.getByRole('button', { name: 'Add', exact: true }).click();
+      await waitOutcome(page, /status=line_added/);
+      return;
+    }
     await page.getByRole('button', { name: /Request Store Matching/ }).click();
     await waitOutcome(page, /status=matching_requested/);
 
@@ -199,8 +215,10 @@ test.describe('Vehicle Service — the full visit', () => {
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await page.goto(`/workshop/vehicle-service?q=${encodeURIComponent(S.number)}`);
     await expect(page.getByRole('link', { name: S.number }).first()).toBeVisible();
-    const stock = await readStock(page, S.partUrl);
-    expect(stock.onHand).toBeGreaterThan(0);
+    if (INVENTORY_ENABLED) {
+      const stock = await readStock(page, S.partUrl);
+      expect(stock.onHand).toBeGreaterThan(0);
+    }
   });
 });
 

@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { as, uniq, open } from './helpers';
 import { db } from './db';
 import { who } from './people';
+import { SAP_ENABLED } from './edition';
 
 /**
  * Search and tracking: a record is found by the number SAP gave it, every
@@ -16,6 +17,8 @@ const T = uniq().replace(/[^A-Z0-9]/g, '').slice(-6);
 const STAMP = String(Date.now()).slice(-7);
 const kunnr = `7${STAMP}`; // a fresh SAP customer number for this run
 const belnr = `5${STAMP.slice(-6)}`; // an SAP document number reused in two fiscal years
+/** How search labels a number another system gave: "SAP …" only while the edition links with SAP (the D'Phoenix edition says "Old system …"). */
+const SRC = SAP_ENABLED ? 'SAP' : 'Old system';
 const NAME = `Tracked Haulage ${T}`;
 const csv = (rows: string[][]) => rows.map((r) => r.join(',')).join('\r\n');
 
@@ -71,20 +74,20 @@ test('search by the SAP number: every match labelled; a year narrows it; SAP’s
   await as(page, 'workshop-manager');
   await open(page, '/dashboard');
   let panel = await search(page, `000${kunnr}`);
-  await expect(panel.getByText(`SAP customer ${kunnr}`)).toBeVisible();
+  await expect(panel.getByText(`${SRC} customer ${kunnr}`)).toBeVisible();
   await expect(panel.getByText(NAME).first()).toBeVisible();
   panel = await search(page, belnr);
-  await expect(panel.getByText(`SAP invoice ${belnr} · 2025`)).toBeVisible();
-  await expect(panel.getByText(`SAP invoice ${belnr} · 2024`)).toBeVisible();
+  await expect(panel.getByText(`${SRC} invoice ${belnr} · 2025`)).toBeVisible();
+  await expect(panel.getByText(`${SRC} invoice ${belnr} · 2024`)).toBeVisible();
   panel = await search(page, `${belnr} 2025`);
-  await expect(panel.getByText(`SAP invoice ${belnr} · 2025`)).toBeVisible();
-  await expect(panel.getByText(`SAP invoice ${belnr} · 2024`)).toHaveCount(0);
+  await expect(panel.getByText(`${SRC} invoice ${belnr} · 2025`)).toBeVisible();
+  await expect(panel.getByText(`${SRC} invoice ${belnr} · 2024`)).toHaveCount(0);
   // The front desk without the CRM still finds the customer; the invoices are for the CRM.
   await as(page, 'receptionist');
   await open(page, '/dashboard');
   panel = await search(page, kunnr);
-  await expect(panel.getByText(`SAP customer ${kunnr}`)).toBeVisible();
-  await expect(panel.getByText(`SAP invoice ${belnr}`)).toHaveCount(0);
+  await expect(panel.getByText(`${SRC} customer ${kunnr}`)).toBeVisible();
+  await expect(panel.getByText(`${SRC} invoice ${belnr}`)).toHaveCount(0);
 });
 
 test('the customer page says where it came from: imported from SAP by IMP-…, with its SAP number and customer-since date', async ({ page }) => {

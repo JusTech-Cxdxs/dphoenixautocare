@@ -11,12 +11,13 @@
  */
 import { writeFileSync } from 'node:fs';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { ORGANISATION_SLUG } from '../people';
 
 const prisma = new PrismaClient();
 const D = (n: number) => new Prisma.Decimal(n);
 
 async function main() {
-  const org = await prisma.organisation.findUniqueOrThrow({ where: { slug: 'kewalram-nigeria' } });
+  const org = await prisma.organisation.findUniqueOrThrow({ where: { slug: ORGANISATION_SLUG } });
   const other = await prisma.organisation.findUniqueOrThrow({ where: { slug: 'other-org-e2e' } });
   const branch = await prisma.branch.findFirstOrThrow({ where: { businessUnit: { organisationId: org.id } }, orderBy: { createdAt: 'asc' } });
   const u = async (email: string) => prisma.user.findUniqueOrThrow({ where: { email } });
@@ -25,7 +26,8 @@ async function main() {
   const tech = await u('tech@e2e.test');
   const mgr = await u('manager@e2e.test');
   const fin = await u('finance@e2e.test');
-  const store = await u('store@e2e.test');
+  // The Store's records are made by the Store Manager, or the Manager where the edition has no Store (e2e/edition.ts).
+  const store = (await prisma.user.findUnique({ where: { email: 'store@e2e.test' } })) ?? mgr;
   const admin = await u('admin@e2e.test');
   const master = await u('master@e2e.test');
   const otherAdmin = await u('other-admin@e2e.test');

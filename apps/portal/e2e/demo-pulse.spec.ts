@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { test, expect, type Page } from '@playwright/test';
 import { db } from './db';
 import { as, gotoSettled, signIn } from './helpers';
-import { MASTER } from './people';
+import { MASTER, ORGANISATION_SLUG } from './people';
+import { DEMO_ENABLED, DEMO_OFF } from './edition';
 
 /**
  * D3 — the demo lives every day (lib/demo/pulse.ts) and the platform team's
@@ -15,6 +16,7 @@ import { MASTER } from './people';
  * reload is the same code as `npm run demo:reset` (workshop-demo.spec runs
  * against it) and is not pressed here, so the other specs keep their demo.
  */
+test.skip(!DEMO_ENABLED, DEMO_OFF);
 test.describe.configure({ mode: 'serial' });
 
 const ROOT = join(__dirname, '..', '..', '..');
@@ -25,7 +27,7 @@ const WEEK = Math.floor(Date.now() / 60_000) % 900; // chosen once per run
 const later = (days: number) => { const d = new Date(Date.UTC(2030, 0, 7) + WEEK * 7 * DAY + days * DAY); d.setUTCHours(9, 0, 0, 0); return d.toISOString(); };
 
 async function demoOrg() {
-  return db().organisation.findUniqueOrThrow({ where: { slug: 'kewalram-nigeria' }, select: { id: true, isDemo: true } });
+  return db().organisation.findUniqueOrThrow({ where: { slug: ORGANISATION_SLUG }, select: { id: true, isDemo: true } });
 }
 
 test('today is already in the story (the load claimed it); a later Monday adds its working day once, the Tuesday moves Monday’s check-ins on; the switch stops it; a real organisation never gets one', async () => {
@@ -68,7 +70,7 @@ test('the console is the platform team’s: the Master Administrator sees the de
   await signIn(page, MASTER.email, MASTER.password);
   await gotoSettled(page, '/it');
   await expect(consoleCard(page)).toBeVisible();
-  const demo = consoleCard(page).locator('li[data-org="kewalram-nigeria"]');
+  const demo = consoleCard(page).locator(`li[data-org="${ORGANISATION_SLUG}"]`);
   await expect(demo).toContainText('Demo');
   await expect(demo).toContainText(/workshop demo records/);
   await expect(demo.getByRole('button', { name: 'Load / refresh the demo now' })).toBeDisabled();

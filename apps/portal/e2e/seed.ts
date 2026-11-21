@@ -5,14 +5,20 @@
  * Adds: one account per role (all with the same test password, one person
  * holding both Supervisor and Manager for the segregation-of-duties checks),
  * customers with vehicles (two of them with customer-portal passwords), a
- * Store with priced, stocked parts (each workflow spec has its own part, with
- * a real goods-receipt layer under the stock), a warranty provider and a part
- * warranty policy, and a SECOND organisation with its own admin and customer
+ * second branch, and a SECOND organisation with its own admin and customer
  * for the cross-organisation tests.
+ * The Store, Warranty and the assembly plant are off in the D'Phoenix
+ * edition (edition.ts), so only with their flag does it also add: the store
+ * and warranty people and plant team (and their roles, which the edition's
+ * seed does not create), a Store with priced, stocked parts (each workflow
+ * spec has its own part, with a real goods-receipt layer under the stock), a
+ * warranty provider with a part and a vehicle policy, and an assembly plant
+ * with its departments.
  */
 import { PrismaClient } from '@prisma/client';
 import { hashPassword } from 'better-auth/crypto';
-import { E2E_PASSWORD, PEOPLE, RESET, OTHER_ORG_ADMIN, OTHER_BRANCH_TECH, SECOND_BRANCH, PLANT_BRANCH, CUSTOMER, PORTAL_CUSTOMERS, SEED_PARTS, SEED_CATEGORY, SEED_WARRANTY, type Person } from './people';
+import { E2E_PASSWORD, EDITION_ROLES, ORGANISATION_SLUG, PEOPLE, RESET, OTHER_ORG_ADMIN, OTHER_BRANCH_TECH, SECOND_BRANCH, PLANT_BRANCH, CUSTOMER, PORTAL_CUSTOMERS, SEED_PARTS, SEED_CATEGORY, SEED_WARRANTY, type Person } from './people';
+import { INVENTORY_ENABLED, PLANT_ENABLED, WARRANTY_ENABLED } from './edition';
 
 const prisma = new PrismaClient();
 
@@ -31,7 +37,10 @@ async function person(organisationId: string, branchId: string, p: Person) {
     create: { email: p.email, fullName: p.name, organisationId, branchId, departmentId: dept?.id ?? null, isActive: true, accountType: 'EMPLOYEE', emailVerified: true },
   });
   for (const slug of [p.role, ...(p.extraRoles ?? [])]) {
-    const role = await prisma.role.findUniqueOrThrow({ where: { organisationId_slug: { organisationId, slug } } });
+    // A role the edition switched off (a flag turned it back on for this run) is created here; every other role must exist.
+    const role = EDITION_ROLES[slug]
+      ? await prisma.role.upsert({ where: { organisationId_slug: { organisationId, slug } }, update: {}, create: { organisationId, name: EDITION_ROLES[slug], slug, isSystem: true } })
+      : await prisma.role.findUniqueOrThrow({ where: { organisationId_slug: { organisationId, slug } } });
     await prisma.userRole.upsert({ where: { userId_roleId: { userId: user.id, roleId: role.id } }, update: {}, create: { userId: user.id, roleId: role.id } });
   }
   await account(user.id, E2E_PASSWORD);
@@ -46,18 +55,25 @@ async function customerAccount(customerId: string, password: string) {
 }
 
 async function main() {
-  const org = await prisma.organisation.findUniqueOrThrow({ where: { slug: 'kewalram-nigeria' } });
+  const org = await prisma.organisation.findUniqueOrThrow({ where: { slug: ORGANISATION_SLUG } });
   const branch = await prisma.branch.findFirstOrThrow({ where: { businessUnit: { organisationId: org.id }, type: 'WORKSHOP' }, orderBy: { createdAt: 'asc' } });
-  // The plant team works at the assembly plant (the seed's Afprint, or one made here).
-  const plant = (await prisma.branch.findFirst({ where: { businessUnitId: branch.businessUnitId, type: 'ASSEMBLY_PLANT' }, orderBy: { createdAt: 'asc' } }))
-    ?? (await prisma.branch.create({ data: { businessUnitId: branch.businessUnitId, cityId: branch.cityId, name: PLANT_BRANCH, code: 'KWL-AP', type: 'ASSEMBLY_PLANT', sapPlant: '1100' } }));
-  for (const d of [['plant-kit-receiving', 'Kit receiving & plant store'], ['plant-production', 'Production (the line)'], ['plant-quality', 'Quality (QC and QA audit)'], ['plant-pdi', 'PDI'], ['plant-yard', 'Yard & dispatch']] as const) {
-    await prisma.department.upsert({ where: { branchId_slug: { branchId: plant.id, slug: d[0] } }, update: {}, create: { branchId: plant.id, name: d[1], slug: d[0] } });
+  // The Store team works in the branch's store department (the D'Phoenix seed has none; made here only with E2E_INVENTORY=1).
+  if (INVENTORY_ENABLED) await prisma.department.upsert({ where: { branchId_slug: { branchId: branch.id, slug: 'store' } }, update: {}, create: { branchId: branch.id, name: 'Store', slug: 'store' } });
+  // The plant team works at the assembly plant (the D'Phoenix edition has none; made here only with E2E_PLANT=1).
+  let plantId: string | null = null;
+  if (PLANT_ENABLED) {
+    const plant = (await prisma.branch.findFirst({ where: { businessUnitId: branch.businessUnitId, type: 'ASSEMBLY_PLANT' }, orderBy: { createdAt: 'asc' } }))
+      ?? (await prisma.branch.create({ data: { businessUnitId: branch.businessUnitId, cityId: branch.cityId, name: PLANT_BRANCH, code: 'E2E-AP', type: 'ASSEMBLY_PLANT', sapPlant: '1100' } }));
+    for (const d of [['plant-kit-receiving', 'Kit receiving & plant store'], ['plant-production', 'Production (the line)'], ['plant-quality', 'Quality (QC and QA audit)'], ['plant-pdi', 'PDI'], ['plant-yard', 'Yard & dispatch']] as const) {
+      await prisma.department.upsert({ where: { branchId_slug: { branchId: plant.id, slug: d[0] } }, update: {}, create: { branchId: plant.id, name: d[1], slug: d[0] } });
+    }
+    plantId = plant.id;
   }
-  for (const p of [...PEOPLE, RESET]) await person(org.id, p.branch === 'plant' ? plant.id : branch.id, p);
+  for (const p of [...PEOPLE, RESET]) await person(org.id, p.branch === 'plant' && plantId ? plantId : branch.id, p);
 
   const frontDesk = await prisma.user.findUniqueOrThrow({ where: { email: PEOPLE.find((p) => p.role === 'receptionist')!.email } });
-  const store = await prisma.user.findUniqueOrThrow({ where: { email: PEOPLE.find((p) => p.role === 'store-manager')!.email } });
+  // Who "created" the Store and Warranty fixtures: the Store Manager when the Store is on, else the Workshop Manager.
+  const store = await prisma.user.findUniqueOrThrow({ where: { email: PEOPLE.find((p) => p.role === (INVENTORY_ENABLED ? 'store-manager' : 'workshop-manager'))!.email } });
 
   // ── Customers ──────────────────────────────────────────────────────
   const customer = await prisma.customer.upsert({
@@ -90,53 +106,59 @@ async function main() {
     });
   }
 
-  // ── Warranty: a provider and a part policy, owned by this organisation ──
-  const provider = await prisma.warrantyProvider.upsert({
-    where: { name: SEED_WARRANTY.provider },
-    update: {},
-    create: { name: SEED_WARRANTY.provider, type: 'SUPPLIER', organisationId: org.id, contactName: 'Pat Provider', email: 'claims@provider.e2e.test', claimSubmissionDays: 30, createdById: store.id },
-  });
-  const policy = await prisma.warrantyPolicy.upsert({
-    where: { code: SEED_WARRANTY.policyCode },
-    update: {},
-    create: { code: SEED_WARRANTY.policyCode, name: SEED_WARRANTY.policyName, kind: 'PART', providerId: provider.id, durationMonths: 12, durationUnit: 'MONTHS', coverageSummary: 'Manufacturing defects', exclusions: 'Wear and tear', organisationId: org.id, createdById: store.id },
-  });
-  // A vehicle (asset) policy — the customer-portal spec registers a warranty with it.
-  await prisma.warrantyPolicy.upsert({
-    where: { code: SEED_WARRANTY.vehiclePolicyCode },
-    update: {},
-    create: { code: SEED_WARRANTY.vehiclePolicyCode, name: SEED_WARRANTY.vehiclePolicyName, kind: 'ASSET', providerId: provider.id, durationMonths: 24, durationUnit: 'MONTHS', distanceLimit: 100000, coverageSummary: 'Engine and gearbox', exclusions: 'Wear and tear', organisationId: org.id, createdById: store.id },
-  });
+  // ── Warranty: a provider and a part policy, owned by this organisation (E2E_WARRANTY=1) ──
+  let policyId: string | null = null;
+  if (WARRANTY_ENABLED) {
+    const provider = await prisma.warrantyProvider.upsert({
+      where: { name: SEED_WARRANTY.provider },
+      update: {},
+      create: { name: SEED_WARRANTY.provider, type: 'SUPPLIER', organisationId: org.id, contactName: 'Pat Provider', email: 'claims@provider.e2e.test', claimSubmissionDays: 30, createdById: store.id },
+    });
+    const policy = await prisma.warrantyPolicy.upsert({
+      where: { code: SEED_WARRANTY.policyCode },
+      update: {},
+      create: { code: SEED_WARRANTY.policyCode, name: SEED_WARRANTY.policyName, kind: 'PART', providerId: provider.id, durationMonths: 12, durationUnit: 'MONTHS', coverageSummary: 'Manufacturing defects', exclusions: 'Wear and tear', organisationId: org.id, createdById: store.id },
+    });
+    // A vehicle (asset) policy — the customer-portal spec registers a warranty with it.
+    await prisma.warrantyPolicy.upsert({
+      where: { code: SEED_WARRANTY.vehiclePolicyCode },
+      update: {},
+      create: { code: SEED_WARRANTY.vehiclePolicyCode, name: SEED_WARRANTY.vehiclePolicyName, kind: 'ASSET', providerId: provider.id, durationMonths: 24, durationUnit: 'MONTHS', distanceLimit: 100000, coverageSummary: 'Engine and gearbox', exclusions: 'Wear and tear', organisationId: org.id, createdById: store.id },
+    });
+    policyId = policy.id;
+  }
 
-  // ── Store: category, part types, priced parts with real stock layers ──
-  const category = await prisma.partCategory.upsert({
-    where: { branchId_name: { branchId: branch.id, name: SEED_CATEGORY.name } },
-    update: {},
-    create: { branchId: branch.id, name: SEED_CATEGORY.name, code: SEED_CATEGORY.code, createdById: store.id },
-  });
-  for (const [key, p] of Object.entries(SEED_PARTS)) {
-    const type = await prisma.partType.upsert({
-      where: { branchId_categoryId_name: { branchId: branch.id, categoryId: category.id, name: p.type } },
+  // ── Store: category, part types, priced parts with real stock layers (E2E_INVENTORY=1) ──
+  if (INVENTORY_ENABLED) {
+    const category = await prisma.partCategory.upsert({
+      where: { branchId_name: { branchId: branch.id, name: SEED_CATEGORY.name } },
       update: {},
-      create: { branchId: branch.id, categoryId: category.id, name: p.type, createdById: store.id },
+      create: { branchId: branch.id, name: SEED_CATEGORY.name, code: SEED_CATEGORY.code, createdById: store.id },
     });
-    const part = await prisma.part.upsert({
-      where: { branchId_partNumber: { branchId: branch.id, partNumber: p.number } },
-      update: {},
-      create: {
-        branchId: branch.id, name: p.name, partNumber: p.number, category: SEED_CATEGORY.name, partTypeId: type.id, baseUnitOfMeasure: 'Piece',
-        sellingPrice: p.price, targetMarginPercent: 30, createdById: store.id, warrantyPolicyId: key === 'brakePads' ? policy.id : null,
-      },
-    });
-    const ref = `GRN-E2ESEED-${p.number}`;
-    if (!(await prisma.goodsReceipt.findUnique({ where: { referenceNumber: ref } }))) {
-      await prisma.goodsReceipt.create({
-        data: {
-          branchId: branch.id, referenceNumber: ref, supplierName: 'E2E Opening Stock Ltd', receivedById: store.id, notes: 'Opening stock (test seed)',
-          lines: { create: { partId: part.id, quantityReceivedInUnit: p.stock, unitUsed: 'Piece', quantityInBaseUnit: p.stock, totalCost: p.stock * p.price * 0.6, unitCost: p.price * 0.6 } },
+    for (const [key, p] of Object.entries(SEED_PARTS)) {
+      const type = await prisma.partType.upsert({
+        where: { branchId_categoryId_name: { branchId: branch.id, categoryId: category.id, name: p.type } },
+        update: {},
+        create: { branchId: branch.id, categoryId: category.id, name: p.type, createdById: store.id },
+      });
+      const part = await prisma.part.upsert({
+        where: { branchId_partNumber: { branchId: branch.id, partNumber: p.number } },
+        update: {},
+        create: {
+          branchId: branch.id, name: p.name, partNumber: p.number, category: SEED_CATEGORY.name, partTypeId: type.id, baseUnitOfMeasure: 'Piece',
+          sellingPrice: p.price, targetMarginPercent: 30, createdById: store.id, warrantyPolicyId: key === 'brakePads' ? policyId : null,
         },
       });
-      await prisma.partStock.upsert({ where: { partId: part.id }, update: { quantityOnHand: p.stock }, create: { partId: part.id, quantityOnHand: p.stock } });
+      const ref = `GRN-E2ESEED-${p.number}`;
+      if (!(await prisma.goodsReceipt.findUnique({ where: { referenceNumber: ref } }))) {
+        await prisma.goodsReceipt.create({
+          data: {
+            branchId: branch.id, referenceNumber: ref, supplierName: 'E2E Opening Stock Ltd', receivedById: store.id, notes: 'Opening stock (test seed)',
+            lines: { create: { partId: part.id, quantityReceivedInUnit: p.stock, unitUsed: 'Piece', quantityInBaseUnit: p.stock, totalCost: p.stock * p.price * 0.6, unitCost: p.price * 0.6 } },
+          },
+        });
+        await prisma.partStock.upsert({ where: { partId: part.id }, update: { quantityOnHand: p.stock }, create: { partId: part.id, quantityOnHand: p.stock } });
+      }
     }
   }
 
@@ -158,7 +180,7 @@ async function main() {
   await prisma.customer.upsert({ where: { email: 'other-customer@e2e.test' }, update: {}, create: { organisationId: other.id, fullName: 'Other Customer', email: 'other-customer@e2e.test', phone: '08000000009', address: 'Garki, Abuja' } });
 
   // eslint-disable-next-line no-console
-  console.log(`E2E seed: ${PEOPLE.length + 1} staff in ${org.name} / ${branch.name}, 3 customers (2 with portal passwords), ${Object.keys(SEED_PARTS).length} stocked parts, a part warranty policy, and ${other.name} with its own admin.`);
+  console.log(`E2E seed: ${PEOPLE.length + 1} staff in ${org.name} / ${branch.name}, ${PORTAL_CUSTOMERS.length + 1} customers (${PORTAL_CUSTOMERS.length} with portal passwords), ${INVENTORY_ENABLED ? Object.keys(SEED_PARTS).length : 0} stocked parts, ${WARRANTY_ENABLED ? 'warranty policies' : 'no warranty'}${PLANT_ENABLED ? ', an assembly plant' : ''}, and ${other.name} with its own admin.`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); }).finally(() => prisma.$disconnect());

@@ -3,6 +3,7 @@ import { CUSTOMER, E2E_PASSWORD, OTHER_ORG_ADMIN, SEED_PARTS } from './people';
 import { as, expectHealthy, signIn } from './helpers';
 import { freshVehicle } from './db';
 import { jobNumber, openJobCard } from './workflows';
+import { INVENTORY_ENABLED } from './edition';
 
 /**
  * The header search finds a Job Card by number, a customer by name, a
@@ -47,9 +48,12 @@ test('front desk finds the Job Card, the customer, the vehicle; Store finds the 
   await page.waitForURL(/\/workshop\/vehicles\/[^/]+\/edit/);
   await expectHealthy(page);
 
-  await as(page, 'store-manager');
-  panel = await search(page, SEED_PARTS.brakePads.name);
-  await expect(panel.getByRole('option', { name: new RegExp(SEED_PARTS.brakePads.number) }).first()).toBeVisible();
+  // The Store's parts only where the edition has it (edition.ts).
+  if (INVENTORY_ENABLED) {
+    await as(page, 'store-manager');
+    panel = await search(page, SEED_PARTS.brakePads.name);
+    await expect(panel.getByRole('option', { name: new RegExp(SEED_PARTS.brakePads.number) }).first()).toBeVisible();
+  }
 });
 
 test('special characters and emoji in the search never break it', async ({ page }) => {

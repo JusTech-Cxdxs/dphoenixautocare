@@ -1,0 +1,75 @@
+/**
+ * What this edition of the platform switches on — read by the seed, the specs
+ * and playwright.config.ts.
+ *
+ * The D'Phoenix Autocare edition is the vehicle workshop: apps/portal/lib/modules.ts
+ * keeps the Store (inventory), Warranty and the assembly plant in code with
+ * status DISABLED (off the menu, the dashboard, search, Enyo and the customer
+ * portal), and featureOn() switches SAP, external procurement, the roadmap,
+ * news & media, Speak Up and data requests off. The seed creates no store,
+ * warranty or plant roles, so the specs (and the e2e seed's people and
+ * fixtures) for them only run when the matching flag is set — E2E_INVENTORY=1,
+ * E2E_WARRANTY=1 and so on — against an edition that has them.
+ */
+export const INVENTORY_ENABLED = process.env.E2E_INVENTORY === '1';
+export const INVENTORY_OFF = "The Store (inventory, parts, goods receipts, parts requests) is off in the D'Phoenix edition";
+
+export const WARRANTY_ENABLED = process.env.E2E_WARRANTY === '1';
+export const WARRANTY_OFF = "Warranty (policies, registrations, claims) is off in the D'Phoenix edition";
+
+export const PLANT_ENABLED = process.env.E2E_PLANT === '1';
+export const PLANT_OFF = "The assembly plant (kits, the line, PDI) is off in the D'Phoenix edition";
+
+/** SAP postings and the SAP history import (featureOn('sap')). */
+export const SAP_ENABLED = process.env.E2E_SAP === '1';
+export const SAP_OFF = "SAP postings and history are off in the D'Phoenix edition";
+
+/** Buying a part outside the Store (featureOn('externalProcurement')). */
+export const EXTERNAL_PROCUREMENT_ENABLED = process.env.E2E_EXTERNAL_PROCUREMENT === '1';
+export const EXTERNAL_PROCUREMENT_OFF = "External procurement (EPR) is off in the D'Phoenix edition";
+
+export const NEWS_ENABLED = process.env.E2E_NEWS === '1';
+export const NEWS_OFF = "News & media is off in the D'Phoenix edition";
+
+export const DATA_REQUESTS_ENABLED = process.env.E2E_DATA_REQUESTS === '1';
+export const DATA_REQUESTS_OFF = "Customers' data requests are off in the D'Phoenix edition";
+
+export const ROADMAP_ENABLED = process.env.E2E_ROADMAP === '1';
+export const ROADMAP_OFF = "The roadmap is off in the D'Phoenix edition";
+
+export const SPEAK_UP_ENABLED = process.env.E2E_SPEAK_UP === '1';
+export const SPEAK_UP_OFF = "Speak Up is off in the D'Phoenix edition";
+
+/**
+ * The D'Phoenix edition has no public marketing website: apps/website is the
+ * customer portal only (its root redirects to /customer-portal, the business
+ * has its own website), so there are no marketing pages and no public Enyo
+ * "Chat with …" widget to test.
+ */
+export const PUBLIC_WEBSITE = false;
+export const NO_PUBLIC_WEBSITE = "No public website in the D'Phoenix edition (apps/website is the customer portal only)";
+
+/**
+ * The demo people and records (lib/demo, `npm run demo:people`) are the
+ * Kewalram demo — Headquarters, the Isolo workshop and the Afprint plant,
+ * with the Store, Warranty and the line — loaded into the seed's
+ * organisation. The D'Phoenix edition has none of those, so the demo specs
+ * only run with E2E_DEMO=1.
+ */
+export const DEMO_ENABLED = process.env.E2E_DEMO === '1';
+export const DEMO_OFF = "The demo (lib/demo: Isolo, Afprint, the Store, Warranty and the plant) is not the D'Phoenix edition's";
+
+/** The staff portal's addresses that belong to an area switched off above: not found in this edition (their layouts say so), never "Access denied". */
+export const OFF_URL_PREFIXES: string[] = [
+  ...(INVENTORY_ENABLED ? [] : ['/inventory', '/workshop/parts-requests']),
+  ...(EXTERNAL_PROCUREMENT_ENABLED ? [] : ['/workshop/external-procurement']),
+  ...(WARRANTY_ENABLED ? [] : ['/warranty']),
+  ...(PLANT_ENABLED ? [] : ['/plant']),
+  ...(SAP_ENABLED ? [] : ['/data-exchange/sap']),
+  ...(NEWS_ENABLED ? [] : ['/news']),
+  ...(DATA_REQUESTS_ENABLED ? [] : ['/data-requests']),
+  ...(ROADMAP_ENABLED ? [] : ['/roadmap']),
+  ...(SPEAK_UP_ENABLED ? [] : ['/support/speak-up']),
+];
+/** Whether an address is in this edition (not under OFF_URL_PREFIXES). */
+export const inEdition = (url: string): boolean => !OFF_URL_PREFIXES.some((p) => url === p || url.startsWith(`${p}/`) || url.startsWith(`${p}?`));

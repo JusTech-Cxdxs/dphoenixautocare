@@ -20,6 +20,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { action, closeDb, digestMessages, report, signIn, sql, type Check, type ActionResult } from './lib';
 import { E2E_PASSWORD } from '../people';
+import { INVENTORY_ENABLED } from '../edition';
 
 const FIX = JSON.parse(readFileSync(process.env.SEC_FIXTURES ?? 'sec-fixtures.json', 'utf8'));
 const evidence: Record<string, unknown> = {};
@@ -49,7 +50,8 @@ async function main() {
   const fin = await sessions('finance@e2e.test', 3);
   const front = await sessions('frontdesk@e2e.test', 2);
   const sup = await sessions('supervisor@e2e.test', 2);
-  const store = await sessions('store@e2e.test', 2);
+  // The Store's bursts (CONC-08 to CONC-11) only where the edition has the Store (e2e/edition.ts).
+  const store = INVENTORY_ENABLED ? await sessions('store@e2e.test', 2) : [];
   const t0 = Date.now();
 
   // CONC-01 — one payment form submitted 30 times at once.
@@ -107,7 +109,7 @@ async function main() {
     checks.push({ id: 'CONC-07', title: 'recordRefund ×10 distinct, Σ requested 120,045 vs 50,000 paid', pass: refunded <= paid, detail: `refunded=${refunded} paid=${paid}; ${tally(rs2)}` });
   }
   // CONC-08 — one goods-receipt form submitted 20 times at once.
-  {
+  if (INVENTORY_ENABLED) {
     const before = await num(`SELECT "quantityOnHand" FROM part_stock WHERE "partId"=$1`, [FIX.parts.receive]);
     const input = { idempotencyKey: 'conc-08-same-key', branchId: FIX.branchId, supplierName: 'Conc Supplier', lines: [{ partId: FIX.parts.receive, quantityReceivedInUnit: 4, unitUsed: 'piece', totalCost: 40000 }] };
     const rs = await burst(20, (i) => action('recordGoodsReceipt', [input], { cookie: store[i % store.length] }));
@@ -116,7 +118,7 @@ async function main() {
     checks.push({ id: 'CONC-08', title: 'recordGoodsReceipt ×20, same idempotency key', pass: n === 1 && after - before === 4, detail: `receipts with key=${n}, on hand ${before}→${after} (expected +4); ${tally(rs)}` });
   }
   // CONC-09 — ten storekeeper approvals competing for the same 10 units (3 each).
-  {
+  if (INVENTORY_ENABLED) {
     const rs = await burst(10, (i) => action('approvePartRequestSlipByStore', [FIX.pendingSlips[i], 'conc-09'], { cookie: store[i % store.length] }));
     const s = (await sql<{ onHand: string; reserved: string }>(`SELECT "quantityOnHand" AS "onHand", "quantityReserved" AS reserved FROM part_stock WHERE "partId"=$1`, [FIX.parts.approve]))[0]!;
     const approved = await num(`SELECT count(*) FROM part_request_slips WHERE id = ANY($1) AND status='APPROVED'`, [FIX.pendingSlips]);
@@ -124,7 +126,7 @@ async function main() {
     checks.push({ id: 'CONC-09', title: 'approvePartRequestSlipByStore, 10 slips × 3 vs 10 on hand', pass: reserved <= Number(s.onHand) && reserved >= 0 && reserved === approved * 3, detail: `on hand=${Number(s.onHand)} reserved=${reserved} approved slips=${approved} (expect ≤3 and reserved = 3×approved); ${tally(rs)}` });
   }
   // CONC-10 — the same slip approved 10 times at once (reset one slip to pending first).
-  {
+  if (INVENTORY_ENABLED) {
     const slipId = (await sql<{ id: string }>(`SELECT id FROM part_request_slips WHERE id = ANY($1) AND status='PENDING_STORE_APPROVAL' LIMIT 1`, [FIX.pendingSlips]))[0]?.id;
     if (slipId) {
       // Make room: give the part enough stock that every approval could fit.
@@ -136,7 +138,7 @@ async function main() {
     }
   }
   // CONC-11 — one approved slip released 10 times at once.
-  {
+  if (INVENTORY_ENABLED) {
     const b = (await sql<{ o: string; r: string }>(`SELECT "quantityOnHand" o, "quantityReserved" r FROM part_stock WHERE "partId"=$1`, [FIX.parts.release]))[0]!;
     const rs = await burst(10, (i) => action('releasePartRequestSlip', [FIX.approvedSlip, { receivedByUserId: FIX.users.tech }], { cookie: store[i % store.length] }));
     const a = (await sql<{ o: string; r: string }>(`SELECT "quantityOnHand" o, "quantityReserved" r FROM part_stock WHERE "partId"=$1`, [FIX.parts.release]))[0]!;

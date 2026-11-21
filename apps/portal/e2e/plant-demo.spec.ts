@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 import { as, open } from './helpers';
 import { db } from './db';
 import { DEMO_PEOPLE } from '../lib/plant/demo/plan';
+import { PLANT_ENABLED, PLANT_OFF } from './edition';
+import { PLANT_BRANCH } from './people';
 
 /**
  * P3 — the plant demo: an administrator loads six invented weeks into the
@@ -9,6 +11,7 @@ import { DEMO_PEOPLE } from '../lib/plant/demo/plan';
  * page fills, the demo is marked and replaceable, and it can be taken out
  * again without touching anything else. Not for anyone below administrator.
  */
+test.skip(!PLANT_ENABLED, PLANT_OFF);
 test.describe.configure({ mode: 'serial' });
 
 test('the administrator loads the demo: the plant, the line, the kits, QA, Headquarters and a vehicle’s page all fill', async ({ page }) => {
@@ -54,7 +57,7 @@ test('the administrator loads the demo: the plant, the line, the kits, QA, Headq
   await expect(page.getByText(/Failed · \d+ demerits/).first()).toBeVisible();
   // Headquarters shows the plant's figures.
   await open(page, '/headquarters');
-  await expect(page.getByRole('rowheader', { name: /Afprint Assembly Plant/ })).toContainText(/\d+ on the line · \d+ at PDI · \d+ in the yard/);
+  await expect(page.getByRole('rowheader', { name: new RegExp(PLANT_BRANCH) })).toContainText(/\d+ on the line · \d+ at PDI · \d+ in the yard/);
   // A demo vehicle's page: its kit, its stations, its PDI.
   const yard = await db().plantVehicle.findFirstOrThrow({ where: { organisationId: org.id, externalSource: 'EJO-DEMO', stage: 'YARD' }, select: { vin: true } });
   await open(page, `/vehicles/${yard.vin}`);

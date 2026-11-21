@@ -29,7 +29,7 @@ test('set up: an estimate sent for a Job Card, one for a Vehicle Service, and it
   const now = new Date();
   const job = await db().jobCard.create({ data: { jobNumber: ids.job, branchId: ids.branch, customerId, vehicleId: v.id, createdById: fin.id }, select: { id: true } });
   await db().estimate.create({ data: { jobCardId: job.id, status: 'MANAGER_APPROVED', createdById: fin.id, customerNotifiedAt: now, customerNotifiedById: fin.id, lineItems: { create: [
-    { type: 'STORE_PART', description: 'Oil filter', quantity: 2, amount: 5000, unitOfMeasure: 'piece', enteredById: fin.id },
+    { type: 'EXTERNAL_PART', description: 'Oil filter', quantity: 2, amount: 5000, unitOfMeasure: 'piece', enteredById: fin.id },
     { type: 'LABOUR', description: 'Fitting', quantity: 1, amount: 3000, enteredById: fin.id },
   ] } } });
   const svc = await db().vehicleService.create({ data: { serviceNumber: ids.service, branchId: ids.branch, customerId, vehicleId: v.id, createdById: fin.id }, select: { id: true } });
