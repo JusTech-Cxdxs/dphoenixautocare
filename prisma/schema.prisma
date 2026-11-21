@@ -1,0 +1,259 @@
+// D'Phoenix Autocare: workshop and fleet system (an EJO edition by JusTech).
+//
+// Rules for this file:
+// - Changes are additive once merged: never drop or rename a table or column.
+//   scripts/check-migrations.mjs fails CI on destructive SQL.
+// - Every model is listed in tests/data-inventory.test.ts with its purpose.
+// - Tables are snake_case plurals; columns keep Prisma's camelCase names.
+// - Money is Decimal(14,2) in Naira. Times are stored in UTC and shown in Africa/Lagos.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Sign-in (Better Auth) ───────────────────────────────────────────────────
+
+/// A staff login. Better Auth's user table plus our own fields.
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  /// Switched off by the Owner: cannot sign in, sessions are removed.
+  active        Boolean   @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions Session[]
+  accounts Account[]
+  roles    UserRole[]  @relation("UserRoles")
+  staff    Staff?
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+/// One-time links: password reset, set-password invitations, email verification.
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@index([expiresAt])
+  @@map("verifications")
+}
+
+// ─── Roles and permissions ───────────────────────────────────────────────────
+// What each role may do by default is defined in code (lib/authz/catalogue.ts).
+// RolePermission rows are extra grants the Owner adds on top; they can only name
+// permissions that exist in the catalogue.
+
+model Role {
+  id          String           @id @default(cuid())
+  /// OWNER, FRONT_DESK, SUPERVISOR, TECHNICIAN, SECURITY
+  key         String           @unique
+  name        String
+  description String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  userId       String
+  roleId       String
+  assignedAt   DateTime @default(now())
+  assignedById String?
+  user         User     @relation("UserRoles", fields: [userId], references: [id], onDelete: Cascade)
+  role         Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId      String
+  /// A key from lib/authz/catalogue.ts, e.g. "staff.view".
+  permission  String
+  grantedAt   DateTime @default(now())
+  grantedById String?
+  role        Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permission])
+  @@map("role_permissions")
+}
+
+// ─── Business settings ───────────────────────────────────────────────────────
+
+/// Exactly one row (id = 1): business details, money rules and optional modules.
+model Setting {
+  id Int @id @default(1)
+
+  // Business details (printed on PDFs and emails)
+  businessName String   @default("D'PHOENIX AUTOCARE LIMITED")
+  displayName  String   @default("D'Phoenix Autocare")
+  tagline      String   @default("Restore Life To Your Vehicle")
+  phones       String[] @default(["+234 811 496 6212", "+234 807 654 4837"])
+  email        String   @default("dphoenixautocare@gmail.com")
+  address      String   @default("Plot 1 Muri Okunola Street, opposite NNPC Hospital, beside Prime Shopping Complex, Sandfill Bus Stop, Victoria Island, Lagos")
+  openingHours String   @default("Monday to Saturday, 8:00 AM to 6:00 PM. Sunday closed.")
+  website      String   @default("https://www.dphoenixautocare.com")
+
+  // Money
+  vatEnabled            Boolean  @default(false)
+  vatRatePercent        Decimal  @default(7.5) @db.Decimal(5, 2)
+  /// Discounts above this percentage of a document need the Owner's approval.
+  discountLimitPercent  Decimal  @default(10) @db.Decimal(5, 2)
+  estimateNeedsOwner    Boolean  @default(false)
+  /// Individual customers only, never organisations on credit. Null means off.
+  depositPercent        Decimal? @db.Decimal(5, 2)
+
+  // Document numbers
+  jobCardPrefix String @default("DPA-JC")
+  invoicePrefix String @default("DPA-INV")
+  receiptPrefix String @default("DPA-RCT")
+
+  // Optional modules
+  supervisorEnabled       Boolean @default(false)
+  technicianLoginsEnabled Boolean @default(false)
+  securityGateEnabled     Boolean @default(false)
+  appointmentsEnabled     Boolean @default(true)
+  supportEnabled          Boolean @default(true)
+  enyoEnabled             Boolean @default(false)
+
+  // Service-due tracking
+  serviceIntervalKm     Int @default(5000)
+  serviceIntervalMonths Int @default(6)
+  dueSoonKm             Int @default(500)
+  dueSoonDays           Int @default(14)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+
+  @@map("settings")
+}
+
+// ─── People ──────────────────────────────────────────────────────────────────
+
+/// Everyone who works in the workshop. A login (User) is optional: technicians
+/// always exist here so jobs can be assigned by name.
+model Staff {
+  id           String   @id @default(cuid())
+  name         String
+  /// Job title shown on screen, e.g. "Front Desk" or "Senior Technician".
+  roleTitle    String
+  phone        String?
+  isTechnician Boolean  @default(false)
+  userId       String?  @unique
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([active, isTechnician])
+  @@map("staff")
+}
+
+// ─── Audit and operations ────────────────────────────────────────────────────
+
+/// Append-only history (a database trigger refuses UPDATE and DELETE).
+/// Business entries ("job.checked_in") and the automatic data journal
+/// ("data.update" on "db:Model") both land here.
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  createdAt  DateTime @default(now())
+  userId     String?
+  /// Who or what acted when there is no user: "cron:service-reminders", "system", "portal".
+  source     String   @default("app")
+  action     String
+  entityType String
+  entityId   String?
+  /// One readable line for the audit page and record timelines.
+  summary    String?
+  metadata   Json?
+  ipAddress  String?
+  requestId  String?
+
+  @@index([createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+/// A server error, with the reference shown to the person on the error page.
+model ErrorEvent {
+  id        String   @id @default(cuid())
+  reference String   @unique
+  createdAt DateTime @default(now())
+  path      String?
+  message   String
+  stack     String?
+  userId    String?
+  requestId String?
+
+  @@index([createdAt])
+  @@map("error_events")
+}
+
+/// Shared rate-limit counters (sign-in and public forms), one row per key and window.
+model RateLimitBucket {
+  key         String   @id
+  count       Int      @default(0)
+  windowStart DateTime @default(now())
+
+  @@index([windowStart])
+  @@map("rate_limit_buckets")
+}
