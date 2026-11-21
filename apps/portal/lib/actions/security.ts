@@ -21,6 +21,7 @@ import { visitOverdueMinutes, exitPassOverdueMinutes, roadTestOverdueMinutes, du
 import { billingOf, jobCardTotals, ESTIMATE_TOTALS_SELECT, JOB_CARD_BILLING_SELECT } from '@/lib/estimate-billing';
 import { lagosYear } from '@/lib/utils/format-date';
 import { PLATFORM } from '@/lib/brand';
+import { whatsAppToStaff } from '@/lib/whatsapp/send';
 
 class SecurityError extends Error {}
 
@@ -168,12 +169,19 @@ async function nextNumber(prefix: 'VIS' | 'VP' | 'EP' | 'VX' | 'RT' | 'INC' | 'D
 }
 
 /** Sends one email and ALWAYS records it — recipient, subject, success or
- * the error — in the Security email log and the record's audit trail. */
+ * the error — in the Security email log and the record's audit trail. The
+ * same notice goes on WhatsApp to the colleagues who switched it on: "your
+ * visitor has arrived" as dpa_staff_visitor, the rest as dpa_staff_update. */
 async function sendLogged(entityType: string, entityId: string, recipients: Person[], subject: string, heading: string, lines: string[], path: string, actorId: string | null) {
   const unique = recipients.filter((r, i, a) => r.email && a.findIndex((x) => x.email === r.email) === i);
   if (unique.length === 0) return;
   const org = await getWorkshopOrgContext().catch(() => ({ companyName: PLATFORM.name, branchName: '', departmentName: '' }));
   const portal = portalBaseUrl();
+  if (entityType === 'Visit' && /your visitor (has arrived|is at)/i.test(subject)) {
+    await whatsAppToStaff({ to: unique, key: 'staff_visitor', related: { type: entityType, id: entityId }, values: { details: lines.join(' · '), link: `${portal}${path}` } });
+  } else {
+    await whatsAppToStaff({ to: unique, key: 'staff_update', related: { type: entityType, id: entityId }, values: { what: subject, details: lines.join(' · '), link: `${portal}${path}` } });
+  }
   for (const r of unique) {
     let sent = true;
     let error: string | null = null;

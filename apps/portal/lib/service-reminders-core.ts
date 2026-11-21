@@ -11,6 +11,8 @@ import { loadServiceTracking, SERVICE_JOB_CARD_WHERE } from '@/lib/vehicle-servi
 import { sendEmail } from '@/lib/email';
 import { renderServiceReminderEmail, serviceReminderSubject, type ServiceReminderStage } from '@/lib/email-templates/service-reminder';
 import { PLATFORM } from '@/lib/brand';
+import { whatsAppToCustomer } from '@/lib/whatsapp/send';
+import { vehicleText, waDate } from '@/lib/whatsapp/words';
 
 
 export type VehicleNeedingReminder = {
@@ -77,7 +79,7 @@ export async function sendServiceReminder(need: VehicleNeedingReminder, trigger?
       },
     },
   });
-  if (!vehicle || !vehicle.customer.email) return;
+  if (!vehicle) return;
 
   const serviceRow = vehicle.vehicleServices[0];
   const serviceCard = vehicle.jobCards[0];
@@ -95,7 +97,21 @@ export async function sendServiceReminder(need: VehicleNeedingReminder, trigger?
     where: { vehicleId: need.vehicleId, ...(lastService?.primaryServiceDate ? { sentAt: { gte: lastService.primaryServiceDate } } : {}) },
   });
 
-  await sendEmail(
+  // On WhatsApp too, when the customer agreed — also for a customer with no email on file
+  // (then the reminder counts as sent only if WhatsApp took it).
+  const due = [need.estimatedDueOdometer !== null ? `${need.estimatedDueOdometer.toLocaleString('en-NG')} km` : null, need.estimatedDueDate ? waDate(need.estimatedDueDate) : null].filter(Boolean).join(' or ');
+  const onWhatsApp = await whatsAppToCustomer({
+    customerId: vehicle.customer.id, key: 'service_reminder', related: { type: 'CustomerVehicle', id: need.vehicleId },
+    values: {
+      vehicle: vehicleText(vehicle),
+      due: need.isOverdue ? `now past its service${due ? ` (it was due at ${due}, whichever came first)` : ''}` : `due for its service${due ? ` at ${due}, whichever comes first` : ' soon'}`,
+      link: `${websiteUrl}/customer-portal/dashboard`,
+      workshop: branchContext?.businessUnit.organisation.name,
+    },
+  });
+  if (!vehicle.customer.email) {
+    if (onWhatsApp.status !== 'SENT') return;
+  } else await sendEmail(
     vehicle.customer.email,
     serviceReminderSubject(need.nextStage, vehicle.plateNumber ? `${vehicleDescription} (${vehicle.plateNumber})` : vehicleDescription),
     renderServiceReminderEmail({

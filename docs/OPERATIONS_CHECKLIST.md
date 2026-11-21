@@ -50,6 +50,9 @@ Names only. Values never go into the repository, chat, or tickets.
 | `DEMO_DAILY_ACTIVITY` | optional | `off` stops the demo organisation's daily working day (check-ins, visitors, requests…). On by default; never touches a real organisation and never emails. |
 | `DEMO_LOAD` | optional | `off` stops the build loading the demo records (plant and workshop) into the demo organisation the first time. |
 | `DEMO_STRICT` | optional | `1` makes a demo-people problem stop the build (by default it is reported and the app still deploys). |
+| `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` | for automatic WhatsApp | Meta's WhatsApp Business Platform: a permanent System User token (permissions `whatsapp_business_messaging` and `whatsapp_business_management`) and the business number's Phone number ID. Both set: every email with a template in `docs/WHATSAPP_TEMPLATES.md` also goes on WhatsApp, to customers who agreed and colleagues who switched it on. Unset: nothing is sent automatically; the "Send on WhatsApp" buttons still work. Never `NEXT_PUBLIC_`. Meta charges per message |
+| `WHATSAPP_BUSINESS_ACCOUNT_ID` | recommended with WhatsApp | The WhatsApp Business Account ID: Settings → WhatsApp then shows each template's approval (APPROVED / PENDING / REJECTED / missing) |
+| `WHATSAPP_GRAPH_VERSION`, `WHATSAPP_TEMPLATE_LANGUAGE` | optional | The Graph API version (default `v27.0`) and the language the templates were created in (default `en`) |
 
 ### Website and customer portal (Vercel project for `apps/website`)
 
@@ -65,6 +68,7 @@ Names only. Values never go into the repository, chat, or tickets.
 | `NEXT_PUBLIC_CONTACT_EMAIL`, `NEXT_PUBLIC_CONTACT_PHONE`, `NEXT_PUBLIC_CONTACT_ADDRESS` | optional | Footer contact lines (hidden when not set) |
 | `NEXT_PUBLIC_SOCIAL_FACEBOOK`, `_LINKEDIN`, `_X`, `_YOUTUBE`, `_INSTAGRAM` | optional | Footer social links (hidden when not set) |
 | `SMTP_*` | yes | Outgoing email (customer password reset) |
+| `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_BUSINESS_ACCOUNT_ID`, `WHATSAPP_GRAPH_VERSION`, `WHATSAPP_TEMPLATE_LANGUAGE` | for automatic WhatsApp | The same values as the portal: the customer portal sends the support acknowledgement and staff notices on WhatsApp too |
 | `CUSTOMER_SIGNIN_PER_MINUTE`, `CUSTOMER_RESET_REQUESTS_PER_5_MIN` | optional | Sign-in limits per address |
 | `ENYO_LLM_PROVIDER`, `ENYO_LLM_API_KEY`, `ENYO_LLM_MODEL`, `ENYO_LLM_FAST_MODEL`, `ENYO_LLM_PROVIDER_LABEL` (and the optional ones) | for Enyo | The same model settings as the portal, for Enyo in the customer portal and on the support page |
 | `WEBSITE_ORGANISATION_SLUG` | for Enyo | The organisation this site belongs to (its slug in the database). Without it Enyo on the support page stays off when the names don't match |

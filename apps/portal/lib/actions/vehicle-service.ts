@@ -43,6 +43,11 @@ import { lagosDayKey, lagosYear } from '@/lib/utils/format-date';
 import { schedulePrediction } from '@/lib/enyo/predict/lines';
 import { customerLinks } from '@/lib/customer-links-core';
 import { separateVehicleServiceOn, VEHICLE_SERVICE_OFF_MESSAGE } from '@/lib/service-entry';
+import { whatsAppToCustomer, whatsAppToStaff } from '@/lib/whatsapp/send';
+import { detailsLine, serviceRecord, vehicleText, waLongDate } from '@/lib/whatsapp/words';
+
+/** The customer of a Vehicle Service, for its WhatsApp messages. */
+const customerOfService = (id: string) => prisma.vehicleService.findUnique({ where: { id }, select: { customerId: true } }).then((r) => r?.customerId ?? null).catch(() => null);
 
 class VehicleServiceActionError extends Error {}
 
@@ -140,6 +145,7 @@ export async function createVehicleService(input: CreateVehicleServiceInput): Pr
     if (supervisor && customer) {
       const orgContext = await getWorkshopOrgContext(department.name);
       const portalUrl = portalBaseUrl();
+      await whatsAppToStaff({ to: [{ id: input.supervisorId }], key: 'staff_assigned', related: { type: 'VehicleService', id: service.id }, values: { what: `Vehicle Service ${serviceNumber}, to supervise`, details: detailsLine([['Customer', customer.fullName], ['Vehicle', vehicleText(vehicleFull ?? {})]]), link: `${portalUrl}/workshop/vehicle-service/${service.id}` } });
       await sendEmail(
         supervisor.email,
         `New Vehicle Service ${serviceNumber} assigned to you`,
@@ -305,6 +311,7 @@ async function notifyVehicleServiceCreatorOfDecision(params: {
     if (!creator || !approver) return;
     const orgContext = await getWorkshopOrgContext(params.departmentName);
     const portalUrl = portalBaseUrl();
+    await whatsAppToStaff({ to: [{ id: params.createdById }], key: 'staff_update', related: { type: 'VehicleService', id: params.serviceId }, values: { what: params.decision === 'APPROVED' ? `Vehicle Service ${params.serviceNumber} approved` : `Vehicle Service ${params.serviceNumber} returned for correction`, details: detailsLine([['Customer', params.customerName], ['By', approver.fullName], ['Reason', params.rejectionReason]]), link: `${portalUrl}/workshop/vehicle-service/${params.serviceId}` } });
     await sendEmail(
       creator.email,
       params.decision === 'APPROVED' ? `Vehicle Service ${params.serviceNumber} approved` : `Vehicle Service ${params.serviceNumber} returned for correction`,
@@ -377,6 +384,7 @@ export async function assignTechnicianToVehicleService(serviceId: string, techni
   try {
     const orgContext = await getWorkshopOrgContext(service.department?.name);
     const portalUrl = portalBaseUrl();
+    await whatsAppToStaff({ to: [technician], key: 'staff_assigned', related: { type: 'VehicleService', id: serviceId }, values: { what: `Vehicle Service ${service.serviceNumber}, to work on`, details: detailsLine([['Customer', service.customer.fullName], ['Vehicle', vehicleText(service.vehicle)], ['Supervisor', service.supervisor?.fullName]]), link: `${portalUrl}/workshop/vehicle-service/${serviceId}` } });
     await sendEmail(
       technician.email,
       `You are assigned to Vehicle Service ${service.serviceNumber}`,
@@ -432,6 +440,7 @@ async function notifySupervisorOfVehicleServiceTechnicianResponse(params: {
     const [technician, orgContext] = await Promise.all([prisma.user.findUnique({ where: { id: params.technicianId }, select: { fullName: true } }), getWorkshopOrgContext(service.department?.name)]);
     const portalUrl = portalBaseUrl();
 
+    await whatsAppToStaff({ to: [service.supervisor], key: 'staff_update', related: { type: 'VehicleService', id: params.serviceId }, values: { what: params.response === 'ACCEPTED' ? `Assignment accepted on Vehicle Service ${params.serviceNumber}` : `Assignment declined on Vehicle Service ${params.serviceNumber}`, details: detailsLine([['Technician', technician?.fullName ?? 'Technician'], ['Customer', service.customer.fullName], ['Reason', params.rejectionReason]]), link: `${portalUrl}/workshop/vehicle-service/${params.serviceId}` } });
     await sendEmail(
       service.supervisor.email,
       params.response === 'ACCEPTED'
@@ -1317,6 +1326,7 @@ export async function updateVehicleServiceStatus(
     const longDate = (d: Date) => d.toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Africa/Lagos' });
 
     if (newStatus === 'COMPLETED') {
+      await whatsAppToCustomer({ customerId: await customerOfService(serviceId), key: 'job_completed', related: { type: 'VehicleService', id: serviceId }, values: { vehicle: vehicleText(service.vehicle), record: serviceRecord(service.serviceNumber), link: dashboardUrl } });
       await sendEmail(
         service.customer.email,
         `Your vehicle service is complete — ${service.serviceNumber}`,
@@ -1333,6 +1343,7 @@ export async function updateVehicleServiceStatus(
         }),
       );
     } else if (newStatus === 'READY_FOR_COLLECTION') {
+      await whatsAppToCustomer({ customerId: await customerOfService(serviceId), key: 'ready_for_collection', related: { type: 'VehicleService', id: serviceId }, values: { vehicle: vehicleText(service.vehicle), branch: orgContext.branchName || 'the branch', record: serviceRecord(service.serviceNumber), collectBy: longDate(addWorkingDays(now, READY_FOR_COLLECTION_GRACE_WORKING_DAYS)) } });
       await sendEmail(
         service.customer.email,
         `Your vehicle is ready for collection — ${service.serviceNumber}`,
@@ -1349,6 +1360,7 @@ export async function updateVehicleServiceStatus(
       );
     } else {
       const collectedByName = input?.collectedByName?.trim() ?? 'the customer';
+      await whatsAppToCustomer({ customerId: await customerOfService(serviceId), key: 'vehicle_collected', related: { type: 'VehicleService', id: serviceId }, values: { vehicle: vehicleText(service.vehicle), record: serviceRecord(service.serviceNumber), collectedBy: collectedByName, nextService: 'we will remind you when it is due.' } });
       await sendEmail(
         service.customer.email,
         `Your vehicle has been collected — ${service.serviceNumber}`,
@@ -1443,6 +1455,7 @@ export async function sendVehicleServiceCollectionReminder(serviceId: string): P
   const dueDate = addWorkingDays(service.readyForCollectionAt, READY_FOR_COLLECTION_GRACE_WORKING_DAYS);
   const websiteUrl = websiteBaseUrl();
   const orgContext = await getWorkshopOrgContext(service.department?.name);
+  await whatsAppToCustomer({ customerId: await customerOfService(serviceId), key: 'ready_for_collection', related: { type: 'VehicleService', id: serviceId }, values: { vehicle: vehicleText(service.vehicle), branch: orgContext.branchName || 'the branch', record: serviceRecord(service.serviceNumber), collectBy: waLongDate(dueDate) } });
   await sendEmail(
     service.customer.email,
     `Reminder: your vehicle is ready for collection — ${service.serviceNumber}`,
@@ -1569,6 +1582,7 @@ export async function requestVehicleServiceCancellation(serviceId: string, reaso
     const [requester, orgContext] = await Promise.all([prisma.user.findUnique({ where: { id: user.id }, select: { fullName: true } }), getWorkshopOrgContext(service.department?.name)]);
     const portalUrl = portalBaseUrl();
     const managers = await listEligibleManagersForBranch(service.branchId);
+    await whatsAppToStaff({ to: managers.supervisors, key: 'staff_approval', related: { type: 'VehicleService', id: serviceId }, values: { what: `a request to cancel Vehicle Service ${service.serviceNumber}`, details: detailsLine([['Requested by', requester?.fullName], ['Reason', trimmedReason]]), link: `${portalUrl}/workshop/vehicle-service/${serviceId}` } });
     for (const manager of managers.supervisors) {
       await sendEmail(
         manager.email,
@@ -1701,6 +1715,7 @@ export async function approveVehicleServiceCancellationRequest(requestId: string
   try {
     const orgContext = await getWorkshopOrgContext(service.department?.name);
     const websiteUrl = websiteBaseUrl();
+    await whatsAppToCustomer({ customerId: await customerOfService(request.vehicleServiceId), key: 'job_cancelled', related: { type: 'VehicleService', id: request.vehicleServiceId }, values: { record: serviceRecord(service.serviceNumber), vehicle: vehicleText(service.vehicle) } });
     await sendEmail(
       service.customer.email,
       `Your vehicle service ${service.serviceNumber} has been cancelled`,
@@ -1747,6 +1762,7 @@ export async function declineVehicleServiceCancellationRequest(requestId: string
     if (!requester) return;
     const orgContext = await getWorkshopOrgContext(request.vehicleService.department?.name);
     const portalUrl = portalBaseUrl();
+    await whatsAppToStaff({ to: [{ id: request.requestedById }], key: 'staff_update', related: { type: 'VehicleService', id: request.vehicleServiceId }, values: { what: `Your request to cancel Vehicle Service ${request.vehicleService.serviceNumber} was declined`, details: detailsLine([['By', decliner?.fullName ?? 'The manager'], ['Note', decisionNotes?.trim()]]), link: `${portalUrl}/workshop/vehicle-service/${request.vehicleServiceId}` } });
     await sendEmail(
       requester.email,
       `Cancellation request declined — Vehicle Service ${request.vehicleService.serviceNumber}`,
@@ -1826,6 +1842,7 @@ export async function sendVehicleServiceCancelledCollectionNotice(serviceId: str
   });
   const websiteUrl = websiteBaseUrl();
   const orgContext = await getWorkshopOrgContext();
+  await whatsAppToCustomer({ customerId: await customerOfService(serviceId), key: 'cancelled_vehicle_waiting', related: { type: 'VehicleService', id: serviceId }, values: { vehicle: vehicleText(service.vehicle), branch: orgContext.branchName || 'the branch', record: serviceRecord(service.serviceNumber) } });
   await sendEmail(
     service.customer.email,
     `Please collect your vehicle — ${service.serviceNumber}`,
@@ -1906,6 +1923,7 @@ export async function requestVehicleServiceClose(serviceId: string): Promise<voi
     const [requester, orgContext] = await Promise.all([prisma.user.findUnique({ where: { id: user.id }, select: { fullName: true } }), getWorkshopOrgContext(service.department?.name)]);
     const portalUrl = portalBaseUrl();
     const managers = await listEligibleManagersForBranch(service.branchId);
+    await whatsAppToStaff({ to: managers.supervisors, key: 'staff_approval', related: { type: 'VehicleService', id: serviceId }, values: { what: `a request to close Vehicle Service ${service.serviceNumber}`, details: detailsLine([['Requested by', requester?.fullName]]), link: `${portalUrl}/workshop/vehicle-service/${serviceId}` } });
     for (const manager of managers.supervisors) {
       await sendEmail(
         manager.email,
@@ -2004,6 +2022,7 @@ export async function approveVehicleServiceCloseRequest(requestId: string, decis
     const websiteUrl = websiteBaseUrl();
     const portalUrl = portalBaseUrl();
     const vehicleDescription = [service.vehicle.make, service.vehicle.model].filter(Boolean).join(' ') || 'Vehicle';
+    await whatsAppToCustomer({ customerId: await customerOfService(request.vehicleServiceId), key: 'job_closed', related: { type: 'VehicleService', id: request.vehicleServiceId }, values: { vehicle: vehicleText(service.vehicle), record: serviceRecord(service.serviceNumber), link: customerLinks(websiteUrl).service(request.vehicleServiceId) } });
     await sendEmail(
       service.customer.email,
       `Your vehicle service ${service.serviceNumber} is closed`,
@@ -2078,6 +2097,7 @@ export async function declineVehicleServiceCloseRequest(requestId: string, decis
     if (!requester) return;
     const orgContext = await getWorkshopOrgContext(request.vehicleService.department?.name);
     const portalUrl = portalBaseUrl();
+    await whatsAppToStaff({ to: [{ id: request.requestedById }], key: 'staff_update', related: { type: 'VehicleService', id: request.vehicleServiceId }, values: { what: `Your request to close Vehicle Service ${request.vehicleService.serviceNumber} was declined`, details: detailsLine([['By', decliner?.fullName ?? 'The manager'], ['Note', decisionNotes?.trim()]]), link: `${portalUrl}/workshop/vehicle-service/${request.vehicleServiceId}` } });
     await sendEmail(
       requester.email,
       `Close request declined — Vehicle Service ${request.vehicleService.serviceNumber}`,
@@ -2253,6 +2273,7 @@ export async function escalateVehicleServiceToJobCard(
         getWorkshopOrgContext(),
       ]);
       const portalUrl = portalBaseUrl();
+      await whatsAppToStaff({ to: recipients, key: 'staff_update', related: { type: 'VehicleService', id: serviceId }, values: { what: `Vehicle Service ${service.serviceNumber} moved to Job Card ${jobCard.jobNumber}`, details: detailsLine([['By', escalator?.fullName]]), link: `${portalUrl}/workshop/job-cards/${jobCard.id}` } });
       for (const r of recipients) {
         await sendEmail(
           r.email,

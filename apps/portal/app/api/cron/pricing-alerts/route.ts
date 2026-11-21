@@ -6,6 +6,7 @@ import { setAuditActor } from '@ejo/database';
 import { recordJobRun } from '@/lib/job-runs';
 import { purgeOldErrorEvents } from '@/lib/error-events';
 import { purgeOldSiteVisits } from '@/lib/site-visits-retention';
+import { purgeOldWhatsAppMessages } from '@/lib/whatsapp/send';
 import { purgeExpiredOnSchedule } from '@/lib/recycle-bin/server';
 import { releaseExpiredStagedRows } from '@/lib/data-exchange/staging-server';
 import { purgeOldEnyoConversations } from '@/lib/enyo/retention';
@@ -109,6 +110,9 @@ export async function GET(request: NextRequest) {
   // Website page views are kept 13 months (data inventory: SiteVisit). A database before v40 simply has none.
   const visitsPurged = await purgeOldSiteVisits(400).catch(() => null);
   if (visitsPurged !== null) await recordJobRun('site-visit-retention', { pageViewsRemoved: visitsPurged });
+  // The WhatsApp message log is kept 90 days (data inventory: WhatsAppMessage). A database before it simply has none.
+  const whatsAppPurged = await purgeOldWhatsAppMessages(90).catch(() => null);
+  if (whatsAppPurged !== null) await recordJobRun('whatsapp-retention', { messagesRemoved: whatsAppPurged });
 
   // Enyo: score yesterday's job time estimates against when the vehicles were actually ready.
   const durations = await resolveDurations().catch((err) => { logFailure('Enyo job time scoring failed', err); return null; });

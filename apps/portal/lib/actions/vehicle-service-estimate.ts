@@ -29,6 +29,8 @@ import { scheduleResolution } from '@/lib/enyo/predict/lines';
 import { scheduleDuration } from '@/lib/enyo/ml/models';
 import { customerLinks } from '@/lib/customer-links-core';
 import { moduleIsOn } from '@/lib/modules';
+import { whatsAppToCustomer, whatsAppToStaff } from '@/lib/whatsapp/send';
+import { depositSentence, detailsLine, serviceRecord, vehicleText } from '@/lib/whatsapp/words';
 
 class ServiceEstimateActionError extends Error {}
 
@@ -570,6 +572,7 @@ export async function submitServiceEstimate(estimateId: string): Promise<void> {
     const [submitter, orgContext] = await Promise.all([prisma.user.findUnique({ where: { id: user.id }, select: { fullName: true } }), getWorkshopOrgContext(estimate.vehicleService.department?.name)]);
     const portalUrl = portalBaseUrl();
     const total = estimate.lineItems.reduce((sum: number, li: { amount: unknown }) => sum + Number(li.amount ?? 0), 0);
+    await whatsAppToStaff({ to: [estimate.vehicleService.supervisor], key: 'staff_approval', related: { type: 'VehicleService', id: estimate.vehicleService.id }, values: { what: `the estimate on Vehicle Service ${estimate.vehicleService.serviceNumber}, to validate`, details: detailsLine([['Total', `₦${total.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`], ['Submitted by', submitter?.fullName]]), link: `${portalUrl}/workshop/vehicle-service/${estimate.vehicleService.id}` } });
     await sendEmail(
       estimate.vehicleService.supervisor.email,
       `Estimate for Vehicle Service ${estimate.vehicleService.serviceNumber} needs your approval`,
@@ -650,6 +653,7 @@ export async function approveServiceEstimate(estimateId: string): Promise<void> 
     const portalUrl = portalBaseUrl();
     const companyName = estimate.vehicleService.branch.businessUnit.organisation.name;
     const branchName = estimate.vehicleService.branch.name;
+    await whatsAppToStaff({ to: managers.supervisors, key: 'staff_approval', related: { type: 'VehicleService', id: estimate.vehicleService.id }, values: { what: `the estimate on Vehicle Service ${estimate.vehicleService.serviceNumber}, for final approval`, details: detailsLine([['Total', `₦${total.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`], ['Validated by', approver?.fullName]]), link: `${portalUrl}/workshop/vehicle-service/${estimate.vehicleService.id}` } });
     for (const manager of managers.supervisors) {
       await sendEmail(
         manager.email,
@@ -728,6 +732,7 @@ export async function approveServiceEstimateAsManager(estimateId: string): Promi
     const manager = await prisma.user.findUnique({ where: { id: user.id }, select: { fullName: true } });
     const total = estimate.lineItems.reduce((sum: number, li: { amount: unknown }) => sum + Number(li.amount ?? 0), 0);
     const portalUrl = portalBaseUrl();
+    await whatsAppToStaff({ to: [estimate.vehicleService.createdBy], key: 'staff_update', related: { type: 'VehicleService', id: estimate.vehicleService.id }, values: { what: `The estimate on Vehicle Service ${estimate.vehicleService.serviceNumber} is approved and ready to send to the customer`, details: detailsLine([['Total', `₦${total.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`], ['Approved by', manager?.fullName ?? 'The manager']]), link: `${portalUrl}/workshop/vehicle-service/${estimate.vehicleService.id}` } });
     await sendEmail(
       estimate.vehicleService.createdBy.email,
       `Estimate for Vehicle Service ${estimate.vehicleService.serviceNumber} approved by manager — ready to send`,
@@ -837,6 +842,7 @@ export async function notifyCustomerOfApprovedServiceEstimate(estimateId: string
       .filter(Boolean)
       .join(' ');
     const websiteUrl = websiteBaseUrl();
+    await whatsAppToCustomer({ customerId: await prisma.vehicleService.findUnique({ where: { id: estimate.vehicleService.id }, select: { customerId: true } }).then((r) => r?.customerId ?? null), key: 'estimate_ready', related: { type: 'VehicleService', id: estimate.vehicleService.id }, values: { vehicle: vehicleText(estimate.vehicleService.vehicle), record: serviceRecord(estimate.vehicleService.serviceNumber), total: formatNaira(total), deposit: depositSentence(minimumDepositForEmail), link: customerLinks(websiteUrl).service(estimate.vehicleService.id) }, document: { kind: 'SERVICE_ESTIMATE', recordId: estimate.vehicleService.id, number: estimate.vehicleService.serviceNumber, createdById: user.id } });
     await sendEmail(
       estimate.vehicleService.customer.email,
       `Estimate ready for ${estimate.vehicleService.serviceNumber} — ${[vehicleDescription, estimate.vehicleService.vehicle.plateNumber ? `(${estimate.vehicleService.vehicle.plateNumber})` : ''].filter(Boolean).join(' ')}`,
@@ -969,6 +975,7 @@ async function sendServiceEstimateNudge(params: {
     if (!toUser) return;
     const orgContext = await getWorkshopOrgContext();
     const portalUrl = portalBaseUrl();
+    await whatsAppToStaff({ to: [{ id: params.toUserId }], key: 'staff_update', related: { type: 'VehicleService', id: params.vehicleServiceId }, values: { what: `Please look at the estimate on Vehicle Service ${service.serviceNumber}`, details: detailsLine([['From', fromUser?.fullName ?? 'A team member'], ['Customer', service.customer.fullName], ['Note', params.note]]), link: `${portalUrl}/workshop/vehicle-service/${params.vehicleServiceId}` } });
     await sendEmail(
       toUser.email,
       `Please look at the estimate — Vehicle Service ${service.serviceNumber}`,

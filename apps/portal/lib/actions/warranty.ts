@@ -20,6 +20,7 @@ import { notifyWarrantyDepartmentOfPartWarranty } from '@/lib/warranty-departmen
 import { renderCustomerWarrantyCertificateEmail } from '@/lib/email-templates/customer-warranty-certificate';
 import { renderCustomerWarrantyExpiryEmail } from '@/lib/email-templates/customer-warranty-expiry';
 import { lagosYear } from '@/lib/utils/format-date';
+import { whatsAppToStaff } from '@/lib/whatsapp/send';
 
 class WarrantyActionError extends Error {}
 
@@ -99,6 +100,7 @@ async function notifyStaff(recipients: { fullName: string; email: string }[], su
   try {
     const orgContext = await getWorkshopOrgContext();
     const portalUrl = portalBaseUrl();
+    await whatsAppToStaff({ to: recipients, key: 'staff_update', related: { type: 'Warranty', id: path }, values: { what: subject, details: lines.join(' · '), link: `${portalUrl}${path}` } });
     for (const r of recipients) {
       await sendEmail(
         r.email,

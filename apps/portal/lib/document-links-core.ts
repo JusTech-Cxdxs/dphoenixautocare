@@ -17,7 +17,8 @@ import { createHash, randomBytes } from 'node:crypto';
 export const DOCUMENT_LINK_DAYS = 30;
 export const DOCUMENT_LINK_MS = DOCUMENT_LINK_DAYS * 86_400_000;
 
-export const DOCUMENT_KINDS = ['ESTIMATE', 'INVOICE', 'RECEIPT'] as const;
+/** SERVICE_ESTIMATE: a (separate) Vehicle Service's estimate, sent with its automatic WhatsApp message. */
+export const DOCUMENT_KINDS = ['ESTIMATE', 'INVOICE', 'RECEIPT', 'SERVICE_ESTIMATE'] as const;
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
 
 export function isDocumentKind(v: unknown): v is DocumentKind {
@@ -67,7 +68,7 @@ export const OPEN_DOCUMENT_LINK_SQL =
 /** "INV-2026-000012.pdf": the document's own number, nothing a browser or phone could misread. */
 export function documentPdfFileName(kind: DocumentKind, number: string): string {
   const safe = number.replace(/[^A-Za-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'document';
-  return kind === 'ESTIMATE' ? `Estimate-${safe}.pdf` : `${safe}.pdf`;
+  return kind === 'ESTIMATE' || kind === 'SERVICE_ESTIMATE' ? `Estimate-${safe}.pdf` : `${safe}.pdf`;
 }
 
 /**

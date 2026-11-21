@@ -16,6 +16,7 @@ import { sendEmail } from '@/lib/email';
 import { renderWarrantyStaffNoticeEmail } from '@/lib/email-templates/warranty-staff-notice';
 import { claimReadiness } from '@/lib/warranty-claim-readiness';
 import { lagosYear } from '@/lib/utils/format-date';
+import { whatsAppToStaff } from '@/lib/whatsapp/send';
 
 class WarrantyClaimError extends Error {}
 
@@ -54,6 +55,7 @@ async function notify(recipients: { fullName: string; email: string }[], subject
   try {
     const orgContext = await getWorkshopOrgContext();
     const portalUrl = portalBaseUrl();
+    await whatsAppToStaff({ to: recipients, key: 'staff_update', related: { type: 'WarrantyClaim', id: claimId }, values: { what: subject, details: lines.join(' · '), link: `${portalUrl}/warranty/claims/${claimId}` } });
     for (const r of recipients) {
       await sendEmail(
         r.email,

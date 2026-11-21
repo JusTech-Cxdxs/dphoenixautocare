@@ -59,7 +59,7 @@ export async function sendMorningDigest(now: Date = new Date()): Promise<number>
     }
   }
   for (const [id, { person, lines }] of byPerson) {
-    await sendLoggedEmail({ entityType: 'UserDigest', entityId: id, recipients: [person], subject: `Your appointments today — ${lines.length} ${lines.length === 1 ? 'appointment' : 'appointments'}`, heading: 'Your appointments today', lines, path: '/schedule/calendar', actorId: null });
+    await sendLoggedEmail({ entityType: 'UserDigest', entityId: id, recipients: [person], subject: `Your appointments today — ${lines.length} ${lines.length === 1 ? 'appointment' : 'appointments'}`, heading: 'Your appointments today', lines, path: '/schedule/calendar', actorId: null, whatsapp: false });
   }
   return byPerson.size;
 }

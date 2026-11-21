@@ -260,6 +260,8 @@ organisation, *D'Phoenix Autocare (Demo)* — see `docs/DPHOENIX_DEMO.md`.
     WhatsApp (a Nigerian mobile such as 0803 123 4567, or a number written with + and its country
     code). The number used is the branch's first hotline (Settings → Branches), else the
     organisation's.
+  - With automatic WhatsApp set up (below), **Send reminder** also sends it on WhatsApp by itself
+    to customers who agreed — including customers with no email address.
 - The same **Send on WhatsApp** sits next to the other messages to a customer: *Ready for
   collection* on the Job Card, the **invoice** (its number, the total and the balance, and the link
   to it in the customer portal) and each **payment receipt**.
@@ -269,12 +271,17 @@ address.
 
 ### WhatsApp
 
+People in Nigeria read WhatsApp before email, so the portal reaches customers on WhatsApp in two ways.
+The first needs no set-up at all; the second sends every message by itself once you connect Meta's
+WhatsApp Business Platform.
+
+#### (a) Send on WhatsApp — works with no set-up
+
 Wherever the portal emails a customer because someone pressed a button, a **Send on WhatsApp** button
-sits beside it with the same message, written for WhatsApp. Nothing is ever sent by WhatsApp
-automatically: you press **Send on WhatsApp**, then **Open WhatsApp**, and WhatsApp opens on your
-own phone or computer with the message ready; you press send. The button only shows when the
-customer's phone can take WhatsApp (see above). Each message is recorded on the Job Card or the
-customer's activity, without the links in it.
+sits beside it with the same message, written for WhatsApp. You press **Send on WhatsApp**, then
+**Open WhatsApp**, and WhatsApp opens on your own phone or computer with the message ready; you press
+send. The button only shows when the customer's phone can take WhatsApp (see above). Each message is
+recorded on the Job Card or the customer's activity, without the links in it.
 
 | Where | Button | What the message carries |
 | --- | --- | --- |
@@ -295,6 +302,81 @@ it works for **30 days**. The link is long and random, is not kept anywhere in r
 opens nothing else. If it has expired the customer sees "This link does not open" and asks you to
 send the document again. The links name the staff portal's address, so links already sent stop
 working if that address changes (section 7).
+
+#### (b) Automatic WhatsApp — every message, by itself
+
+Once it is set up, every email the portal and the customer portal send that has a WhatsApp version
+also goes out on WhatsApp by itself — the check-in, work started, the estimate **with its PDF**, the
+approval link and its reminders, ready for collection, the **invoice with its PDF**, each **payment
+receipt with its PDF**, refunds, service reminders, support replies, broadcasts — and, for staff, the
+notices that matter on a phone: something waiting for your approval, a job assigned to you, your
+visitor at the gate, a broadcast. **docs/WHATSAPP_TEMPLATES.md** lists every message, when it is
+sent, and the few that stay email-only (password and set-password links, for example) with the
+reason. The **Send on WhatsApp** buttons stay; beside the estimate, invoice and receipt ones a
+**Send now on WhatsApp** button appears, which sends the message (with its PDF) from the business
+number straight away.
+
+Nothing changes for anyone until you finish these steps:
+
+1. **A Meta Business account.** Go to business.facebook.com and create the business account for
+   D'Phoenix Autocare (or use the one you have). Complete **Business verification** (Security
+   Centre) with the CAC registration: Meta limits an unverified business to a few conversations a
+   day.
+2. **Add WhatsApp.** In developers.facebook.com → **My Apps → Create app** (type *Business*), add
+   the **WhatsApp** product and link it to the business account. This creates a **WhatsApp
+   Business Account**.
+3. **Register the business phone number.** WhatsApp Manager → **Phone numbers → Add phone number**:
+   the number customers know (verified by SMS or a call), with the display name *D'Phoenix
+   Autocare*. A number already on the WhatsApp Business app can be connected too (Meta calls it
+   coexistence); replies then keep arriving in that app. The portal does not read WhatsApp replies,
+   and each message tells the customer to call the workshop.
+4. **A permanent token.** Business settings → **Users → System users → Add** (an *Admin* system user
+   named, say, *EJO WhatsApp*). **Assign assets**: the app and the WhatsApp Business Account (full
+   control). **Generate new token** for the app, expiry *Never*, with the permissions
+   **whatsapp_business_messaging** and **whatsapp_business_management**. Copy the token once, into
+   Vercel only (step 7) — never into an email or chat.
+5. **Note the two IDs.** WhatsApp Manager → **API setup** (or the app's WhatsApp → API Setup page)
+   shows the **Phone number ID** and the **WhatsApp Business Account ID**.
+6. **Create every template.** WhatsApp Manager → **Message templates → Create template**, one for
+   each entry in **docs/WHATSAPP_TEMPLATES.md**, exactly as written there: the name (`dpa_…`), the
+   category, English, the header (*Document* where it says so — upload any sample PDF), the body
+   word for word, the footer and the samples. Meta usually approves within minutes to a day; until
+   a template is approved its messages fail quietly (the email still goes) and **Settings →
+   WhatsApp** shows it as pending. If Meta rejects one, adjust the wording slightly, keeping the
+   `{{1}}`, `{{2}}`… in the same order, and submit it again.
+7. **Set the five settings in BOTH Vercel projects** (`dphoenix-staff` and `dphoenix-customers`) →
+   Settings → Environment Variables, for Production:
+
+   | Name | Value |
+   | --- | --- |
+   | `WHATSAPP_ACCESS_TOKEN` | the permanent token (step 4) |
+   | `WHATSAPP_PHONE_NUMBER_ID` | the Phone number ID (step 5) |
+   | `WHATSAPP_BUSINESS_ACCOUNT_ID` | the WhatsApp Business Account ID (step 5) |
+   | `WHATSAPP_GRAPH_VERSION` | `v27.0` (or leave it out: that is the default) |
+   | `WHATSAPP_TEMPLATE_LANGUAGE` | `en` (or leave it out), the language you created the templates in |
+
+   Then **redeploy** both projects (Deployments → the latest → **Redeploy**).
+8. **Check it.** Settings → **WhatsApp** shows *Automatic sending is on*, each template's approval,
+   and **Send a test template**: send `dpa_staff_update` to your own phone. Every message sent,
+   failed or skipped is listed there (the number's last four digits only; kept 90 days).
+
+**Customers must agree.** WhatsApp messages a business starts need the customer's agreement (Meta's
+rules and the Nigeria Data Protection Act). When a customer is registered (Customers → Register, or
+the front desk), the box **"The customer agrees to receive updates on WhatsApp"** is ticked once a
+phone number is typed: ask them, and untick it if they say no. It is recorded with your name and the
+time. You can change it later on the customer's page (**Edit details**; the change is in their
+activity), and the customer can switch it off or on in the customer portal (**Profile →
+Notifications**). A customer brought in from Zoho or a spreadsheet stays off unless the file has a
+*WhatsApp updates* column saying *Yes*. Without the agreement nothing goes on WhatsApp automatically
+(the email still does), and **Send now on WhatsApp** says so.
+
+**Colleagues choose for themselves.** Each colleague switches WhatsApp notices on, with their mobile
+number, on **My profile → WhatsApp notices**. Off until they do.
+
+**Meta charges per message** it delivers (utility messages cost less than marketing ones; the
+customer broadcast is a marketing template). Check WhatsApp Manager → **Insights** and add a payment
+method under **Billing**. To stop all automatic WhatsApp at once, remove `WHATSAPP_ACCESS_TOKEN` in
+both projects and redeploy: the **Send on WhatsApp** buttons keep working.
 
 ## 5. Email
 

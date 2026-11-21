@@ -50,6 +50,8 @@ const SELF_SCOPED = new Set(['markNotificationsRead', 'markNotificationsUnread',
   'openHelpRequest', 'replyToMyHelpRequest', 'answerMyHelpRequest',
   // Speak up (lib/actions/integrity.ts): anyone raises a concern as themselves (or anonymously) into their own organisation.
   'speakUp',
+  // A colleague's own WhatsApp notices and mobile number (My profile).
+  'saveMyWhatsApp',
 ]);
 const WRITE = /\b(?:prisma|tx)\.\w+\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\(/;
 

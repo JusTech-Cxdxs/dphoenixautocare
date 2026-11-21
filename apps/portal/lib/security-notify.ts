@@ -6,6 +6,7 @@ import { prisma } from '@ejo/database';
 import { sendEmail } from '@/lib/email';
 import { renderWarrantyStaffNoticeEmail } from '@/lib/email-templates/warranty-staff-notice';
 import { PLATFORM } from '@/lib/brand';
+import { whatsAppToStaff } from '@/lib/whatsapp/send';
 
 /**
  * Tells Security (every Security Officer and the Chief Security Officer)
@@ -39,6 +40,7 @@ export async function notifyGateOfRelease(kind: 'JOB_CARD' | 'VEHICLE_SERVICE', 
       'Check the plate and VIN against the release page, then confirm the exit at the gate.',
     ];
     const entityType = kind === 'JOB_CARD' ? 'JobCard' : 'VehicleService';
+    await whatsAppToStaff({ to: gate, key: 'staff_update', related: { type: entityType, id: recordId }, values: { what: subject, details: lines.join(' · '), link: `${portal}/security/vehicles/release/${kind === 'JOB_CARD' ? 'job-card' : 'vehicle-service'}/${recordId}` } });
     for (const g of gate) {
       let sent = true;
       let error: string | null = null;

@@ -18,6 +18,8 @@ import { renderServicePaymentRequirementMetEmail } from '@/lib/email-templates/s
 import { renderServicePaymentCompletedInFullEmail } from '@/lib/email-templates/service-payment-completed-in-full';
 import { renderCustomerServicePaymentReceivedEmail } from '@/lib/email-templates/customer-service-payment-received';
 import { customerLinks } from '@/lib/customer-links-core';
+import { whatsAppToCustomer, whatsAppToStaff } from '@/lib/whatsapp/send';
+import { balanceSentence, detailsLine, serviceRecord, waDate } from '@/lib/whatsapp/words';
 
 class ServicePaymentActionError extends Error {}
 
@@ -60,6 +62,7 @@ export async function recordServicePayment(
       supervisorId: true,
       assignedTechnicianId: true,
       workStartedAt: true,
+      customerId: true,
       customer: { select: { fullName: true, email: true, customerType: true } },
       department: { select: { name: true } },
       serviceEstimate: { select: { status: true, customerNotifiedAt: true, lineItems: { select: { amount: true } } } },
@@ -240,6 +243,7 @@ export async function recordServicePayment(
         select: { id: true, fullName: true, email: true },
       });
 
+      if (!justCompletedFull) await whatsAppToStaff({ to: recipients, key: 'staff_update', related: { type: 'VehicleService', id: vehicleServiceId }, values: { what: `Deposit paid, work can start on Vehicle Service ${service.serviceNumber}`, details: detailsLine([['Customer', service.customer.fullName], ['Paid so far', formatNaira(newTotal)], ['Estimate', formatNaira(roundedTotal)]]), link: `${portalUrl}/workshop/vehicle-service/${vehicleServiceId}` } });
       for (const recipient of recipients) {
         if (justCompletedFull) {
           await sendEmail(
@@ -285,6 +289,7 @@ export async function recordServicePayment(
     const orgContext = await getWorkshopOrgContext(service.department?.name);
     const websiteUrl = websiteBaseUrl();
     const balance = roundedTotal - newTotal;
+    await whatsAppToCustomer({ customerId: service.customerId, key: 'payment_received', related: { type: 'VehicleService', id: vehicleServiceId }, values: { amount: formatNaira(roundedAmount), paidOn: waDate(new Date()), record: serviceRecord(service.serviceNumber), balance: balanceSentence(balance) } });
     await sendEmail(
       service.customer.email,
       `Payment received — Vehicle Service ${service.serviceNumber}`,

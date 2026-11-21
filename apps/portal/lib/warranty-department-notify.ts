@@ -6,6 +6,7 @@ import { sendEmail } from '@/lib/email';
 import { renderWarrantyStaffNoticeEmail } from '@/lib/email-templates/warranty-staff-notice';
 import { splitLines, durationLabel } from '@/lib/warranty-state';
 import { PLATFORM } from '@/lib/brand';
+import { whatsAppToStaff } from '@/lib/whatsapp/send';
 
 /**
  * Tells the warranty department (Warranty HOD + Warranty Officers at the
@@ -58,6 +59,7 @@ export async function notifyWarrantyDepartmentOfPartWarranty(opts: { partId: str
       `Changed by: ${actor?.fullName ?? 'a staff member'}`,
     ];
     const portalUrl = portalBaseUrl();
+    await whatsAppToStaff({ to: recipients, key: 'staff_update', related: { type: 'Part', id: part.id }, values: { what: heading, details: lines.join(' · '), link: `${portalUrl}/inventory/parts/${part.id}#warranty` } });
     for (const r of recipients) {
       await sendEmail(
         r.email,

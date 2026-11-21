@@ -667,6 +667,7 @@ Only with the SAP link, which is switched off in this edition: exports use EJO's
 | D'Phoenix phase 3 — billing & tax settings, estimate discounts and the VAT rate fixed at approval, receipt numbers on payments, invoices | `scripts/predeploy/0029-billing.sql` (deploy) · `scripts/v-dp3-billing.sql` (manual) |
 | D'Phoenix phase 4 — the deposit switch, the customer's approval of the estimate (link, portal, phone), approval links, credit terms for organisation customers, the invoice due date | `scripts/predeploy/0030-approval-credit.sql` (deploy) · `scripts/v-dp4-approval-credit.sql` (manual) |
 | D'Phoenix phase 6A — secure document links for WhatsApp (the estimate, invoice and receipt PDFs; only each token's SHA-256 is kept) | `scripts/predeploy/0031-document-links.sql` (deploy) · `scripts/v-dp6-document-links.sql` (manual) |
+| D'Phoenix WhatsApp — automatic messages through Meta's WhatsApp Business Platform: each customer's and colleague's WhatsApp agreement (off until recorded), the record of each message (last four digits only), a document link for a Vehicle Service's estimate | `scripts/predeploy/0032-whatsapp.sql` (deploy) · `scripts/v-dp7-whatsapp.sql` (manual) |
 
 All are additive (new tables, columns and indexes), re-runnable, and tested
 twice on Postgres 16 against the previous structure and compared with a

@@ -9,6 +9,8 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { ChangePasswordForm } from '@/components/ChangePasswordForm';
 import Link from 'next/link';
 import { EmptyState, PageTitle } from '@/components/ui';
+import { MyWhatsAppForm } from '@/components/MyWhatsAppForm';
+import { whatsAppConfigured } from '@/lib/whatsapp/send';
 
 const card = 'rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-6';
 const label = 'text-[11px] font-medium uppercase tracking-wide text-[var(--ejo-text-muted)]';
@@ -32,7 +34,7 @@ export default async function ProfilePage() {
   const heldForMe = await listAssistSessionsForMe().catch(() => []);
   const u = await prisma.user.findUnique({
     where: { id: p.userId },
-    select: { fullName: true, email: true, phone: true, employeeId: true, isActive: true, createdAt: true, organisation: { select: { name: true } }, branch: { select: { name: true } }, department: { select: { name: true } }, roles: { select: { role: { select: { name: true, slug: true, isSuperAdmin: true } } } } },
+    select: { fullName: true, email: true, phone: true, whatsappOptIn: true, employeeId: true, isActive: true, createdAt: true, organisation: { select: { name: true } }, branch: { select: { name: true } }, department: { select: { name: true } }, roles: { select: { role: { select: { name: true, slug: true, isSuperAdmin: true } } } } },
   });
   if (!u) return null;
   const roles = u.roles.map((r: (typeof u.roles)[number]) => (r.role.isSuperAdmin ? 'Platform team (Master Administrator)' : roleLabel(r.role.slug, r.role.name)));
@@ -76,6 +78,9 @@ export default async function ProfilePage() {
           <h2 className="mt-8 text-sm font-semibold text-[var(--ejo-text)]">Enyo</h2>
           <p className="mt-1 text-xs text-[var(--ejo-text-muted)]">The short facts the assistant keeps about you, which you can delete.</p>
           <Link href="/profile/enyo" className="mt-3 inline-flex min-h-11 items-center rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] px-4 text-sm font-medium text-[var(--ejo-text)] hover:border-[var(--ejo-primary)] hover:text-[var(--ejo-primary)]">What Enyo remembers</Link>
+          <h2 className="mt-8 text-sm font-semibold text-[var(--ejo-text)]">WhatsApp notices</h2>
+          <p className="mt-1 text-xs text-[var(--ejo-text-muted)]">Your choice: work notices on your phone as well as by email. Off unless you switch it on.</p>
+          <div className="mt-3"><MyWhatsAppForm phone={u.phone} optIn={u.whatsappOptIn} configured={whatsAppConfigured()} /></div>
         </section>
       </div>
 

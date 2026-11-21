@@ -226,6 +226,8 @@ export async function endAssistSessionRecord(id: string, reason: string): Promis
       path: '/profile',
       actorId: s.assistant.id,
       branchId: s.branchId,
+      // About the colleague's own account: email only.
+      whatsapp: false,
     }).catch(() => undefined);
   }
   return true;

@@ -2,7 +2,7 @@ import { renderToBuffer } from '@react-pdf/renderer';
 import { prisma } from '@ejo/database';
 import { EstimatePdf } from '@/lib/pdf/estimate-pdf';
 import { ReceiptPdf } from '@/lib/pdf/receipt-pdf';
-import { jobEstimatePdfProps, letterhead, receiptPdfProps } from '@/lib/pdf/document-props';
+import { jobEstimatePdfProps, letterhead, receiptPdfProps, serviceEstimatePdfProps } from '@/lib/pdf/document-props';
 import { BILLING_SETTINGS_SELECT, ESTIMATE_TOTALS_SELECT, billingOf, depositFractionFor, jobCardTotals, vatSettingFor } from '@/lib/estimate-billing';
 import { INVOICE_DOCUMENT_SELECT, invoicePdfBuffer } from '@/lib/invoices';
 import { bankDetailsFor } from '@/lib/workshop-core';
@@ -20,7 +20,9 @@ import { documentPdfFileName, type DocumentKind } from '@/lib/document-links-cor
  *   ESTIMATE  the Job Card's Manager-approved estimate (the email to the
  *             customer attaches this same PDF);
  *   INVOICE   the invoice, its figures frozen at issue (lib/invoices);
- *   RECEIPT   one payment's receipt (as app/print/receipts shows it).
+ *   RECEIPT   one payment's receipt (as app/print/receipts shows it);
+ *   SERVICE_ESTIMATE  a (separate) Vehicle Service's Manager-approved
+ *             estimate, as its "estimate ready" email attaches it.
  *
  * Each answers null when the record is gone, is not the organisation's, or
  * is no longer that document (an estimate sent back for changes).
@@ -131,9 +133,43 @@ export async function receiptPdfFor(paymentId: string, organisationId?: string):
   return { pdf, fileName: documentPdfFileName('RECEIPT', p.receiptNumber), number: p.receiptNumber };
 }
 
+/**
+ * A Vehicle Service's estimate PDF, as attached to its "estimate ready"
+ * email (the Job Card layout with VEHICLE SERVICE as the reference). Only
+ * once the Manager has approved it.
+ */
+export async function serviceEstimatePdfFor(vehicleServiceId: string, organisationId?: string): Promise<DocumentPdf | null> {
+  const vs = await prisma.vehicleService.findUnique({
+    where: { id: vehicleServiceId },
+    select: {
+      serviceNumber: true, branchId: true,
+      customer: { select: { fullName: true, address: true, customerType: true } },
+      vehicle: { select: { make: true, model: true, year: true, plateNumber: true, chassisNumber: true } },
+      branch: { select: { name: true, address: true, hotlines: true, email: true, businessUnit: { select: { organisationId: true, organisation: { select: { name: true, legalName: true, hqAddress: true, poBox: true, rcNumber: true, hotlines: true, website: true, email: true, depositRequired: true, depositPercent: true } } } } } },
+      serviceEstimate: { select: { status: true, lineItems: { orderBy: { createdAt: 'asc' as const }, select: { type: true, description: true, quantity: true, amount: true, unitOfMeasure: true } } } },
+    },
+  });
+  if (!vs?.serviceEstimate || vs.serviceEstimate.status !== 'MANAGER_APPROVED') return null;
+  if (organisationId && vs.branch.businessUnit.organisationId !== organisationId) return null;
+  const org = vs.branch.businessUnit.organisation;
+  const pdf = await renderToBuffer(
+    EstimatePdf(serviceEstimatePdfProps({
+      letterhead: letterhead(org, vs.branch, portalBaseUrl()),
+      bank: await bankDetailsFor(vs.branchId),
+      serviceNumber: vs.serviceNumber,
+      customer: vs.customer,
+      vehicle: vs.vehicle,
+      lineItems: vs.serviceEstimate.lineItems,
+      depositFraction: depositFractionFor(org, String(vs.customer.customerType)),
+    })),
+  );
+  return { pdf, fileName: documentPdfFileName('SERVICE_ESTIMATE', vs.serviceNumber), number: vs.serviceNumber };
+}
+
 /** The PDF a document link opens, inside the link's organisation only. */
 export function documentPdf(kind: DocumentKind, recordId: string, organisationId: string): Promise<DocumentPdf | null> {
   if (kind === 'ESTIMATE') return estimatePdfFor(recordId, organisationId);
   if (kind === 'INVOICE') return invoicePdfFor(recordId, organisationId);
+  if (kind === 'SERVICE_ESTIMATE') return serviceEstimatePdfFor(recordId, organisationId);
   return receiptPdfFor(recordId, organisationId);
 }
