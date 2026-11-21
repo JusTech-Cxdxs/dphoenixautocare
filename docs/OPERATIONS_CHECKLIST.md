@@ -35,8 +35,10 @@ Names only. Values never go into the repository, chat, or tickets.
 | `BETTER_AUTH_TRUSTED_ORIGINS` | optional | Extra addresses allowed to sign in (e.g. the `vercel.app` address next to a custom domain) |
 | `SERVER_ACTIONS_ALLOWED_ORIGINS` | optional | Only if a proxy in front changes the host name |
 | `AUTH_SIGNIN_PER_MINUTE`, `AUTH_RESET_REQUESTS_PER_5_MIN` | optional | Sign-in limits per address (defaults 20 and 5) |
-| `ENYO_LLM_BASE_URL`, `ENYO_LLM_API_KEY`, `ENYO_LLM_MODEL` | for Enyo | The AI model server (any OpenAI-compatible endpoint; the model must support tool calling). Without them Enyo shows "not switched on yet" and everything else works as before |
-| `ENYO_LLM_FAST_MODEL`, `ENYO_LLM_PROVIDER_LABEL`, `ENYO_LLM_TIMEOUT_MS`, `ENYO_REQUESTS_PER_MINUTE` | optional | A smaller model for briefs and refinement; the name shown on Settings → Enyo; the per-request time limit; questions per person per minute (default 20) |
+| `ENYO_LLM_PROVIDER`, `ENYO_LLM_API_KEY` | for Enyo | `anthropic` and an Anthropic Console API key (console.anthropic.com → API Keys; billing set up and a monthly spend limit set). No base URL is needed. Without them Enyo shows "not switched on yet" and everything else works as before |
+| `ENYO_LLM_MODEL`, `ENYO_LLM_FAST_MODEL`, `ENYO_LLM_PROVIDER_LABEL` | recommended | `claude-opus-5-5`, `claude-haiku-5-5` (both the defaults) and `Anthropic Claude`, the name shown on Settings → Enyo |
+| `ENYO_LLM_EFFORT`, `ENYO_LLM_FAST_EFFORT`, `ENYO_LLM_TIMEOUT_MS`, `ENYO_REQUESTS_PER_MINUTE` | optional | How much each model thinks (`medium` and `low` by default; `low` / `medium` / `high` / `xhigh` / `max`); the per-request time limit; questions per person per minute (default 20) |
+| `ENYO_LLM_BASE_URL` | other providers only | For an OpenAI-compatible model server instead of Anthropic (leave `ENYO_LLM_PROVIDER` unset; the model must support tool calling) |
 | `ENYO_WEB_LOOKUP` | optional | `off` stops Enyo looking up general knowledge (Wikipedia, free, no key; only the topic words are sent). On by default, in the portal and on the website |
 | `SERPER_API_KEY` or `BRAVE_SEARCH_API_KEY` or `TAVILY_API_KEY` | optional | A general web search engine for Enyo alongside Wikipedia (Google via serper.dev, Brave, or Tavily — the first set is used): business leaders and their public profiles, company news. Only the topic words are sent; results that do not match the question are dropped. Set in Vercel for the portal and the website |
 | `MAILBOX_ENCRYPTION_KEY` | for Mail | 32 random bytes, base64 (`openssl rand -base64 32`). Encrypts connected mailbox passwords. Changing it disconnects every mailbox |
@@ -64,7 +66,7 @@ Names only. Values never go into the repository, chat, or tickets.
 | `NEXT_PUBLIC_SOCIAL_FACEBOOK`, `_LINKEDIN`, `_X`, `_YOUTUBE`, `_INSTAGRAM` | optional | Footer social links (hidden when not set) |
 | `SMTP_*` | yes | Outgoing email (customer password reset) |
 | `CUSTOMER_SIGNIN_PER_MINUTE`, `CUSTOMER_RESET_REQUESTS_PER_5_MIN` | optional | Sign-in limits per address |
-| `ENYO_LLM_BASE_URL`, `ENYO_LLM_API_KEY`, `ENYO_LLM_MODEL` (and the optional ones) | for Enyo | The same model settings as the portal, for Enyo in the customer portal and on the support page |
+| `ENYO_LLM_PROVIDER`, `ENYO_LLM_API_KEY`, `ENYO_LLM_MODEL`, `ENYO_LLM_FAST_MODEL`, `ENYO_LLM_PROVIDER_LABEL` (and the optional ones) | for Enyo | The same model settings as the portal, for Enyo in the customer portal and on the support page |
 | `WEBSITE_ORGANISATION_SLUG` | for Enyo | The organisation this site belongs to (its slug in the database). Without it Enyo on the support page stays off when the names don't match |
 | `ENYO_IP_HASH_KEY` | recommended | A long random secret used only to hash visitors' addresses for rate limits |
 | `ENYO_CUSTOMER_PER_MINUTE`, `ENYO_PUBLIC_PER_MINUTE`, `ENYO_PUBLIC_PER_DAY`, `ENYO_PUBLIC_IP_PER_MINUTE`, `ENYO_PUBLIC_IP_PER_DAY` | optional | Chat limits (defaults 12, 6, 60, 20, 200) |

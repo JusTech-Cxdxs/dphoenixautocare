@@ -56,7 +56,7 @@ export function isBudgetError(err: unknown): boolean {
   if (!(err instanceof LlmError)) return false;
   if (err.kind === 'rate_limited') return true;
   if (err.status === 413) return true;
-  return err.kind === 'rejected' && /too large|tokens per minute|\bTPM\b|rate limit|context length|maximum context|reduce the length/i.test(`${err.detail ?? ''} ${err.code ?? ''}`);
+  return err.kind === 'rejected' && /too large|too long|tokens per minute|\bTPM\b|rate limit|context length|maximum context|reduce the length/i.test(`${err.detail ?? ''} ${err.code ?? ''}`);
 }
 
 const isDraft = (d: unknown): d is { draft: EnyoDraft } => !!d && typeof d === 'object' && 'draft' in (d as Record<string, unknown>);

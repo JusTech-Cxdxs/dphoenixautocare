@@ -17,7 +17,7 @@ Supabase and Vercel dashboards, never into GitHub, email or chat.
 | Database | **Supabase** (PostgreSQL) | Every record: customers, vehicles, job cards, payments | Free to start; **Pro** for real work (a Free project pauses after a week without use) |
 | Hosting | **Vercel** — two projects from the one repository | The staff portal and the customer portal | Hobby to try; **Pro** for a business (Vercel's Hobby plan is for non-commercial use) |
 | Email | Any SMTP mailbox (the Gmail account to start, a mailbox on your own domain later) | Welcome emails, password resets, estimates, receipts, reminders | — |
-| AI (Enyo) | Any OpenAI-compatible model provider | Enyo, the assistant, for staff and customers | Optional; pay per use |
+| AI (Enyo) | **Anthropic** (Claude), from the Anthropic Console | Enyo, the assistant, for staff and customers | Optional; pay per use (set a monthly spend limit) |
 | Domain | `dphoenixautocare.com` (you have it) | Addresses such as `staff.dphoenixautocare.com` | — |
 
 The two apps:
@@ -97,7 +97,7 @@ digits). On a computer: `openssl rand -base64 48`.
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | see step 5 |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | step 1.4 (optional, recommended) |
 | `MAILBOX_ENCRYPTION_KEY` | a random secret of 32 bytes (`openssl rand -base64 32`) — only if you use Mail in the portal |
-| `ENYO_LLM_BASE_URL`, `ENYO_LLM_API_KEY`, `ENYO_LLM_MODEL` | see step 6 (optional) |
+| `ENYO_LLM_PROVIDER`, `ENYO_LLM_API_KEY`, `ENYO_LLM_MODEL`, `ENYO_LLM_FAST_MODEL`, `ENYO_LLM_PROVIDER_LABEL` | see step 6 (optional) |
 
 Leave these **unset**: `DEMO_STAFF_PASSWORD` (the old demo), `RESET_MASTER_ADMIN_PASSWORD`,
 `MAILBOX_ALLOW_INSECURE`, `NEXT_PUBLIC_DEALER_BRANDS`.
@@ -119,7 +119,7 @@ Leave these **unset**: `DEMO_STAFF_PASSWORD` (the old demo), `RESET_MASTER_ADMIN
 | `SMTP_*` | the same as the staff portal |
 | `WEBSITE_ORGANISATION_SLUG` | `dphoenix-autocare` (lets Enyo answer customers) |
 | `ENYO_IP_HASH_KEY` | a random secret (only for rate limits) |
-| `ENYO_LLM_BASE_URL`, `ENYO_LLM_API_KEY`, `ENYO_LLM_MODEL` | the same as the staff portal (optional) |
+| `ENYO_LLM_PROVIDER`, `ENYO_LLM_API_KEY`, `ENYO_LLM_MODEL`, `ENYO_LLM_FAST_MODEL`, `ENYO_LLM_PROVIDER_LABEL` | the same as the staff portal (optional, step 6) |
 
 ### 2.3 Deploy
 
@@ -321,28 +321,47 @@ Workspace or Zoho Mail) uses the same five variables with its own host.
 
 ## 6. Enyo, the AI assistant (optional)
 
-Enyo works with **any OpenAI-compatible model server whose model supports tool calling**. Without these
-variables Enyo shows "not switched on yet" and everything else works as normal. Set the same values in
-**both** projects:
+This edition runs Enyo on **Anthropic Claude**: Claude Opus 5.5 for questions that read the records,
+and Claude Haiku 5.5 for greetings, short how-to questions, email briefs and Refine. Without these
+variables Enyo shows "not switched on yet" and everything else works as normal.
+
+**1. Get a key.** Sign in at **console.anthropic.com** with the company's account:
+
+1. **Billing**: add a payment method (or buy credits). Enyo is paid per use.
+2. **Limits**: set a **monthly spend limit** you are comfortable with. When it is reached Enyo says it
+   is busy until the next month or until you raise the limit; nothing else in the portal is affected.
+3. **API Keys → Create Key**: name it `dphoenix-enyo` and copy it (it starts with `sk-ant-`). It is shown
+   only once; if it is lost, delete it and create a new one.
+
+**2. Set the variables in BOTH Vercel projects** (`dphoenix-staff` and `dphoenix-customers`),
+Production, then redeploy each:
 
 | Variable | Value |
 | --- | --- |
-| `ENYO_LLM_BASE_URL` | the provider's OpenAI-compatible address |
-| `ENYO_LLM_API_KEY` | your key (Sensitive) |
-| `ENYO_LLM_MODEL` | a model name from the provider's list that supports tool calling |
-| `ENYO_LLM_FAST_MODEL` | optional: a smaller model for briefs |
-| `ENYO_LLM_PROVIDER_LABEL` | optional: the name shown on Settings → Enyo |
+| `ENYO_LLM_PROVIDER` | `anthropic` |
+| `ENYO_LLM_API_KEY` | the key from the Anthropic Console (mark it **Sensitive**) |
+| `ENYO_LLM_MODEL` | `claude-opus-5-5` |
+| `ENYO_LLM_FAST_MODEL` | `claude-haiku-5-5` |
+| `ENYO_LLM_PROVIDER_LABEL` | `Anthropic Claude` (the name shown on Settings → Enyo) |
+| `ENYO_LLM_EFFORT` | optional: how much the main model thinks before answering — `medium` (default); `low` is faster and cheaper, `high` more thorough |
+| `ENYO_LLM_FAST_EFFORT` | optional: the same for the fast model — `low` (default) |
 
-Choices:
+No `ENYO_LLM_BASE_URL` is needed for Anthropic: leave it unset. The two model values are also the
+defaults, so the minimum is `ENYO_LLM_PROVIDER` and `ENYO_LLM_API_KEY`.
 
-- **OpenAI** — `https://api.openai.com/v1`. Paid per use; their API terms say API data is not used for
-  training. Good for real customer records.
-- **Groq** — `https://api.groq.com/openai/v1`. A free tier for trying Enyo out; read their data terms
-  before using it with real customer records.
-- **Your own server** (e.g. Ollama) — keeps everything in-house; needs a machine with a strong GPU.
+**3. Check it.** In the staff portal, Settings → Enyo → **Test connection** says "Connected" and how long
+the model took. If it shows an error, it names the setting to fix (for example the key, the model name,
+billing or the spend limit).
 
-Enyo only reads what the signed-in person may see, every answer links the record it came from, and the
-key never reaches a browser. Settings → Enyo shows the provider and lets you switch Enyo off.
+Anthropic's commercial terms say API data is not used to train their models. Enyo only sends the
+question and the records needed to answer it, only reads what the signed-in person may see, every
+answer links the record it came from, and the key never reaches a browser. Settings → Enyo shows the
+provider and lets you switch Enyo off.
+
+Other providers remain possible (secondary for this edition): any OpenAI-compatible model server whose
+model supports tool calling — for example OpenAI (`https://api.openai.com/v1`), Groq
+(`https://api.groq.com/openai/v1`) or a company server running Ollama. For those, leave
+`ENYO_LLM_PROVIDER` unset and set `ENYO_LLM_BASE_URL`, `ENYO_LLM_API_KEY` and `ENYO_LLM_MODEL` instead.
 
 ## 7. Your domain (recommended)
 
@@ -389,7 +408,8 @@ key never reaches a browser. Settings → Enyo shows the provider and lets you s
 | Sign-in says the request is not allowed | The address you use is not `BETTER_AUTH_URL`; add it to `BETTER_AUTH_TRUSTED_ORIGINS` |
 | Customers cannot sign in on the customer portal | `BETTER_AUTH_SECRET` differs between the two projects |
 | No emails | Check the `SMTP_*` values; for Gmail the password must be an app password |
-| Enyo says "not switched on yet" | `ENYO_LLM_*` missing in that project; redeploy after adding |
+| Enyo says "not switched on yet" | `ENYO_LLM_PROVIDER` / `ENYO_LLM_API_KEY` missing in that project; redeploy after adding |
+| Enyo says it is busy, every time | Anthropic Console → Limits: the monthly spend limit is reached, or Billing has no credit left |
 | Scheduler shows `401` | The secret in Supabase Vault differs from Vercel's `CRON_SECRET`; run v25 again with the right one |
 | Something broke after a deploy | Vercel → Deployments → the last good one → **⋯ → Instant Rollback**. Database changes are additive only, so older code keeps working |
 

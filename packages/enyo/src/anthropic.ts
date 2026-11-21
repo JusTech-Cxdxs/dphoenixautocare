@@ -180,7 +180,9 @@ export function buildAnthropicRequest(config: LlmConfig, req: CompletionRequest,
 
 function client(config: LlmConfig, fetchImpl: Fetch): Anthropic {
   // maxRetries 0: Enyo's own retries (below) keep the per-model budgets and the model chain working.
-  return new Anthropic({ apiKey: config.apiKey, baseURL: config.baseUrl || ANTHROPIC_API_URL, timeout: config.timeoutMs, maxRetries: 0, fetch: fetchImpl });
+  // logLevel "off": a debug setting in the environment never writes requests (prompts) to the log;
+  // failures reach the app as LlmError, without the key or the prompt.
+  return new Anthropic({ apiKey: config.apiKey, baseURL: config.baseUrl || ANTHROPIC_API_URL, timeout: config.timeoutMs, maxRetries: 0, fetch: fetchImpl, logLevel: 'off' });
 }
 
 const anthropicError = (kind: LlmErrorKind, message: string, status?: number, detail?: string, code?: string) => new LlmError(kind, message, status, detail, code, 'anthropic');
