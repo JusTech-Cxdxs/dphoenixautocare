@@ -7,7 +7,7 @@ import { logFailure } from '@/lib/log';
 import { claimed, lockExisting } from '@/lib/integrity';
 import { retryOnNumberClash } from '@/lib/integrity-core';
 import { withdrawOpenSourcing } from '@/lib/sourcing-lifecycle';
-import { authorize, canSeeRecord, reachWhere, authorizeOnService, authorizeOnJobCard, refuse, branchWithinReach, orgWhere, seeService, seeVehicle, refuseDuringAssist } from '@/lib/authz/server';
+import { authorize, canSeeRecord, reachWhere, authorizeOnService, authorizeOnJobCard, refuse, branchWithinReach, orgWhere, seeService, seeVehicle, refuseDuringAssist, inMyOrganisation } from '@/lib/authz/server';
 
 import { notifyGateOfRelease } from '@/lib/security-notify';
 import { customerTotal } from '@/lib/estimate-billing';
@@ -2280,6 +2280,10 @@ export async function updatePrimaryServiceInterval(
   const user = await requireUser();
   const isMasterAdmin = await currentUserIsMasterAdmin();
   if (!isMasterAdmin) {
+    throw new VehicleServiceActionError('You do not have permission to change the Primary Service interval.');
+  }
+  // Only the person's own organisation (the platform team may change any).
+  if (!(await inMyOrganisation(organisationId))) {
     throw new VehicleServiceActionError('You do not have permission to change the Primary Service interval.');
   }
   await prisma.organisation.update({

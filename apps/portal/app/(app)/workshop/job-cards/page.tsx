@@ -188,7 +188,7 @@ export default async function WorkshopJobCardsPage({
             </fieldset>
             <CustomerVehiclePicker initialCustomer={prefill?.customer} initialVehicleId={prefill?.vehicleId} />
             <div>
-              <label htmlFor="job-card-mileage" className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Mileage at check-in (km)</label>
+              <label htmlFor="job-card-mileage" className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Mileage at check-in (km) <span className="font-normal">— needed for a service</span></label>
               <input id="job-card-mileage" name="mileageAtCheckIn" type="number" defaultValue={prefill?.mileage ?? undefined} className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]" />
             </div>
             <div>

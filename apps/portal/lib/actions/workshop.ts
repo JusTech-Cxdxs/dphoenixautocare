@@ -912,6 +912,10 @@ export async function createJobCard(input: CreateJobCardInput) {
   if (complaints.some((c) => c.length > 500)) {
     throw new WorkshopActionError('Keep each complaint under 500 characters.');
   }
+  // A service visit starts the next-service clock from this reading.
+  if (input.isService === true && (input.mileageAtCheckIn === undefined || input.mileageAtCheckIn === null)) {
+    throw new WorkshopActionError('Enter the mileage at check-in: the next service is worked out from it.');
+  }
 
   // The department is derived from the vehicle's recorded type, never from
   // client input. The vehicle must belong to this organisation.

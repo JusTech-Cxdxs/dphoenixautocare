@@ -1,5 +1,7 @@
 import { ResponsiveTable } from '@/components/ui/ResponsiveTable';
-import { guardAnyPage, allows } from '@/lib/authz/server';
+import { guardAnyPage, allows, getPrincipal } from '@/lib/authz/server';
+import { prisma } from '@ejo/database';
+import { ServiceIntervalForm } from '@/components/ServiceIntervalForm';
 import { getServiceTracker } from '@/lib/actions/vehicle-service';
 import { currentUserIsMasterAdmin } from '@/lib/actions/workshop';
 import { bookServiceHref, separateVehicleServiceOn, OPEN_SERVICE_JOB_CARD } from '@/lib/service-entry';
@@ -29,10 +31,10 @@ type Filter = 'all' | 'overdue' | 'due_soon' | 'on_track' | 'in_workshop' | 'att
 export default async function ServiceTrackerPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string; q?: string; type?: string; status?: string; error?: string; sent?: string; evaluated?: string; failed?: string }>;
+  searchParams: Promise<{ filter?: string; q?: string; type?: string; status?: string; error?: string; sent?: string; evaluated?: string; failed?: string; editInterval?: string }>;
 }) {
   await guardAnyPage(['workshop.view'], '/workshop');
-  const { filter: rawFilter, q, type: rawType, status, error, sent, evaluated, failed } = await searchParams;
+  const { filter: rawFilter, q, type: rawType, status, error, sent, evaluated, failed, editInterval } = await searchParams;
   // Customer names link to their Customers (CRM) page for those who may open it.
   const canSeeCustomers = await allows('crm.view');
   const vehicleType = rawType === 'PASSENGER' || rawType === 'COMMERCIAL' ? rawType : null;
@@ -40,8 +42,12 @@ export default async function ServiceTrackerPage({
   const branchId = await getWorkshopBranchId();
   const tracker = await getServiceTracker(branchId);
   const { remindersLast30Days, canRunReminders } = tracker;
-  // The organisation's service interval is set on the Vehicle Service page, which has no Workshop tile in this edition: linked from here.
-  const intervalLink = !separateVehicleServiceOn() && (await currentUserIsMasterAdmin());
+  // The organisation's service interval: set here as well as on the Vehicle Service page (which has no Workshop tile in
+  // this edition). The same action and the same rule: Master Admin, for their own organisation.
+  const principal = await getPrincipal();
+  const intervalOrg = principal.organisationId && (await currentUserIsMasterAdmin())
+    ? await prisma.organisation.findUnique({ where: { id: principal.organisationId }, select: { id: true, primaryServiceIntervalKm: true, primaryServiceIntervalDays: true } })
+    : null;
   // Passenger / Commercial filter narrows everything below, counts included.
   const vehicles = vehicleType ? tracker.vehicles.filter((v) => v.vehicleType === vehicleType) : tracker.vehicles;
 
@@ -106,6 +112,7 @@ export default async function ServiceTrackerPage({
             .
           </p>
         </div>
+        {intervalOrg ? <ServiceIntervalForm organisation={intervalOrg} editing={editInterval === 'true'} path="/workshop/service-tracker" /> : null}
         {canRunReminders && dueNow > 0 ? (
           <form action={runServiceRemindersNowFormAction}>
             <FormPendingOverlay />
@@ -121,19 +128,13 @@ export default async function ServiceTrackerPage({
         Reminders are never sent automatically. A Send button appears when one is due: a first note when the vehicle is due
         soon (within 1,000 km or 30 days), follow-ups 7 working days apart, then an overdue reminder. Nothing is due while
         the vehicle is back in the workshop or once it has been attended to.
-        {intervalLink ? (
-          <>
-            {' '}
-            <LoadingLink href="/workshop/vehicle-service?editInterval=true" className="text-[var(--ejo-primary)] hover:underline">
-              Change the organisation&rsquo;s service interval
-            </LoadingLink>
-            .
-          </>
-        ) : null}
       </p>
 
       {error ? (
         <div className="mb-6 max-w-2xl"><FormFeedbackBanner kind="error" message={error} /></div>
+      ) : null}
+      {status === 'interval_updated' ? (
+        <div className="mb-6 max-w-2xl"><FormFeedbackBanner kind="success" message="Primary Service interval updated." /></div>
       ) : null}
       {status === 'reminder_sent' ? (
         <div className="mb-6 max-w-2xl"><FormFeedbackBanner kind="success" message="Reminder sent to the customer." /></div>

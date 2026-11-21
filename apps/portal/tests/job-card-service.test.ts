@@ -276,3 +276,22 @@ test('the customer sees a service Job Card as "Service", with its next service',
   assert.match(readRepo('apps/website/lib/customer-portal/format.ts'), /i\.kind === 'vs' \? 'Vehicle service' : i\.isServiceJobCard \? 'Service' : 'Job Card'/);
   assert.match(readRepo('apps/website/components/customer/ServiceCard.tsx'), /\{itemKindLabel\(item\)\}/);
 });
+
+test('the organisation\'s service interval can still be set: on the Service Tracker as well as the old page', () => {
+  const tracker = read('app/(app)/workshop/service-tracker/page.tsx');
+  assert.match(tracker, /principal\.organisationId && \(await currentUserIsMasterAdmin\(\)\)/, 'shown only to those who may change it');
+  assert.match(tracker, /<ServiceIntervalForm organisation=\{intervalOrg\} editing=\{editInterval === 'true'\} path="\/workshop\/service-tracker" \/>/);
+  const form = read('components/ServiceIntervalForm.tsx');
+  assert.match(form, /<form action=\{updatePrimaryServiceIntervalFormAction\}/, 'the same action');
+  assert.match(form, /name="primaryServiceIntervalKm"/);
+  assert.match(form, /name="primaryServiceIntervalDays"/);
+  assert.match(form, /<input type="hidden" name="returnTo" value=\{path\} \/>/);
+  const handler = read('lib/actions/vehicle-service-form-handlers.ts');
+  assert.match(handler, /const returnTo = safeWorkshopPath\(str\(formData, 'returnTo'\), '\/workshop\/vehicle-service'\);/);
+  assert.match(handler, /redirect\(`\$\{returnTo\}\?status=interval_updated`\)/);
+  // The permission check stays in the action itself.
+  const action = read('lib/actions/vehicle-service.ts');
+  assert.match(action.slice(action.indexOf('export async function updatePrimaryServiceInterval(')), /if \(!isMasterAdmin\) \{\s*throw new VehicleServiceActionError\('You do not have permission to change the Primary Service interval\.'\);/);
+  // And still on the old Vehicle Service page.
+  assert.match(read('app/(app)/workshop/vehicle-service/page.tsx'), /<form action=\{updatePrimaryServiceIntervalFormAction\}/);
+});
