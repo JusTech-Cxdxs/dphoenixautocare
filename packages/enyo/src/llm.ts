@@ -1,19 +1,39 @@
 /**
- * A small client for any OpenAI-compatible chat endpoint, with tool calling
- * and streaming. No SDK: plain fetch, so it runs the same on Vercel, Render,
- * a company's own server or in tests.
+ * The single client for every model call Enyo makes, with tool calling and
+ * streaming. Two ways to reach a model:
+ *  - any OpenAI-compatible chat endpoint, with plain fetch, so it runs the
+ *    same on Vercel, Render, a company's own server or in tests;
+ *  - Anthropic Claude, through the official SDK (anthropic.ts), when
+ *    ENYO_LLM_PROVIDER=anthropic.
+ * Callers see the same messages, completions, stream pieces and errors either way.
  */
 import { fallbacksFor, type LlmConfig } from './config';
+import { anthropicComplete, anthropicOpenStream } from './anthropic';
+import { kindForStatus, limitedUntil, LlmError, noteLimited, readErrorBody, retryAfterMs, MAX_RETRY_WAIT_MS, sleep } from './llm-common';
+
+export * from './llm-common';
 
 export type ChatRole = 'system' | 'user' | 'assistant' | 'tool';
 
-export type ToolCall = { id: string; name: string; arguments: string };
+/**
+ * One tool call. `invalidInput`: the input did not have the shape the tool's
+ * schema asks for (not an object, a required field missing, or cut off at the
+ * length limit) — the tool is not run and the model is told so.
+ */
+export type ToolCall = { id: string; name: string; arguments: string; invalidInput?: boolean };
 
 export type ChatMessage =
   | { role: 'system'; content: string }
   | { role: 'user'; content: string }
-  | { role: 'assistant'; content: string; toolCalls?: ToolCall[] }
-  | { role: 'tool'; toolCallId: string; name: string; content: string };
+  /**
+   * `providerContent`: the provider's own content blocks for this turn,
+   * exactly as returned (Anthropic: thinking blocks with their signatures,
+   * text and tool calls). Sent back unchanged while the same answer's tool
+   * loop runs; never stored and never shown.
+   */
+  | { role: 'assistant'; content: string; toolCalls?: ToolCall[]; providerContent?: unknown[] }
+  /** `isError`: the tool did not run or failed; the result says why. */
+  | { role: 'tool'; toolCallId: string; name: string; content: string; isError?: boolean };
 
 /** A tool as the model sees it: a name, what it does, and a JSON Schema for its input. */
 export type ToolSpec = { name: string; description: string; parameters: Record<string, unknown> };
@@ -21,117 +41,32 @@ export type ToolSpec = { name: string; description: string; parameters: Record<s
 export type CompletionRequest = {
   messages: ChatMessage[];
   tools?: ToolSpec[];
+  /**
+   * "none": the tools stay declared but none may be called (the agent's last
+   * step). The OpenAI-compatible request then carries no tools at all, as before.
+   */
+  toolChoice?: 'auto' | 'none';
   /** Override the configured model (e.g. the fast model). */
   model?: string;
+  /** OpenAI-compatible endpoints only; Anthropic's current models take no sampling settings. */
   temperature?: number;
   maxTokens?: number;
-  /** For reasoning models: how much to think (default: low for short jobs, medium otherwise). */
+  /**
+   * How much to think. Reasoning models on OpenAI-compatible endpoints: low for
+   * short jobs, medium otherwise. Anthropic: the effort level (default from
+   * ENYO_LLM_EFFORT / ENYO_LLM_FAST_EFFORT).
+   */
   reasoning?: 'low' | 'medium' | 'high';
   signal?: AbortSignal;
 };
 
 export type Usage = { tokensIn: number; tokensOut: number };
 
-export type Completion = { content: string; toolCalls: ToolCall[]; usage: Usage; model: string; finishReason: string };
-
-export type LlmErrorKind = 'timeout' | 'rate_limited' | 'unavailable' | 'rejected' | 'auth' | 'not_found' | 'bad_response' | 'aborted';
-
-/** What went wrong, in a form the app can turn into a calm message. Never carries the key or the prompt. */
-export class LlmError extends Error {
-  constructor(
-    public readonly kind: LlmErrorKind,
-    message: string,
-    public readonly status?: number,
-    /** The model server's own explanation (keys redacted, at most 240 characters) — for administrators and logs only. */
-    public readonly detail?: string,
-    /** The model server's error code, e.g. "invalid_api_key", "model_not_found", "tool_use_failed". */
-    public readonly code?: string,
-  ) {
-    super(message);
-    this.name = 'LlmError';
-  }
-}
-
-/** Anything that looks like a key or a bearer token, hidden. */
-export function redactSecrets(text: string): string {
-  return text
-    .replace(/\b(gsk|sk|sk-proj|sk-or|xai|pk|rk|key|AIza)[-_][A-Za-z0-9_\-]{8,}/g, '[key hidden]')
-    .replace(/Bearer\s+[A-Za-z0-9._\-]+/gi, 'Bearer [hidden]')
-    .replace(/\b[A-Za-z0-9_\-]{40,}\b/g, '[hidden]');
-}
-
-/** The kind of failure for an HTTP status from the model server. */
-export function kindForStatus(status: number): LlmErrorKind {
-  if (status === 401 || status === 403) return 'auth';
-  if (status === 404) return 'not_found';
-  if (status === 429) return 'rate_limited';
-  if (status >= 500) return 'unavailable';
-  return 'rejected';
-}
-
-/** The model server's error body → a short, key-free explanation and code. */
-export function readErrorBody(text: string): { detail?: string; code?: string } {
-  let detail = text;
-  let code: string | undefined;
-  try {
-    const j = JSON.parse(text) as { error?: { message?: unknown; code?: unknown; type?: unknown } | string; message?: unknown };
-    const e = typeof j.error === 'object' && j.error ? j.error : undefined;
-    detail = String(e?.message ?? (typeof j.error === 'string' ? j.error : j.message) ?? text);
-    const c = e?.code ?? e?.type;
-    code = typeof c === 'string' && /^[a-z0-9_.-]{1,60}$/i.test(c) ? c : undefined;
-  } catch { /* not JSON: keep the text */ }
-  const clean = redactSecrets(detail.replace(/\s+/g, ' ').trim()).slice(0, 240);
-  return { ...(clean ? { detail: clean } : {}), ...(code ? { code } : {}) };
-}
-
 /**
- * How long the model server asked us to wait, in milliseconds: the Retry-After
- * header, or the "Please try again in 1m2.5s" / "in 750ms" that Groq and others
- * put in the message. Undefined when nothing was said.
+ * One answer. `finishReason` "refusal": the model declined; `content` is then
+ * a short polite sentence. `providerContent`: see ChatMessage (assistant).
  */
-export function retryAfterMs(detail: string | undefined, header?: string | null): number | undefined {
-  const h = Number(header);
-  if (Number.isFinite(h) && h > 0) return Math.round(h * 1000);
-  const m = /try again in\s+((?:\d+(?:\.\d+)?\s*(?:ms|h|m|s)\s*)+)/i.exec(detail ?? '');
-  if (!m) return undefined;
-  let ms = 0;
-  for (const part of m[1]!.matchAll(/(\d+(?:\.\d+)?)\s*(h|ms|m|s)/gi)) {
-    const n = Number(part[1]);
-    const unit = part[2]!.toLowerCase();
-    ms += unit === 'h' ? n * 3_600_000 : unit === 'm' ? n * 60_000 : unit === 's' ? n * 1000 : n;
-  }
-  return ms > 0 ? Math.round(ms) : undefined;
-}
-
-/** Friendly text for each failure, shown to people instead of library messages. */
-export function llmErrorMessage(kind: LlmErrorKind): string {
-  switch (kind) {
-    case 'timeout': return 'I took too long to think about that. Please try again, or ask a shorter question.';
-    case 'rate_limited': return "I'm handling a lot of questions right now. Please try again in a minute.";
-    case 'unavailable': return "I can't reach my thinking engine just now. Please try again in a minute.";
-    case 'rejected': return "I couldn't answer that one. Please rephrase it and try again.";
-    case 'auth':
-    case 'not_found': return "I'm not set up correctly at the moment. Please let an administrator know (Settings → Enyo → Test connection).";
-    case 'aborted': return 'Stopped.';
-    default: return 'Something went wrong on my side. Please try again.';
-  }
-}
-
-/** For administrators (the connection test): what is wrong and what to change. Never includes the key. */
-export function llmAdminMessage(err: LlmError): string {
-  const why = err.detail ? ` The model server said: "${err.detail}"` : '';
-  const status = err.status ? ` (HTTP ${err.status})` : '';
-  switch (err.kind) {
-    case 'auth': return `The model server refused the key${status}. Check ENYO_LLM_API_KEY: paste the key again with no quotes or spaces, make sure it has not been deleted or expired, then redeploy.${why}`;
-    case 'not_found': return `The model or the address was not found${status}. Check ENYO_LLM_MODEL (the exact model id) and ENYO_LLM_BASE_URL (it ends in /v1 for most providers, without /chat/completions), then redeploy.${why}`;
-    case 'rejected': return `The model server rejected the request${status}. The model id may not exist for this provider, or it does not accept one of the settings.${why}`;
-    case 'rate_limited': return `The model server says too many requests${status}. Wait a minute and test again; on a free tier, check its limits.${why}`;
-    case 'unavailable': return `The model server could not be reached or had an error${status}. Check ENYO_LLM_BASE_URL and that the provider is up.${why}`;
-    case 'timeout': return 'The model server took too long to answer. Try again; if it keeps happening, choose a faster model or raise ENYO_LLM_TIMEOUT_MS.';
-    case 'bad_response': return `The model server answered in an unexpected format. Check that ENYO_LLM_BASE_URL points at an OpenAI-compatible endpoint.${why}`;
-    default: return llmErrorMessage(err.kind);
-  }
-}
+export type Completion = { content: string; toolCalls: ToolCall[]; usage: Usage; model: string; finishReason: string; providerContent?: unknown[] };
 
 type Fetch = typeof fetch;
 
@@ -180,7 +115,7 @@ function body(config: LlmConfig, req: CompletionRequest, stream: boolean): strin
   return JSON.stringify({
     model,
     messages: wireMessages(req.messages),
-    ...(req.tools?.length ? { tools: req.tools.map((t) => ({ type: 'function', function: t })), tool_choice: 'auto' } : {}),
+    ...(req.tools?.length && req.toolChoice !== 'none' ? { tools: req.tools.map((t) => ({ type: 'function', function: t })), tool_choice: 'auto' } : {}),
     temperature: req.temperature ?? 0.2,
     ...(req.maxTokens ? { max_tokens: reasoning ? req.maxTokens + REASONING_ROOM : req.maxTokens } : {}),
     ...(reasoning ? { reasoning_effort: effort, include_reasoning: false } : {}),
@@ -188,14 +123,6 @@ function body(config: LlmConfig, req: CompletionRequest, stream: boolean): strin
     ...(stream ? { stream_options: { include_usage: true } } : {}),
   });
 }
-
-const sleep = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
-  const t = setTimeout(resolve, ms);
-  signal?.addEventListener('abort', () => { clearTimeout(t); reject(new LlmError('aborted', 'Aborted')); }, { once: true });
-});
-
-/** The longest the request waits for a per-minute budget to free before retrying. */
-export const MAX_RETRY_WAIT_MS = 12_000;
 
 /** POST with a timeout and up to three retries on 429 / 5xx / network errors. */
 async function post(config: LlmConfig, firstPayload: string, signal: AbortSignal | undefined, fetchImpl: Fetch, quickFail = false): Promise<Response> {
@@ -270,15 +197,7 @@ async function post(config: LlmConfig, firstPayload: string, signal: AbortSignal
   throw lastError;
 }
 
-/** Models that said "too many" recently, and until when to leave them alone (per server process). */
-const limitedUntil = new Map<string, number>();
 const modelOf = (payload: string): string => { try { return String((JSON.parse(payload) as { model?: unknown }).model ?? ''); } catch { return ''; } };
-function noteLimited(model: string, askedMs: number | undefined): void {
-  if (!model) return;
-  limitedUntil.set(model, Date.now() + Math.min(Math.max(askedMs ?? 20_000, 5_000), 10 * 60_000));
-}
-/** For tests: forget which models were busy. */
-export function resetModelBudgets(): void { limitedUntil.clear(); }
 
 /**
  * Sends the request to the model asked for and, when that model is out of
@@ -288,6 +207,11 @@ export function resetModelBudgets(): void { limitedUntil.clear(); }
  * to be busy are skipped until their wait is over.
  */
 async function send(config: LlmConfig, req: CompletionRequest, streaming: boolean, fetchImpl: Fetch): Promise<Response> {
+  return withModelChain(config, req, (model, more) => post(config, body(config, { ...req, model }, streaming), req.signal, fetchImpl, more));
+}
+
+/** The chain of models above, for any provider: `attempt` makes one model's request (`more`: another model is waiting). */
+async function withModelChain<T>(config: LlmConfig, req: CompletionRequest, attempt: (model: string, more: boolean) => Promise<T>): Promise<T> {
   const primary = req.model ?? config.model;
   const chain = [primary, ...fallbacksFor(config, primary)];
   const now = Date.now();
@@ -299,7 +223,7 @@ async function send(config: LlmConfig, req: CompletionRequest, streaming: boolea
     const model = order[i]!;
     const more = i < order.length - 1;
     try {
-      return await post(config, body(config, { ...req, model }, streaming), req.signal, fetchImpl, more);
+      return await attempt(model, more);
     } catch (err) {
       last = err;
       if (!(err instanceof LlmError) || !more) throw err;
@@ -319,6 +243,7 @@ function readUsage(u: unknown): Usage {
 
 /** One request, whole answer. */
 export async function complete(config: LlmConfig, req: CompletionRequest, fetchImpl: Fetch = fetch): Promise<Completion> {
+  if (config.provider === 'anthropic') return withModelChain(config, req, (model, more) => anthropicComplete(config, { ...req, model }, fetchImpl, more));
   const res = await send(config, req, false, fetchImpl);
   let json: { choices?: { message?: { content?: string | null; tool_calls?: WireToolCall[] }; finish_reason?: string }[]; usage?: unknown; model?: string };
   try {
@@ -339,6 +264,12 @@ export type StreamPiece = { type: 'text'; text: string } | { type: 'done'; compl
  * and returned with the final `done` piece.
  */
 export async function* stream(config: LlmConfig, req: CompletionRequest, fetchImpl: Fetch = fetch): AsyncGenerator<StreamPiece> {
+  if (config.provider === 'anthropic') {
+    // The chain moves to the next model only while nothing has been said yet.
+    const opened = await withModelChain(config, req, (model, more) => anthropicOpenStream(config, { ...req, model }, fetchImpl, more));
+    yield* opened;
+    return;
+  }
   const res = await send(config, req, true, fetchImpl);
   if (!res.body) throw new LlmError('bad_response', 'The model server sent no stream');
   const reader = res.body.getReader();

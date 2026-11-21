@@ -8,5 +8,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "rm -rf .test-out && tsc -p tsconfig.test.json && node --test .test-out/tests/*.test.js; status=$?; rm -rf .test-out; exit $status"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "1.12.0"
   }
 }
