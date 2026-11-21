@@ -16,6 +16,7 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
  * keeps up to 10 connections (Prisma's default on a 2-CPU function is 5) and
  * waits up to 20 s for a free one (default 10 s). Override with
  * PRISMA_CONNECTION_LIMIT / PRISMA_POOL_TIMEOUT, or in DATABASE_URL itself.
+ * A transaction-pooler address (port 6543) always gets pgbouncer=true.
  */
 export function tunedDatabaseUrl(raw: string | undefined): string | undefined {
   if (!raw) return raw;
@@ -23,6 +24,10 @@ export function tunedDatabaseUrl(raw: string | undefined): string | undefined {
     const u = new URL(raw);
     const limit = Number(process.env.PRISMA_CONNECTION_LIMIT) || 10;
     const timeout = Number(process.env.PRISMA_POOL_TIMEOUT) || 20;
+    // A transaction pooler (Supabase's port 6543, PgBouncer) cannot keep
+    // prepared statements between requests: without pgbouncer=true every
+    // query fails with "prepared statement already exists".
+    if (u.port === '6543' && !u.searchParams.has('pgbouncer')) u.searchParams.set('pgbouncer', 'true');
     if (!u.searchParams.has('connection_limit')) u.searchParams.set('connection_limit', String(Math.max(1, Math.min(50, limit))));
     if (!u.searchParams.has('pool_timeout')) u.searchParams.set('pool_timeout', String(Math.max(5, Math.min(60, timeout))));
     return u.toString();
