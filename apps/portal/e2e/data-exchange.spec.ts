@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { as, uniq, open } from './helpers';
 import { db } from './db';
 import { writeXlsx } from '../lib/data-exchange/xlsx-writer';
+import { IMPORT_SOURCE } from './edition';
 
 /**
  * Data Exchange (v-A1): existing customers and vehicles brought in from SAP
@@ -117,7 +118,7 @@ test('the front desk cannot open Data Exchange; the manager approves, it loads, 
   await loadAndReport(page);
   await expect(page.getByText('5 rows in the file = 3 added + 0 filled in + 0 not added + 2 rejected.')).toBeVisible();
   const ada = await db().customer.findFirst({ where: { fullName: ADA }, select: { email: true, externalSource: true, externalId: true, address: true, importJobId: true } });
-  expect(ada).toMatchObject({ email: `ada.${tag}@e2e.test`, externalSource: 'SAP', externalId: kunnr(1), address: 'Plot 3, Adeola Odeku Street, Victoria Island' });
+  expect(ada).toMatchObject({ email: `ada.${tag}@e2e.test`, externalSource: IMPORT_SOURCE, externalId: kunnr(1), address: 'Plot 3, Adeola Odeku Street, Victoria Island' });
   expect(ada?.importJobId).toBeTruthy();
   // A customer with no email is a full record — and never given a made-up address.
   const musa = await db().customer.findFirst({ where: { fullName: MUSA }, select: { email: true, phone: true } });

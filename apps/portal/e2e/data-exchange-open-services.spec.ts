@@ -3,6 +3,7 @@ import { as, uniq, open } from './helpers';
 import { db } from './db';
 import { WORKSHOP_BRANCH, who } from './people';
 import { SAP_ENABLED } from './edition';
+import { IMPORT_SOURCE, IMPORT_SOURCE_WORDS } from './edition';
 
 /**
  * P6b â€” the routine services still in the workshop on the cut-over day and
@@ -79,7 +80,7 @@ test('the diary and the open services: refusals, the totals, approval and load â
 
   const svcs = await db().vehicleService.findMany({ where: { customerId }, orderBy: { externalId: 'asc' }, include: { complaints: { orderBy: { sequenceNumber: 'asc' } } } });
   expect(svcs.map((s) => [s.externalId, s.status])).toEqual([[bk(1), 'SCHEDULED'], [bk(2), 'SCHEDULED'], [bk(3), 'IN_SERVICE']]);
-  expect(svcs.every((s) => s.serviceNumber.startsWith('SV-') && s.externalSource === 'SAP' && s.importJobId && s.branchId === branchId)).toBe(true);
+  expect(svcs.every((s) => s.serviceNumber.startsWith('SV-') && s.externalSource === IMPORT_SOURCE && s.importJobId && s.branchId === branchId)).toBe(true);
   const [b1, b2, s3] = svcs as [typeof svcs[number], typeof svcs[number], typeof svcs[number]];
   // 10:30 in Lagos is 09:30 UTC; no time is 09:00 Lagos.
   expect(b1.bookedFor?.toISOString()).toBe(`${lagosDay(5)}T09:30:00.000Z`);
@@ -87,7 +88,7 @@ test('the diary and the open services: refusals, the totals, approval and load â
   expect(b1.approvalStatus).toBe('PENDING');
   expect(b1.checkedInAt).toBeNull();
   expect(b1.complaints.map((c) => c.description)).toEqual(['Service 10,000 km', 'check the brakes']);
-  expect(b1.approvalNotes).toMatch(/Booked before EJO: brought in from SAP \(booking .*\) by import .*\nCustomer will wait/);
+  expect(b1.approvalNotes).toMatch(new RegExp(`Booked before EJO: brought in from ${IMPORT_SOURCE_WORDS} \\(booking .*\\) by import .*\\nCustomer will wait`));
   expect(s3.approvalStatus).toBe('APPROVED');
   expect(s3.assignedTechnicianId).toBe(tech.id);
   expect(s3.checkedInAt?.toISOString().slice(0, 10)).toBe(lagosDay(-2));
@@ -102,7 +103,7 @@ test('the booking page says when the customer is expected and where it came from
   await open(page, `/workshop/vehicle-service/${b1.id}`);
   await expect(page.getByTestId('service-booking')).toContainText('Booked for');
   await expect(page.getByTestId('service-booking')).toContainText('Check the vehicle in when it arrives.');
-  await expect(page.getByTestId('service-origin')).toContainText(`Brought in from SAP as booking ${bk(1)}.`);
+  await expect(page.getByTestId('service-origin')).toContainText(`Brought in from ${IMPORT_SOURCE_WORDS} as booking ${bk(1)}.`);
   await open(page, `/workshop/vehicle-service?q=${encodeURIComponent(bk(1))}`);
   await expect(page.getByText(/^Booked /).first()).toBeVisible();
   await open(page, '/dashboard');
