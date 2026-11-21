@@ -15,6 +15,7 @@ import { bankDetailsFor } from '../workshop-core';
 import { formatDateTime } from '../utils/format-date';
 import { safeText } from './format';
 import { documentFileName, DOCUMENTS_PER_ZIP, periodWindow, type DocumentKind } from './documents';
+import { billingOf, JOB_CARD_BILLING_SELECT } from '../estimate-billing';
 
 export type Scope = { organisationId: string; branchId: string; kind: DocumentKind; from: string; to: string };
 
@@ -55,10 +56,10 @@ async function drawPart(s: Scope, part: number, head: Letterhead, bank: Bank): P
   if (s.kind === 'JOB_ESTIMATE') {
     const rows = await prisma.estimate.findMany({
       where: { customerNotifiedAt: { gte: start, lt: end }, jobCard: inBranch(s) }, orderBy: [{ customerNotifiedAt: 'asc' }, { id: 'asc' }], ...page,
-      select: { customerNotifiedAt: true, jobCard: { select: { jobNumber: true, customer, vehicle } }, lineItems: { orderBy: { createdAt: 'asc' }, select: { type: true, description: true, quantity: true, amount: true, unitOfMeasure: true, billTo: true, coveringWarranty: { select: { warrantyNumber: true } } } } },
+      select: { customerNotifiedAt: true, discountAmount: true, jobCard: { select: { jobNumber: true, customer, vehicle, ...JOB_CARD_BILLING_SELECT } }, lineItems: { orderBy: { createdAt: 'asc' }, select: { type: true, description: true, quantity: true, amount: true, unitOfMeasure: true, billTo: true, discountAmount: true, coveringWarranty: { select: { warrantyNumber: true } } } } },
     });
     for (const e of rows) {
-      const pdf = await renderToBuffer(EstimatePdf(jobEstimatePdfProps({ letterhead: head, bank, jobNumber: e.jobCard.jobNumber, customer: e.jobCard.customer, vehicle: e.jobCard.vehicle, lineItems: e.lineItems })));
+      const pdf = await renderToBuffer(EstimatePdf(jobEstimatePdfProps({ letterhead: head, bank, jobNumber: e.jobCard.jobNumber, customer: e.jobCard.customer, vehicle: e.jobCard.vehicle, lineItems: e.lineItems, billing: { discountAmount: e.discountAmount, vat: billingOf(e.jobCard) } })));
       out.push({ number: e.jobCard.jobNumber, customer: e.jobCard.customer.fullName, dated: e.customerNotifiedAt!, file: documentFileName(s.kind, e.jobCard.jobNumber), pdf });
     }
   } else if (s.kind === 'SERVICE_ESTIMATE') {

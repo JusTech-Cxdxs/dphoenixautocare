@@ -18,7 +18,7 @@ import { listEligibleStoreManagersForBranch, listEligibleStoreOfficersForBranch 
 import { sendEmail } from '@/lib/email';
 import { renderWarrantyStaffNoticeEmail } from '@/lib/email-templates/warranty-staff-notice';
 import { visitOverdueMinutes, exitPassOverdueMinutes, roadTestOverdueMinutes, durationText, INCIDENT_TYPES, contractorState, contractorAfterHoursMinutes, lagosDay } from '@/lib/security-rules';
-import { customerTotal } from '@/lib/estimate-billing';
+import { billingOf, jobCardTotals, ESTIMATE_TOTALS_SELECT, JOB_CARD_BILLING_SELECT } from '@/lib/estimate-billing';
 import { lagosYear } from '@/lib/utils/format-date';
 import { PLATFORM } from '@/lib/brand';
 
@@ -1162,12 +1162,12 @@ export async function getClearedVehicle(kind: 'JOB_CARD' | 'VEHICLE_SERVICE', id
   if (kind === 'JOB_CARD') {
     const j = await prisma.jobCard.findFirst({
       where: { id, ...reach },
-      select: { id: true, jobNumber: true, status: true, checkedOutAt: true, collectedByName: true, gateExit: { select: { id: true, exitNumber: true } }, vehicle: { select: { id: true, make: true, model: true, plateNumber: true, chassisNumber: true, mileage: true } }, customer: { select: { fullName: true, phone: true } }, payments: { select: { amount: true } }, refunds: { select: { amount: true } }, estimate: { select: { lineItems: { select: { amount: true, billTo: true } } } } },
+      select: { id: true, jobNumber: true, status: true, checkedOutAt: true, collectedByName: true, gateExit: { select: { id: true, exitNumber: true } }, vehicle: { select: { id: true, make: true, model: true, plateNumber: true, chassisNumber: true, mileage: true } }, customer: { select: { fullName: true, phone: true } }, payments: { select: { amount: true } }, refunds: { select: { amount: true } }, estimate: { select: ESTIMATE_TOTALS_SELECT }, ...JOB_CARD_BILLING_SELECT },
     });
     if (!j) return null;
     // Net of refunds — a fully refunded job shows ₦0 paid, not the original payment.
     const paid = netPaid(j.payments, j.refunds);
-    return { kind, id: j.id, number: j.jobNumber, released: j.status === 'CHECKED_OUT', releasedAt: j.checkedOutAt, collectedBy: j.collectedByName, exit: j.gateExit, vehicle: j.vehicle, customer: j.customer, cancelled: false, total: customerTotal(j.estimate?.lineItems ?? []), paid };
+    return { kind, id: j.id, number: j.jobNumber, released: j.status === 'CHECKED_OUT', releasedAt: j.checkedOutAt, collectedBy: j.collectedByName, exit: j.gateExit, vehicle: j.vehicle, customer: j.customer, cancelled: false, total: jobCardTotals(j.estimate, billingOf(j)).total, paid };
   }
   const v = await prisma.vehicleService.findFirst({
     where: { id, ...reach },

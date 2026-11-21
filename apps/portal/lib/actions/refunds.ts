@@ -11,7 +11,7 @@ import { requireUser, requireEligibleFinanceOfficer } from './workshop';
 import { writeAuditLog, getWorkshopOrgContext } from '@/lib/workshop-core';
 import { sendEmail } from '@/lib/email';
 import { renderCustomerRefundReceiptEmail } from '@/lib/email-templates/customer-refund-receipt';
-import { customerTotal } from '@/lib/estimate-billing';
+import { billingOf, jobCardTotals, ESTIMATE_TOTALS_SELECT, JOB_CARD_BILLING_SELECT } from '@/lib/estimate-billing';
 import { lagosYear } from '@/lib/utils/format-date';
 import { customerRecordUrl } from '@/lib/customer-links-core';
 
@@ -40,7 +40,8 @@ async function loadTarget(target: RefundTarget) {
         payments: { select: { amount: true } },
         refunds: { select: { amount: true } },
         cancellationRequests: { where: { status: 'APPROVED' }, orderBy: { decidedAt: 'desc' }, take: 1, select: { reason: true } },
-        estimate: { select: { lineItems: { select: { amount: true, billTo: true } } } },
+        estimate: { select: ESTIMATE_TOTALS_SELECT },
+        ...JOB_CARD_BILLING_SELECT,
       },
     });
     if (!jc) return null;
@@ -59,7 +60,7 @@ async function loadTarget(target: RefundTarget) {
       cancellationReason: jc.cancellationRequests[0]?.reason ?? null,
       // What the customer still owes on an active Job Card (customer lines
       // only); nothing once it's cancelled — then everything paid is owed back.
-      customerOwes: jc.status === 'CANCELLED' ? 0 : customerTotal(jc.estimate?.lineItems ?? []),
+      customerOwes: jc.status === 'CANCELLED' ? 0 : jobCardTotals(jc.estimate, billingOf(jc)).total,
       entityType: 'JobCard' as const,
       portalId: jc.id,
     };
@@ -274,12 +275,12 @@ export async function recordRefund(input: RecordRefundInput): Promise<{ id: stri
       if (same) return { created: same, after: null, duplicate: true as const };
     }
     const fresh = t.kind === 'JOB_CARD'
-      ? await tx.jobCard.findUnique({ where: { id: t.id }, select: { status: true, payments: { select: { amount: true } }, refunds: { select: { amount: true } }, estimate: { select: { lineItems: { select: { amount: true, billTo: true } } } } } })
+      ? await tx.jobCard.findUnique({ where: { id: t.id }, select: { status: true, payments: { select: { amount: true } }, refunds: { select: { amount: true } }, estimate: { select: ESTIMATE_TOTALS_SELECT }, ...JOB_CARD_BILLING_SELECT } })
       : await tx.vehicleService.findUnique({ where: { id: t.id }, select: { status: true, payments: { select: { amount: true } }, refunds: { select: { amount: true } } } });
     if (!fresh || fresh.status !== t.status) {
       throw new RefundActionError('This record changed while you were recording the refund — refresh the page.');
     }
-    const owesNow = fresh.status === 'CANCELLED' ? 0 : ('estimate' in fresh ? customerTotal(fresh.estimate?.lineItems ?? []) : 0);
+    const owesNow = fresh.status === 'CANCELLED' ? 0 : ('estimate' in fresh ? jobCardTotals(fresh.estimate, billingOf(fresh)).total : 0);
     const now = position(fresh.payments, fresh.refunds, owesNow);
     if (toMinor(amount) > toMinor(now.remaining)) {
       throw new RefundActionError(

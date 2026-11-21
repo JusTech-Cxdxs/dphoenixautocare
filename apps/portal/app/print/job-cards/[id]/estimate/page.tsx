@@ -6,6 +6,7 @@ import { getOrganisation } from '@/lib/actions/organisation';
 import { EstimatePrintDocument, isEstimateAuditAction } from '@/components/print/EstimatePrintDocument';
 import { MINIMUM_DEPOSIT_FRACTION } from '@/lib/workshop-constants';
 import { bankDetailsFor } from '@/lib/workshop-core';
+import { billingOf, jobCardTotals } from '@/lib/estimate-billing';
 
 const TYPE_ORDER = ['STORE_PART', 'EXTERNAL_PART', 'EXTERNAL_JOB', 'INTERNAL_JOB', 'LABOUR', 'SUNDRY'];
 const TYPE_LABEL: Record<string, string> = {
@@ -41,6 +42,8 @@ export default async function PrintJobCardEstimatePage({
 
   const vehicleDescription = [jobCard.vehicle.make, jobCard.vehicle.model].filter(Boolean).join(' ') || 'Vehicle';
   const portalUrl = portalBaseUrl();
+  // The same figures as the estimate email, its PDF and every payment check.
+  const totals = jobCardTotals(estimate, billingOf(jobCard));
 
   return (
     <EstimatePrintDocument
@@ -83,7 +86,9 @@ export default async function PrintJobCardEstimatePage({
         unitPrice: l.unitPrice !== null ? Number(l.unitPrice) : null,
         amount: l.amount !== null ? Number(l.amount) : null,
         enteredBy: l.enteredBy?.fullName ?? null,
+        billTo: l.billTo,
       }))}
+      billing={{ lineDiscounts: totals.lineDiscounts, discountAmount: totals.discountAmount, discountReason: estimate.discountReason, vatRate: totals.vatRate, vatAmount: totals.vatAmount, total: totals.total }}
       typeOrder={TYPE_ORDER}
       typeLabels={TYPE_LABEL}
       payments={payments.map((p: (typeof payments)[number]) => ({

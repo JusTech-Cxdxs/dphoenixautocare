@@ -52,6 +52,7 @@ export async function collectPack(db: PrismaClient, organisationId: string, cust
   const ofJobs = { OR: [{ jobCardId: { in: jobs } }, { vehicleServiceId: { in: services } }] };
   await read('payments.csv', 'Payments', db.payment, ofJobs);
   await read('refunds.csv', 'Refunds', db.refund, ofJobs);
+  await read('invoices.csv', 'Invoices', db.invoice, { customerId, organisationId }, 'issuedAt');
 
   await read('warranties.csv', 'Warranties', db.warranty, { customerId });
   await read('warranty-claims.csv', 'Warranty claims', db.warrantyClaim, { customerId });

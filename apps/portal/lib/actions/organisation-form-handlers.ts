@@ -4,7 +4,7 @@ import { friendlyError } from '@/lib/errors';
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { updateOrganisation } from './organisation';
+import { updateBillingSettings, updateOrganisation } from './organisation';
 
 function str(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -38,4 +38,22 @@ export async function updateOrganisationFormAction(formData: FormData) {
   }
   revalidatePath('/organisation');
   redirect('/organisation?status=updated');
+}
+
+export async function updateBillingSettingsFormAction(formData: FormData) {
+  const organisationId = str(formData, 'organisationId');
+  const threshold = str(formData, 'discountApprovalPercent');
+  try {
+    await updateBillingSettings(organisationId, {
+      vatEnabled: formData.get('vatEnabled') === 'on',
+      vatRate: Number(str(formData, 'vatRate') || '7.5'),
+      vatNumber: str(formData, 'vatNumber'),
+      discountApprovalPercent: threshold === '' ? null : Number(threshold),
+    });
+  } catch (err) {
+    const message = friendlyError(err, 'Could not update billing and tax settings.', 'organisation-form-handlers');
+    redirect(`/organisation?editBilling=true&error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath('/organisation');
+  redirect('/organisation?status=billing-updated');
 }

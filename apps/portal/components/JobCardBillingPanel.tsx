@@ -33,7 +33,9 @@ export function JobCardBillingPanel({ jobCardId, billing }: { jobCardId: string;
   if (lines.length === 0) return null;
   const bt = (l: (typeof lines)[number]) => (l.billTo ?? 'CUSTOMER') as BillTo;
   const covered = lines.filter((l) => bt(l) !== 'CUSTOMER');
-  const paidInFull = split.customer > 0 ? billing.netPaid >= split.customer - 0.009 : covered.length > 0;
+  // What the customer owes after discounts and VAT (the shared calculation).
+  const owes = billing.totals.total;
+  const paidInFull = owes > 0 ? billing.netPaid >= owes - 0.009 : covered.length > 0;
   const settled = billing.isClosed || paidInFull || !billing.canEdit;
   const hasWarranty = WARRANTY_ON && warranties.length > 0;
   const claimable = [...new Map(lines.filter((l) => WARRANTY_ON && bt(l) === 'WARRANTY' && l.coveringWarranty).map((l) => [l.coveringWarranty!.id, l.coveringWarranty!])).values()];
@@ -47,7 +49,7 @@ export function JobCardBillingPanel({ jobCardId, billing }: { jobCardId: string;
   ) : null;
   const summary = (
     <div className="flex flex-wrap gap-2 text-xs">
-      <span className="rounded-full bg-[var(--ejo-primary)]/10 px-3 py-1 font-semibold text-[var(--ejo-primary)]">Customer {naira(split.customer)}</span>
+      <span className="rounded-full bg-[var(--ejo-primary)]/10 px-3 py-1 font-semibold text-[var(--ejo-primary)]">Customer {naira(owes)}</span>
       {split.warranty > 0 ? <span className={`rounded-full px-3 py-1 font-medium ${CHIP.WARRANTY}`}>Warranty {naira(split.warranty)}</span> : null}
       {split.goodwill > 0 ? <span className={`rounded-full px-3 py-1 font-medium ${CHIP.GOODWILL}`}>Goodwill {naira(split.goodwill)}</span> : null}
       {split.internal > 0 ? <span className={`rounded-full px-3 py-1 font-medium ${CHIP.INTERNAL}`}>Internal {naira(split.internal)}</span> : null}

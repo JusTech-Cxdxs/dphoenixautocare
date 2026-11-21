@@ -15,7 +15,7 @@ import { getVehicleServicePayments } from '@/lib/actions/vehicle-service-payment
 import { listRefunds } from '@/lib/actions/refunds';
 import { getCustomer360, searchCrmCustomers } from '@/lib/actions/crm';
 import { listPartsFittedToVehicle } from '@/lib/actions/vehicle-history';
-import { BILL_TO_LABEL, billingSplit, type BillTo } from '@/lib/estimate-billing';
+import { BILL_TO_LABEL, billingOf, billingSplit, jobCardTotals, type BillTo } from '@/lib/estimate-billing';
 import { MINIMUM_DEPOSIT_FRACTION } from '@/lib/workshop-constants';
 import { nextStep, paymentPosition } from '../next-step';
 import { day, money, nothing, ok, r2, refused, STATUS_WORDS, text } from '../tool-helpers';
@@ -88,10 +88,12 @@ export const recordTools: StaffTool[] = [
       const crm = await allows('crm.view');
       const lines = jc.estimate?.lineItems ?? [];
       const split = billingSplit(lines);
+      // What the customer owes after discounts and VAT (the shared calculation).
+      const owes = jobCardTotals(jc.estimate, billingOf(jc)).total;
       const paidIn = r2(jc.payments.reduce((s: number, p: { amount: unknown }) => s + Number(p.amount), 0));
       const refunded = r2(jc.refunds.reduce((s: number, x: { amount: unknown }) => s + Number(x.amount), 0));
       const netPaid = r2(paidIn - refunded);
-      const pos = paymentPosition(split.customer, netPaid, MINIMUM_DEPOSIT_FRACTION);
+      const pos = paymentPosition(owes, netPaid, MINIMUM_DEPOSIT_FRACTION);
       const complaints = jc.complaints.length ? jc.complaints.map((c: { description: string }) => c.description) : jc.complaint ? [jc.complaint] : [];
       const href = `/workshop/job-cards/${jc.id}`;
       return ok({
@@ -117,14 +119,14 @@ export const recordTools: StaffTool[] = [
                 type: STATUS_WORDS(l.type), description: l.description, quantity: l.quantity, amount: l.amount === null ? null : money(l.amount), ...(l.billTo !== 'CUSTOMER' ? { paidBy: BILL_TO_LABEL[l.billTo as BillTo] } : {}),
               })),
               lineCount: lines.length,
-              customerTotal: split.customer,
+              customerTotal: owes,
               notChargedToCustomer: split.covered,
             }
           : null,
-        payments: { paidIn, refunded, netPaid, balance: pos.balance, position: pos.label, minimumDeposit: r2(split.customer * MINIMUM_DEPOSIT_FRACTION) },
+        payments: { paidIn, refunded, netPaid, balance: pos.balance, position: pos.label, minimumDeposit: r2(owes * MINIMUM_DEPOSIT_FRACTION) },
         nextStep: nextStep({
           kind: 'JC', status: jc.status, approvalStatus: jc.approvalStatus, hasTechnician: Boolean(jc.assignedTechnicianId), technicianAccepted: jc.technicianAcceptanceStatus ?? null,
-          estimateStatus: jc.estimate?.status ?? null, customerNotified: Boolean(jc.estimate?.customerNotifiedAt), total: split.customer, paid: netPaid, depositFraction: MINIMUM_DEPOSIT_FRACTION,
+          estimateStatus: jc.estimate?.status ?? null, customerNotified: Boolean(jc.estimate?.customerNotifiedAt), total: owes, paid: netPaid, depositFraction: MINIMUM_DEPOSIT_FRACTION,
         }),
         ...(jc.escalatedFromVehicleService ? { escalatedFrom: { number: jc.escalatedFromVehicleService.serviceNumber, href: `/workshop/vehicle-service/${jc.escalatedFromVehicleService.id}` } } : {}),
       }, [{ label: jc.jobNumber, href }]);

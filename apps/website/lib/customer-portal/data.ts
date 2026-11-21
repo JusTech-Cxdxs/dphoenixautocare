@@ -23,10 +23,13 @@ import {
  */
 
 const vehicleSelect = { id: true, make: true, model: true, year: true, plateNumber: true } as const;
-const paySelect = { id: true, amount: true, method: true, recordedAt: true } as const;
+const paySelect = { id: true, amount: true, method: true, recordedAt: true, receiptNumber: true } as const;
 const refundSelect = { id: true, amount: true, method: true, recordedAt: true, referenceNumber: true } as const;
 
-export type PaymentRow = { id: string; amount: number; method: string; recordedAt: Date };
+/** receipt: the RCT-number (Job Card payments from phase 3 on; null on older ones and on services). */
+export type PaymentRow = { id: string; amount: number; method: string; recordedAt: Date; receipt: string | null };
+/** The Job Card's invoice, once issued. */
+export type InvoiceRow = { id: string; number: string; issuedAt: Date; total: number };
 export type RefundRow = { id: string; amount: number; method: string; recordedAt: Date; reference: string };
 
 export type ServiceItem = {
@@ -68,12 +71,13 @@ export type ServiceItem = {
   nextServiceFrom: Date | null;
   /** A Job Card opened as a routine service (shown to the customer as "Service"). */
   isServiceJobCard: boolean;
+  invoice: InvoiceRow | null;
 };
 
 function latest(...dates: (Date | null | undefined)[]): Date {
   return new Date(Math.max(...dates.filter((d): d is Date => Boolean(d)).map((d) => d.getTime())));
 }
-const toPay = (p: { id: string; amount: unknown; method: unknown; recordedAt: Date }): PaymentRow => ({ id: p.id, amount: num(p.amount), method: String(p.method), recordedAt: p.recordedAt });
+const toPay = (p: { id: string; amount: unknown; method: unknown; recordedAt: Date; receiptNumber?: string | null }): PaymentRow => ({ id: p.id, amount: num(p.amount), method: String(p.method), recordedAt: p.recordedAt, receipt: p.receiptNumber ?? null });
 const toRefund = (r: { id: string; amount: unknown; method: unknown; recordedAt: Date; referenceNumber: string }): RefundRow => ({ id: r.id, amount: num(r.amount), method: String(r.method), recordedAt: r.recordedAt, reference: r.referenceNumber });
 
 export const jobCardItemSelect = {
@@ -82,8 +86,10 @@ export const jobCardItemSelect = {
   isService: true, mileageAtCheckIn: true,
   // The service interval (the vehicle's own, else the organisation's), for a service Job Card's next-service point.
   vehicle: { select: { ...vehicleSelect, serviceIntervalKm: true, serviceIntervalDays: true } },
-  branch: { select: { name: true, businessUnit: { select: { organisation: { select: { primaryServiceIntervalKm: true, primaryServiceIntervalDays: true } } } } } },
-  estimate: { select: { customerNotifiedAt: true, lineItems: { where: { billTo: 'CUSTOMER' as const }, select: { amount: true } } } },
+  // …and the organisation's VAT switch and rate, for the total.
+  branch: { select: { name: true, businessUnit: { select: { organisation: { select: { primaryServiceIntervalKm: true, primaryServiceIntervalDays: true, vatEnabled: true, vatRate: true } } } } } },
+  estimate: { select: { customerNotifiedAt: true, discountAmount: true, lineItems: { where: { billTo: 'CUSTOMER' as const }, select: { amount: true, discountAmount: true } } } },
+  invoice: { select: { id: true, invoiceNumber: true, issuedAt: true, total: true } },
   payments: { select: paySelect, orderBy: { recordedAt: 'asc' as const } },
   refunds: { select: refundSelect, orderBy: { recordedAt: 'asc' as const } },
   cancellationRequests: { where: { status: 'APPROVED' as const }, select: { decidedAt: true }, orderBy: { decidedAt: 'desc' as const }, take: 1 },
@@ -125,7 +131,7 @@ export function jobCardItem(jc: JobCardRow, now = new Date()): ServiceItem {
   const status = String(jc.status);
   const due = serviceJobCardDue(jc);
   const notifiedAt = jc.estimate?.customerNotifiedAt ?? null;
-  const money = moneyFor({ notified: Boolean(notifiedAt), lines: jc.estimate?.lineItems ?? [], payments: jc.payments, refunds: jc.refunds });
+  const money = moneyFor({ notified: Boolean(notifiedAt), lines: jc.estimate?.lineItems ?? [], discountAmount: jc.estimate?.discountAmount, vat: jc.branch?.businessUnit.organisation, payments: jc.payments, refunds: jc.refunds });
   const cancelledAt = status === 'CANCELLED' ? (jc.cancellationRequests[0]?.decidedAt ?? jc.updatedAt) : null;
   const awaitingApproval = status === 'AWAITING_CUSTOMER_APPROVAL' && Boolean(notifiedAt);
   const waitingForCollection = (status === 'READY_FOR_COLLECTION' || status === 'CLOSED') && !jc.checkedOutAt;
@@ -155,6 +161,7 @@ export function jobCardItem(jc: JobCardRow, now = new Date()): ServiceItem {
     nextServiceDueOdometer: due?.odometer ?? null,
     nextServiceFrom: due?.from ?? null,
     isServiceJobCard: jc.isService,
+    invoice: jc.invoice ? { id: jc.invoice.id, number: jc.invoice.invoiceNumber, issuedAt: jc.invoice.issuedAt, total: num(jc.invoice.total) } : null,
   };
 }
 
@@ -189,6 +196,7 @@ export function serviceItem(vs: ServiceRow, now = new Date()): ServiceItem {
     nextServiceDueOdometer: vs.nextServiceDueOdometer,
     nextServiceFrom: vs.primaryServiceDate,
     isServiceJobCard: false,
+    invoice: null,
   };
 }
 
@@ -345,18 +353,20 @@ export const loadContact = cache(async (customerId: string, organisationId: stri
  * been notified (customerEstimateLines returns null before that).
  */
 const estimateLineFields = { id: true, type: true, description: true, quantity: true, unitPrice: true, amount: true, unitOfMeasure: true } as const;
+// A Job Card line may carry a discount (Vehicle Service lines never do).
 export const jobCardEstimateSelect = {
   customerNotifiedAt: true,
-  lineItems: { where: { billTo: 'CUSTOMER' as const }, orderBy: { createdAt: 'asc' as const }, select: estimateLineFields },
+  discountAmount: true,
+  lineItems: { where: { billTo: 'CUSTOMER' as const }, orderBy: { createdAt: 'asc' as const }, select: { ...estimateLineFields, discountAmount: true } },
 } satisfies Prisma.EstimateSelect;
 export const serviceEstimateSelect = {
   customerNotifiedAt: true,
   lineItems: { orderBy: { createdAt: 'asc' as const }, select: estimateLineFields },
 } satisfies Prisma.ServiceEstimateSelect;
 
-export type CustomerEstimateLine = { id: string; type: string; description: string; quantity: number; unitPrice: number | null; amount: number | null; unit: string | null };
+export type CustomerEstimateLine = { id: string; type: string; description: string; quantity: number; unitPrice: number | null; amount: number | null; unit: string | null; discount: number };
 
-type RawLine = { id: string; type: unknown; description: string; quantity: unknown; unitPrice: unknown; amount: unknown; unitOfMeasure: string | null };
+type RawLine = { id: string; type: unknown; description: string; quantity: unknown; unitPrice: unknown; amount: unknown; unitOfMeasure: string | null; discountAmount?: unknown };
 
 export function customerEstimateLines(est: { customerNotifiedAt: Date | null; lineItems: RawLine[] } | null | undefined): CustomerEstimateLine[] | null {
   if (!est?.customerNotifiedAt) return null;
@@ -365,6 +375,7 @@ export function customerEstimateLines(est: { customerNotifiedAt: Date | null; li
     unitPrice: l.unitPrice === null || l.unitPrice === undefined ? null : num(l.unitPrice),
     amount: l.amount === null || l.amount === undefined ? null : num(l.amount),
     unit: l.unitOfMeasure,
+    discount: Math.min(num(l.discountAmount), num(l.amount)),
   }));
 }
 

@@ -33,3 +33,5 @@ export function formatCurrency(amount: number, currency: string = 'NGN'): string
 }
 
 export { calculateNextServiceDue, serviceCycleFrom, onOrAfterWorkingDay as onOrAfterLagosWorkingDay, type NextServiceDue, type ServiceIntervalSource } from './service-cycle';
+
+export { billingTotals, balanceDue, depositOf, discountNeedsManager, discountPercent, isCustomerBilled, paidInFull, toKobo, type BillingLine, type BillingLineFigures, type BillingTotals, type VatSetting } from './billing';

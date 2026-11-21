@@ -1,29 +1,30 @@
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
-import { PLATFORM } from '@/lib/brand';
+import { PLATFORM } from '../brand';
+import { PDF_FONT, registerPdfFonts } from './fonts';
 import type { EstimatePdfLineItem, EstimatePdfProps } from './document-types';
 export type { EstimatePdfLineItem, EstimatePdfProps } from './document-types';
 
 const styles = StyleSheet.create({
-  page: { paddingTop: 32, paddingBottom: 32, paddingHorizontal: 36, fontSize: 10, fontFamily: 'Helvetica', color: '#0F172A' },
+  page: { paddingTop: 32, paddingBottom: 32, paddingHorizontal: 36, fontSize: 10, fontFamily: PDF_FONT, color: '#0F172A' },
   headerRow: { flexDirection: 'row', alignItems: 'center' },
   logo: { width: 44, height: 53 },
   wordmarkWrap: { marginLeft: 8 },
-  wordmarkTop: { fontSize: 20, fontFamily: 'Helvetica-Bold' },
+  wordmarkTop: { fontSize: 20, fontFamily: PDF_FONT, fontWeight: 'bold' },
   wordmarkBottomRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
   wordmarkRule: { flex: 1, borderBottomWidth: 1, borderBottomColor: '#D6890B', marginRight: 5 },
-  wordmarkBottom: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#334155' },
+  wordmarkBottom: { fontSize: 10, fontFamily: PDF_FONT, fontWeight: 'bold', color: '#334155' },
   docTitleWrap: { marginLeft: 'auto', alignItems: 'flex-end' },
-  docTitle: { fontSize: 13, fontFamily: 'Helvetica-Bold', color: '#0A1628' },
+  docTitle: { fontSize: 13, fontFamily: PDF_FONT, fontWeight: 'bold', color: '#0A1628' },
   docRef: { fontSize: 11, marginTop: 2 },
   ruleThick: { borderBottomWidth: 1.5, borderBottomColor: '#D6890B', marginTop: 12, paddingTop: 8 },
-  eyebrow: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#94A3B8', letterSpacing: 0.5 },
-  legalName: { fontSize: 11, fontFamily: 'Helvetica-Bold', marginTop: 2 },
+  eyebrow: { fontSize: 8, fontFamily: PDF_FONT, fontWeight: 'bold', color: '#94A3B8', letterSpacing: 0.5 },
+  legalName: { fontSize: 11, fontFamily: PDF_FONT, fontWeight: 'bold', marginTop: 2 },
   smallMuted: { fontSize: 9, color: '#475569', marginTop: 1 },
   ruleThin: { borderBottomWidth: 0.5, borderBottomColor: '#E2E8F0', marginTop: 10, paddingTop: 8 },
   fieldGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 16 },
   field: { width: '50%', marginBottom: 10 },
-  fieldLabel: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#94A3B8', letterSpacing: 0.5 },
-  fieldValue: { fontSize: 11, fontFamily: 'Helvetica-Bold', marginTop: 1 },
+  fieldLabel: { fontSize: 8, fontFamily: PDF_FONT, fontWeight: 'bold', color: '#94A3B8', letterSpacing: 0.5 },
+  fieldValue: { fontSize: 11, fontFamily: PDF_FONT, fontWeight: 'bold', marginTop: 1 },
   table: { marginTop: 16 },
   tHeadRow: { flexDirection: 'row', borderBottomWidth: 1.5, borderBottomColor: '#0F172A', paddingBottom: 5 },
   tRow: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: '#E2E8F0', paddingVertical: 5 },
@@ -32,22 +33,22 @@ const styles = StyleSheet.create({
   colDesc: { width: '54%' },
   colQty: { width: '18%', textAlign: 'right' },
   colAmt: { width: '22%', textAlign: 'right' },
-  th: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#475569' },
+  th: { fontSize: 8, fontFamily: PDF_FONT, fontWeight: 'bold', color: '#475569' },
   subtotalsBox: { marginTop: 10, alignItems: 'flex-end' },
   subtotalRow: { flexDirection: 'row', justifyContent: 'space-between', width: 220, marginBottom: 2 },
   subtotalLabel: { fontSize: 9, color: '#475569' },
   subtotalValue: { fontSize: 9 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', width: 220, marginTop: 4, paddingTop: 4, borderTopWidth: 1, borderTopColor: '#E2E8F0' },
-  totalLabel: { fontSize: 11, fontFamily: 'Helvetica-Bold' },
-  totalValue: { fontSize: 11, fontFamily: 'Helvetica-Bold' },
+  totalLabel: { fontSize: 11, fontFamily: PDF_FONT, fontWeight: 'bold' },
+  totalValue: { fontSize: 11, fontFamily: PDF_FONT, fontWeight: 'bold' },
   depositBox: { marginTop: 16, backgroundColor: '#FEF3C7', borderWidth: 0.5, borderColor: '#FDE68A', borderRadius: 6, padding: 12 },
-  depositEyebrow: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#B45309', letterSpacing: 0.5 },
-  depositAmount: { fontSize: 15, fontFamily: 'Helvetica-Bold', marginTop: 2 },
+  depositEyebrow: { fontSize: 8, fontFamily: PDF_FONT, fontWeight: 'bold', color: '#B45309', letterSpacing: 0.5 },
+  depositAmount: { fontSize: 15, fontFamily: PDF_FONT, fontWeight: 'bold', marginTop: 2 },
   depositNote: { fontSize: 8.5, color: '#78350F', marginTop: 4 },
-  paymentTitle: { fontSize: 10, fontFamily: 'Helvetica-Bold', marginTop: 16, marginBottom: 6 },
+  paymentTitle: { fontSize: 10, fontFamily: PDF_FONT, fontWeight: 'bold', marginTop: 16, marginBottom: 6 },
   paymentBox: { backgroundColor: '#F8FAFC', borderWidth: 0.5, borderColor: '#E2E8F0', borderRadius: 6, padding: 12 },
   paymentLine: { fontSize: 9, marginBottom: 2 },
-  paymentOptionTitle: { fontSize: 9.5, fontFamily: 'Helvetica-Bold', marginBottom: 4 },
+  paymentOptionTitle: { fontSize: 9.5, fontFamily: PDF_FONT, fontWeight: 'bold', marginBottom: 4 },
   paymentNote: { fontSize: 8, color: '#64748B', marginTop: 2 },
   paymentDivider: { borderTopWidth: 0.5, borderTopColor: '#E2E8F0', marginTop: 8, paddingTop: 8 },
   footer: { marginTop: 28, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: '#E2E8F0', textAlign: 'center' },
@@ -64,10 +65,11 @@ const styles = StyleSheet.create({
  * carries its unit.
  */
 export function EstimatePdf(props: EstimatePdfProps) {
+  registerPdfFonts();
   const {
     organisation, branch, logoUrl, jobNumber, customerName, customerAddress,
     vehicleDescription, plateNumber, chassisNumber, lineItems,
-    servicesSubtotal, labourSubtotal, sundrySubtotal, totalAmount,
+    servicesSubtotal, labourSubtotal, sundrySubtotal, discountAmount, vatLabel, vatAmount, totalAmount,
     minimumDepositAmount, bankName, accountName, accountNumber, paymentRemarkSuggestion,
     referenceLabel = 'JOB CARD',
   } = props;
@@ -190,6 +192,18 @@ export function EstimatePdf(props: EstimatePdfProps) {
             <View style={styles.subtotalRow}>
               <Text style={styles.subtotalLabel}>Sundry</Text>
               <Text style={styles.subtotalValue}>{sundrySubtotal}</Text>
+            </View>
+          ) : null}
+          {discountAmount ? (
+            <View style={styles.subtotalRow}>
+              <Text style={styles.subtotalLabel}>Discount</Text>
+              <Text style={styles.subtotalValue}>{discountAmount}</Text>
+            </View>
+          ) : null}
+          {vatLabel && vatAmount ? (
+            <View style={styles.subtotalRow}>
+              <Text style={styles.subtotalLabel}>{vatLabel}</Text>
+              <Text style={styles.subtotalValue}>{vatAmount}</Text>
             </View>
           ) : null}
           <View style={styles.totalRow}>

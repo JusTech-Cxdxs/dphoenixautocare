@@ -2,6 +2,7 @@
  * Money, dates and small calculations for the customer portal. Pure — no
  * database — so the same rules apply on every page.
  */
+import { billingTotals, depositOf, type VatSetting } from '@ejo/utils';
 import { MINIMUM_DEPOSIT_FRACTION } from '@/lib/workshop-payment-constants';
 
 export function naira(value: number): string {
@@ -88,20 +89,29 @@ export type Money = {
   minDeposit: number | null;
   /** How much more is needed to reach the minimum deposit. */
   depositDue: number | null;
+  /** Line and whole-estimate discounts together (0 when none). */
+  discount: number;
+  /** The VAT rate charged (0 when VAT is off) and its amount. */
+  vatRate: number;
+  vatAmount: number;
 };
 
 /**
  * One job's money picture. `lines` must already be only what the CUSTOMER
  * pays (billTo CUSTOMER on Job Cards) and only from an estimate the
- * customer has been notified of — the callers enforce both.
+ * customer has been notified of — the callers enforce both. The total is
+ * the staff portal's own calculation (@ejo/utils billingTotals): line
+ * discounts, the estimate's discount, then VAT when the organisation
+ * charges it. A Vehicle Service has neither, so its lines simply add up.
  */
-export function moneyFor(o: { notified: boolean; lines: { amount: unknown }[]; payments: { amount: unknown }[]; refunds: { amount: unknown }[] }): Money {
+export function moneyFor(o: { notified: boolean; lines: { amount: unknown; discountAmount?: unknown }[]; discountAmount?: unknown; vat?: VatSetting | null; payments: { amount: unknown }[]; refunds: { amount: unknown }[] }): Money {
   const paid = round2(o.payments.reduce((s, p) => s + num(p.amount), 0));
   const refunded = round2(o.refunds.reduce((s, r) => s + num(r.amount), 0));
   const netPaid = round2(paid - refunded);
-  if (!o.notified) return { estimateTotal: null, paid, refunded, netPaid, balance: null, minDeposit: null, depositDue: null };
-  const total = round2(o.lines.reduce((s, l) => s + num(l.amount), 0));
-  const minDeposit = round2(total * MINIMUM_DEPOSIT_FRACTION);
+  if (!o.notified) return { estimateTotal: null, paid, refunded, netPaid, balance: null, minDeposit: null, depositDue: null, discount: 0, vatRate: 0, vatAmount: 0 };
+  const t = billingTotals({ lines: o.lines, discountAmount: o.discountAmount, vat: o.vat });
+  const total = t.total;
+  const minDeposit = depositOf(total, MINIMUM_DEPOSIT_FRACTION);
   return {
     estimateTotal: total,
     paid,
@@ -110,6 +120,9 @@ export function moneyFor(o: { notified: boolean; lines: { amount: unknown }[]; p
     balance: Math.max(0, round2(total - netPaid)),
     minDeposit,
     depositDue: Math.max(0, round2(minDeposit - netPaid)),
+    discount: round2(t.lineDiscounts + t.discountAmount),
+    vatRate: t.vatRate,
+    vatAmount: t.vatAmount,
   };
 }
 

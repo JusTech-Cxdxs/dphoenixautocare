@@ -6,7 +6,7 @@ import { importIdsFor } from '@/lib/source-filter-server';
 import { requireUser } from './workshop';
 import { allows, authorize, getPrincipal, orgWhere, reachWhere, myOrganisationId, NOT_AVAILABLE } from '@/lib/authz/server';
 import { writeAuditLog } from '@/lib/workshop-core';
-import { isCustomerLine } from '@/lib/estimate-billing';
+import { billingOf, jobCardTotals, ESTIMATE_TOTALS_SELECT, JOB_CARD_BILLING_SELECT } from '@/lib/estimate-billing';
 import { sendCustomerAccessEmail, withdrawCustomerSetPasswordLinks } from '@/lib/customer-access';
 import {
   applyCrmFilters, cleanEmail, cleanName, cleanOptional, cleanPhone, cleanPrimaryAddress, customerMoney, diffChanges, isOpenJob, lagosMonthStart,
@@ -269,9 +269,9 @@ export async function getCustomer360(customerId: string) {
       orderBy: { createdAt: 'desc' },
       select: {
         id: true, jobNumber: true, status: true, vehicleId: true, createdAt: true, completedAt: true, checkedOutAt: true, closedAt: true,
-        branch: { select: { name: true } },
+        branch: { select: { name: true, ...JOB_CARD_BILLING_SELECT.branch.select } },
         cancellationRequests: { where: { status: 'APPROVED' }, orderBy: { decidedAt: 'desc' }, take: 1, select: { decidedAt: true } },
-        estimate: { select: { lineItems: { select: { amount: true, billTo: true } } } },
+        estimate: { select: ESTIMATE_TOTALS_SELECT },
         payments: pay, refunds: ref,
       },
     }),
@@ -317,7 +317,7 @@ export async function getCustomer360(customerId: string) {
     ...jcs.map((j: (typeof jcs)[number]) => ({
       kind: 'JC' as const, id: j.id, number: j.jobNumber, status: j.status, vehicleId: j.vehicleId, vehicleLabel: plate.get(j.vehicleId) ?? 'Vehicle', branchName: j.branch?.name ?? '',
       openedAt: j.createdAt, receivedAt: j.createdAt, finishedAt: jcCancelled(j) ? null : j.completedAt ?? j.checkedOutAt ?? j.closedAt ?? null, cancelled: jcCancelled(j),
-      customerBilled: (j.estimate?.lineItems ?? []).filter(isCustomerLine).reduce((s: number, l: { amount: unknown }) => s + num(l.amount), 0),
+      customerBilled: jobCardTotals(j.estimate, billingOf(j)).total,
       payments: moneyRows(j.payments), refunds: moneyRows(j.refunds), href: `/workshop/job-cards/${j.id}`, open: isOpenJob('JC', j.status),
     })),
     ...svs.map((v: (typeof svs)[number]) => ({

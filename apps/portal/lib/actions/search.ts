@@ -172,7 +172,7 @@ export async function globalSearch(raw: string): Promise<SearchGroup[]> {
   const W = <T,>(w: Where) => w as T;
   const newest = { createdAt: 'desc' } as const;
 
-  const [jcs, svs, prs, eprs, grns, refunds, warranties, claims, visits, passes, exits, tests, incidents, deliveries, contractors, appts, broadcasts, tickets, imports, exportJobs, dataRequests, pdis, kits, shipments, defects, audits, vehicles, customers, parts, policies, providers, rooms, branches, departments, staff] = await Promise.all([
+  const [jcs, svs, prs, eprs, grns, refunds, invoices, receipts, warranties, claims, visits, passes, exits, tests, incidents, deliveries, contractors, appts, broadcasts, tickets, imports, exportJobs, dataRequests, pdis, kits, shipments, defects, audits, vehicles, customers, parts, policies, providers, rooms, branches, departments, staff] = await Promise.all([
     find(jobReach, { numbers: [['JC', 'jobNumber']], text: ['customer.fullName'], codes: ['vehicle.plateNumber'], phones: ['customer.phone'] },
       (w) => prisma.jobCard.findMany({ where: W<Prisma.JobCardWhereInput>(w), take, orderBy: newest, select: { id: true, branchId: true, jobNumber: true, status: true, customer: { select: { fullName: true } }, vehicle: { select: { plateNumber: true } } } })),
     find(jobReach, { numbers: [['SV', 'serviceNumber']], text: ['customer.fullName'], codes: ['vehicle.plateNumber'], phones: ['customer.phone'] },
@@ -185,6 +185,11 @@ export async function globalSearch(raw: string): Promise<SearchGroup[]> {
       (w) => prisma.goodsReceipt.findMany({ where: W<Prisma.GoodsReceiptWhereInput>(w), take, orderBy: { receivedAt: 'desc' }, select: { id: true, referenceNumber: true, supplierName: true } })),
     find(refundReach, { numbers: [['RF', 'referenceNumber']], text: ['paidToName'] },
       (w) => prisma.refund.findMany({ where: W<Prisma.RefundWhereInput>(w), take, orderBy: { recordedAt: 'desc' }, select: { referenceNumber: true, paidToName: true, jobCard: { select: { id: true, jobNumber: true, branchId: true } }, vehicleService: { select: { id: true, serviceNumber: true, branchId: true } } } })),
+    // Invoices and receipts: within reach of their Job Card's branch, like the Job Card itself.
+    find(jobReach, { numbers: [['INV', 'invoiceNumber']] },
+      (w) => prisma.invoice.findMany({ where: W<Prisma.InvoiceWhereInput>(w), take, orderBy: { issuedAt: 'desc' }, select: { invoiceNumber: true, branchId: true, customer: { select: { fullName: true } }, jobCard: { select: { id: true, jobNumber: true } } } })),
+    find(jobReach && { jobCard: jobReach }, { numbers: [['RCT', 'receiptNumber']] },
+      (w) => prisma.payment.findMany({ where: W<Prisma.PaymentWhereInput>(w), take, orderBy: { recordedAt: 'desc' }, select: { receiptNumber: true, amount: true, jobCard: { select: { id: true, jobNumber: true, branchId: true } } } })),
     find(canWarranty && { customer: mineOrg }, { numbers: [['WR', 'warrantyNumber']], text: ['subjectDescription', 'customer.fullName'], codes: ['vehicle.plateNumber'] },
       (w) => prisma.warranty.findMany({ where: W<Prisma.WarrantyWhereInput>(w), take, orderBy: newest, select: { id: true, warrantyNumber: true, subjectDescription: true } })),
     find(canWarranty && { customer: mineOrg }, { numbers: [['WC', 'claimNumber']], text: ['customer.fullName', 'causalPart'], codes: ['causalPartNumber', 'providerReference'] },
@@ -272,6 +277,8 @@ export async function globalSearch(raw: string): Promise<SearchGroup[]> {
       const parent = r.jobCard ? { n: r.jobCard.jobNumber, url: referenceUrl('JC', r.jobCard.id) } : r.vehicleService ? { n: r.vehicleService.serviceNumber, url: referenceUrl('SV', r.vehicleService.id) } : null;
       return parent ? [{ label: r.referenceNumber, sub: dot(`On ${parent.n}`, r.paidToName), href: parent.url }] : [];
     })),
+    ref('INV', 'Invoices', invoices.filter((r) => opens(JOB, r.branchId)).map((r) => ({ label: r.invoiceNumber, sub: dot(`On ${r.jobCard.jobNumber}`, r.customer.fullName), href: referenceUrl('JC', r.jobCard.id) }))),
+    ref('RCT', 'Receipts', receipts.flatMap((r) => (r.receiptNumber && r.jobCard && opens(JOB, r.jobCard.branchId) ? [{ label: r.receiptNumber, sub: dot(`On ${r.jobCard.jobNumber}`, `₦${Number(r.amount).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), href: referenceUrl('JC', r.jobCard.id) }] : []))),
     ref('WR', 'Warranties', warranties.map((r) => ({ label: r.warrantyNumber, sub: r.subjectDescription, href: referenceUrl('WR', r.id) }))),
     ref('WC', 'Warranty claims', claims.map((r) => ({ label: r.claimNumber, sub: dot(r.customer.fullName, words(r.status)), href: referenceUrl('WC', r.id) }))),
     ref('VIS', 'Visitors', visits.filter((r) => opens(SEC, r.branchId) || r.hostUserId === user.id).map((r) => ({ label: r.visitNumber, sub: dot(r.visitorName, r.company, r.passNumber ? `Pass ${r.passNumber}` : null), href: referenceUrl('VIS', r.id) }))),

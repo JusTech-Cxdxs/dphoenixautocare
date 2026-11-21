@@ -1,6 +1,6 @@
 import { guardPage } from '@/lib/authz/server';
 import { getOrganisation } from '@/lib/actions/organisation';
-import { updateOrganisationFormAction } from '@/lib/actions/organisation-form-handlers';
+import { updateBillingSettingsFormAction, updateOrganisationFormAction } from '@/lib/actions/organisation-form-handlers';
 import { SubmitButton } from '@/components/SubmitButton';
 import { FormPendingOverlay } from '@/components/FormPendingOverlay';
 import { FormFeedbackBanner } from '@/components/FormFeedbackBanner';
@@ -15,11 +15,12 @@ import { ORGANISATION_TABS } from './tabs';
  * RC number, email). Every printed document takes its header from here.
  * Read-only by default; `?edit=true` shows the form.
  */
-export default async function OrganisationPage({ searchParams }: { searchParams: Promise<{ error?: string; status?: string; edit?: string }> }) {
+export default async function OrganisationPage({ searchParams }: { searchParams: Promise<{ error?: string; status?: string; edit?: string; editBilling?: string }> }) {
   await guardPage('admin.organisation.manage', '/organisation');
-  const { error, status, edit } = await searchParams;
+  const { error, status, edit, editBilling } = await searchParams;
   const organisation = await getOrganisation();
   const isEditing = edit === 'true';
+  const isEditingBilling = editBilling === 'true';
 
   return (
     <div className="p-4 sm:p-8">
@@ -41,6 +42,11 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
       {status === 'updated' ? (
         <div className="mb-6 max-w-xl">
           <FormFeedbackBanner kind="success" message="Organisation details updated." />
+        </div>
+      ) : null}
+      {status === 'billing-updated' ? (
+        <div className="mb-6 max-w-xl">
+          <FormFeedbackBanner kind="success" message="Billing and tax settings updated." />
         </div>
       ) : null}
 
@@ -193,6 +199,82 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
           </LoadingLink>
         </div>
       )}
+
+      {organisation ? <BillingAndTax organisation={organisation} isEditing={isEditingBilling} /> : null}
     </div>
+  );
+}
+
+const inputClass = 'w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]';
+
+/**
+ * Billing & tax: whether VAT is charged (and at what rate), the Tax ID (TIN)
+ * printed on invoices, and when a discount on an estimate needs the Manager.
+ * Saved on its own, so changing a rate never touches the printed identity.
+ */
+function BillingAndTax({ organisation, isEditing }: { organisation: { id: string; vatEnabled: boolean; vatRate: unknown; vatNumber: string | null; discountApprovalPercent: number | null }; isEditing: boolean }) {
+  const rate = Number(organisation.vatRate);
+  return (
+    <section className="mt-8 max-w-xl" aria-labelledby="billing-and-tax">
+      <h2 id="billing-and-tax" className="text-base font-semibold text-[var(--ejo-text)]">Billing &amp; tax</h2>
+      <p className="mb-3 mt-1 text-sm text-[var(--ejo-text-muted)]">
+        How estimates, invoices and receipts work out what the customer pays. VAT is added after any discount.
+      </p>
+      {isEditing ? (
+        <form action={updateBillingSettingsFormAction} className="space-y-4 rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-6">
+          <FormPendingOverlay />
+          <input type="hidden" name="organisationId" value={organisation.id} />
+          <label className="flex items-center gap-2 text-sm text-[var(--ejo-text)]">
+            <input type="checkbox" name="vatEnabled" defaultChecked={organisation.vatEnabled} />
+            Charge VAT
+          </label>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="vatRate" className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">VAT rate (%)</label>
+              <input id="vatRate" name="vatRate" type="number" min="0" max="100" step="0.01" defaultValue={rate.toFixed(2)} className={inputClass} />
+            </div>
+            <div>
+              <label htmlFor="vatNumber" className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Tax ID (TIN) on invoices</label>
+              <input id="vatNumber" name="vatNumber" defaultValue={organisation.vatNumber ?? ''} placeholder="e.g. 12345678-0001" className={inputClass} />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="discountApprovalPercent" className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Discounts above this % need the Manager</label>
+            <input id="discountApprovalPercent" name="discountApprovalPercent" type="number" min="0" max="100" step="1" defaultValue={organisation.discountApprovalPercent ?? ''} placeholder="Blank: every discount needs the Manager" className={inputClass} />
+            <p className="mt-1 text-xs text-[var(--ejo-text-muted)]">A percentage of the customer&apos;s subtotal. Leave it blank and the Manager approves every discount on an estimate.</p>
+          </div>
+          <div className="flex gap-2">
+            <SubmitButton label="Save Billing & Tax" pendingLabel="Saving…" className="rounded-[var(--ejo-radius-md)] bg-[var(--ejo-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90" />
+            <LoadingLink href="/organisation" className="inline-flex items-center rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] px-4 py-2 text-sm font-medium text-[var(--ejo-text)] hover:bg-[var(--ejo-bg)]">
+              Cancel
+            </LoadingLink>
+          </div>
+        </form>
+      ) : (
+        <div className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-6">
+          <dl className="grid grid-cols-2 gap-4">
+            <div>
+              <dt className="text-xs font-medium text-[var(--ejo-text-muted)]">Charge VAT</dt>
+              <dd className="mt-0.5 text-sm text-[var(--ejo-text)]">{organisation.vatEnabled ? `Yes, at ${rate.toFixed(2)}%` : 'No'}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-[var(--ejo-text-muted)]">Tax ID (TIN) on invoices</dt>
+              <dd className="mt-0.5 text-sm text-[var(--ejo-text)]">{organisation.vatNumber ?? '—'}</dd>
+            </div>
+            <div className="col-span-2">
+              <dt className="text-xs font-medium text-[var(--ejo-text-muted)]">Discounts above this % need the Manager</dt>
+              <dd className="mt-0.5 text-sm text-[var(--ejo-text)]">{organisation.discountApprovalPercent != null ? `${organisation.discountApprovalPercent}% of the customer's subtotal` : 'Every discount needs the Manager'}</dd>
+            </div>
+          </dl>
+          <LoadingLink
+            href="/organisation?editBilling=true"
+            className="mt-6 inline-flex items-center gap-1.5 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] px-4 py-2 text-sm font-medium text-[var(--ejo-text)] hover:bg-[var(--ejo-bg)]"
+          >
+            <EditIcon className="h-4 w-4" />
+            Edit Billing &amp; Tax
+          </LoadingLink>
+        </div>
+      )}
+    </section>
   );
 }

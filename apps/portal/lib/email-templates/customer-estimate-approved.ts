@@ -11,6 +11,11 @@ export type CustomerEstimateApprovedEmailOptions = {
   servicesSubtotal?: string;
   labourSubtotal?: string;
   sundrySubtotal?: string;
+  /** Line and whole-estimate discounts together, e.g. "−₦5,000.00". Omitted when none. */
+  discountAmount?: string;
+  /** "VAT (7.5%)" and its amount. Omitted when VAT is off. */
+  vatLabel?: string;
+  vatAmount?: string;
   totalAmount: string;
   minimumDepositAmount: string;
   /** The deposit as a percentage of the total, e.g. 70. */
@@ -43,6 +48,8 @@ export function renderCustomerEstimate(o: Omit<CustomerEstimateApprovedEmailOpti
     o.servicesSubtotal ? { label: 'Parts and services', amount: o.servicesSubtotal } : null,
     o.labourSubtotal ? { label: 'Labour', amount: o.labourSubtotal } : null,
     o.sundrySubtotal ? { label: 'Sundries', amount: o.sundrySubtotal } : null,
+    o.discountAmount ? { label: 'Discount', amount: o.discountAmount } : null,
+    o.vatLabel && o.vatAmount ? { label: o.vatLabel, amount: o.vatAmount } : null,
     { label: 'Total', amount: o.totalAmount, emphasis: true },
   ].filter((t): t is MoneyTotal => Boolean(t));
   const depositCaption = o.depositPercent ? `Deposit to start work (${o.depositPercent}%)` : 'Deposit to start work';

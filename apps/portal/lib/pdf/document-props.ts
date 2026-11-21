@@ -9,10 +9,10 @@
  * never the internal line types. On a Job Card, lines covered by warranty,
  * goodwill or the business are never charged, and show what covers them.
  */
-import { coveredLabel, isCustomerLine } from '../estimate-billing';
+import { BILL_TO_LABEL, billingTotals, coveredLabel, depositOf, isCustomerLine, type BillTo, type VatSetting } from '../estimate-billing';
 import { MINIMUM_DEPOSIT_FRACTION } from '../workshop-constants';
 import { pluralizeWord } from '../utils/pluralize';
-import type { EstimatePdfProps, InspectionPdfProps } from './document-types';
+import type { EstimatePdfProps, InspectionPdfProps, InvoicePdfProps } from './document-types';
 
 export type Letterhead = Pick<EstimatePdfProps, 'organisation' | 'branch' | 'logoUrl'>;
 export type Bank = { bankName: string; accountName: string; accountNumber: string };
@@ -28,18 +28,25 @@ export function letterhead(org: Org, branch: Branch, portalUrl: string): Letterh
   };
 }
 
-/** Helvetica (the PDF default) has no ₦ glyph, and embedding a font would make every document depend on fetching it, so PDFs say "NGN". */
-export const nairaForPdf = (value: number) => `NGN ${value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-export const minimumDepositOf = (total: number) => Math.round(total * MINIMUM_DEPOSIT_FRACTION * 100) / 100;
+/** PDFs embed Noto Sans (lib/pdf/fonts.ts), which has the ₦, so money reads as it does on screen. */
+export const nairaForPdf = (value: number) => `₦${value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+export const minimumDepositOf = (total: number) => depositOf(total, MINIMUM_DEPOSIT_FRACTION);
 
 type Vehicle = { make: string | null; model: string | null; year?: number | null; plateNumber: string | null; chassisNumber: string | null };
 type Customer = { fullName: string; address: string | null };
 
 const JOB_SERVICES = new Set(['STORE_PART', 'EXTERNAL_PART', 'EXTERNAL_JOB', 'INTERNAL_JOB']);
-export type JobEstimateLine = { type: string; description: string; quantity: unknown; amount: unknown; unitOfMeasure: string | null; billTo?: string | null; coveringWarranty?: { warrantyNumber: string } | null };
+export type JobEstimateLine = { type: string; description: string; quantity: unknown; amount: unknown; unitOfMeasure: string | null; billTo?: string | null; discountAmount?: unknown; coveringWarranty?: { warrantyNumber: string } | null };
 
-/** A Job Card estimate's customer figures: only lines the customer pays count. */
-export function jobEstimateTotals(lines: { type: string; amount: unknown; billTo?: string | null }[]) {
+/** The estimate-level money a Job Card total needs beside its lines: its discount and the organisation's VAT. */
+export type JobEstimateBilling = { discountAmount?: unknown; vat?: VatSetting | null };
+
+/**
+ * A Job Card estimate's customer figures: only lines the customer pays
+ * count. The three plain figures are the lines' own amounts; the discounts,
+ * VAT and total come from the one shared calculation (@ejo/utils/billing).
+ */
+export function jobEstimateTotals(lines: { type: string; amount: unknown; billTo?: string | null; discountAmount?: unknown }[], billing: JobEstimateBilling = {}) {
   let services = 0, labour = 0, sundry = 0;
   for (const li of lines) {
     if (!isCustomerLine(li)) continue;
@@ -48,12 +55,19 @@ export function jobEstimateTotals(lines: { type: string; amount: unknown; billTo
     else if (li.type === 'SUNDRY') sundry += amount;
     else if (JOB_SERVICES.has(li.type)) services += amount;
   }
-  const total = services + labour + sundry;
-  return { services, labour, sundry, total, minimumDeposit: minimumDepositOf(total) };
+  const t = billingTotals({ lines, discountAmount: billing.discountAmount, vat: billing.vat });
+  return {
+    services: Math.round(services * 100) / 100, labour: Math.round(labour * 100) / 100, sundry: Math.round(sundry * 100) / 100,
+    discounts: Math.round((t.lineDiscounts + t.discountAmount) * 100) / 100, vatRate: t.vatRate, vatAmount: t.vatAmount,
+    total: t.total, minimumDeposit: minimumDepositOf(t.total),
+  };
 }
 
-export function jobEstimatePdfProps(p: { letterhead: Letterhead; bank: Bank; jobNumber: string; customer: Customer; vehicle: Vehicle; lineItems: JobEstimateLine[] }): EstimatePdfProps {
-  const t = jobEstimateTotals(p.lineItems);
+/** "VAT (7.5%)" */
+export const vatLabel = (rate: number) => `VAT (${Number(rate.toFixed(2))}%)`;
+
+export function jobEstimatePdfProps(p: { letterhead: Letterhead; bank: Bank; jobNumber: string; customer: Customer; vehicle: Vehicle; lineItems: JobEstimateLine[]; billing?: JobEstimateBilling }): EstimatePdfProps {
+  const t = jobEstimateTotals(p.lineItems, p.billing);
   const vehicleDescription = [p.vehicle.make, p.vehicle.model].filter(Boolean).join(' ') || 'Vehicle';
   return {
     ...p.letterhead,
@@ -72,6 +86,9 @@ export function jobEstimatePdfProps(p: { letterhead: Letterhead; bank: Bank; job
     servicesSubtotal: t.services > 0 ? nairaForPdf(t.services) : null,
     labourSubtotal: t.labour > 0 ? nairaForPdf(t.labour) : null,
     sundrySubtotal: t.sundry > 0 ? nairaForPdf(t.sundry) : null,
+    discountAmount: t.discounts > 0 ? `−${nairaForPdf(t.discounts)}` : null,
+    vatLabel: t.vatRate > 0 ? vatLabel(t.vatRate) : null,
+    vatAmount: t.vatRate > 0 ? nairaForPdf(t.vatAmount) : null,
     totalAmount: nairaForPdf(t.total),
     minimumDepositAmount: nairaForPdf(t.minimumDeposit),
     ...p.bank,
@@ -138,5 +155,84 @@ export function inspectionPdfProps(p: { letterhead: Letterhead; serviceNumber: s
     inspectedByName: p.inspectedByName,
     completedOnLabel: p.completedOnLabel,
     reviewedItems: p.items.filter((i) => i.severity).map((i) => ({ section: i.section, name: i.name, condition: i.condition, severity: i.severity, action: i.action })),
+  };
+}
+
+/** One line of an invoice as frozen when it was issued (Invoice.lines). */
+export type InvoiceLine = { description: string; type: string; quantity: number; unitOfMeasure: string | null; unitPrice: number | null; lineDiscount: number; amount: number; billTo: string };
+
+/** The frozen figures of an issued invoice (the Invoice row). */
+export type InvoiceFigures = { subtotal: unknown; lineDiscounts: unknown; discountAmount: unknown; discountReason: string | null; vatRate: unknown; vatAmount: unknown; vatNumber: string | null; total: unknown };
+
+const money = (v: unknown) => Math.round(Number(v ?? 0) * 100) / 100;
+
+/** The lines as an invoice keeps them: what each cost, its discount, and what the customer pays for it. */
+export function invoiceLinesFrom(lineItems: { type: string; description: string; quantity: unknown; unitPrice: unknown; amount: unknown; unitOfMeasure: string | null; billTo?: string | null; discountAmount?: unknown }[]): InvoiceLine[] {
+  const t = billingTotals({ lines: lineItems });
+  return lineItems.map((li, i) => ({
+    description: li.description,
+    type: li.type,
+    quantity: Number(li.quantity),
+    unitOfMeasure: li.unitOfMeasure,
+    unitPrice: li.unitPrice === null || li.unitPrice === undefined ? null : money(li.unitPrice),
+    lineDiscount: t.lines[i]!.discount,
+    amount: t.lines[i]!.amount,
+    billTo: (li.billTo ?? 'CUSTOMER') as string,
+  }));
+}
+
+/**
+ * The customer's invoice PDF: the letterhead, the customer and vehicle, the
+ * frozen lines and figures, what has been paid and what is still due, and
+ * how to pay. Pure, like the estimate.
+ */
+export function invoicePdfProps(p: {
+  letterhead: Letterhead;
+  bank: Bank;
+  invoiceNumber: string;
+  issuedOnLabel: string;
+  jobNumber: string;
+  customer: { name: string; contact: string | null; address: string | null };
+  vehicle: Vehicle & { mileage: number | null };
+  lines: InvoiceLine[];
+  figures: InvoiceFigures;
+  amountPaid: number;
+}): InvoicePdfProps {
+  const total = money(p.figures.total);
+  const vatRate = Number(p.figures.vatRate ?? 0);
+  const discounts = money(p.figures.lineDiscounts) + money(p.figures.discountAmount);
+  const vehicleDescription = [p.vehicle.make, p.vehicle.model].filter(Boolean).join(' ') || 'Vehicle';
+  const balance = Math.max(0, Math.round((total - p.amountPaid) * 100) / 100);
+  return {
+    ...p.letterhead,
+    invoiceNumber: p.invoiceNumber,
+    issuedOnLabel: p.issuedOnLabel,
+    jobNumber: p.jobNumber,
+    customerName: p.customer.name,
+    customerContact: p.customer.contact,
+    customerAddress: p.customer.address,
+    vehicleDescription,
+    plateNumber: p.vehicle.plateNumber,
+    mileage: p.vehicle.mileage != null ? `${p.vehicle.mileage.toLocaleString('en-NG')} km` : null,
+    lineItems: p.lines.map((l) => ({
+      description: l.description,
+      quantity: l.quantity,
+      unitLabel: l.unitOfMeasure ? pluralizeWord(l.quantity, l.unitOfMeasure) : null,
+      unitPrice: isCustomerLine(l) && l.unitPrice !== null ? nairaForPdf(l.unitPrice) : '',
+      discount: isCustomerLine(l) && l.lineDiscount > 0 ? `−${nairaForPdf(l.lineDiscount)}` : '',
+      amount: isCustomerLine(l) ? nairaForPdf(Math.round((l.amount - l.lineDiscount) * 100) / 100) : `${BILL_TO_LABEL[l.billTo as BillTo] ?? l.billTo} — not charged`,
+    })),
+    subtotalAmount: nairaForPdf(money(p.figures.subtotal) + money(p.figures.lineDiscounts)),
+    discountAmount: discounts > 0 ? `−${nairaForPdf(Math.round(discounts * 100) / 100)}` : null,
+    discountReason: money(p.figures.discountAmount) > 0 ? p.figures.discountReason : null,
+    vatLabel: vatRate > 0 ? vatLabel(vatRate) : null,
+    vatAmount: vatRate > 0 ? nairaForPdf(money(p.figures.vatAmount)) : null,
+    vatNumber: vatRate > 0 ? p.figures.vatNumber : null,
+    totalAmount: nairaForPdf(total),
+    amountPaid: nairaForPdf(Math.round(p.amountPaid * 100) / 100),
+    balanceDue: nairaForPdf(balance),
+    ...p.bank,
+    paymentRemarkSuggestion: [p.invoiceNumber, p.jobNumber, p.vehicle.plateNumber].filter(Boolean).join(' '),
+    closing: `Thank you for choosing ${p.letterhead.organisation.name}.`,
   };
 }

@@ -59,11 +59,12 @@ const nextConfig: NextConfig = {
   // repository root, so file tracing must start there.
   outputFileTracingRoot: path.join(__dirname, '../../'),
   // pdfkit reads its standard font files from disk at run time, which file
-  // tracing cannot see. Server actions can render a PDF from any route, so the
-  // fonts go into every function. The glob is relative to this file, not to
-  // outputFileTracingRoot.
+  // tracing cannot see, and so does lib/pdf/fonts.ts (Noto Sans, for the ₦).
+  // Server actions can render a PDF from any route (an estimate or invoice
+  // email, the bulk copies), so the fonts go into every function. The globs
+  // are relative to this file, not to outputFileTracingRoot.
   outputFileTracingIncludes: {
-    '/**': ['../../node_modules/pdfkit/js/standard-fonts/**'],
+    '/**': ['../../node_modules/pdfkit/js/standard-fonts/**', './lib/pdf/fonts/**'],
   },
 };
 

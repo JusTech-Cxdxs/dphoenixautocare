@@ -10,7 +10,8 @@
     "rootDir": ".",
     "types": [
       "node"
-    ]
+    ],
+    "jsx": "react-jsx"
   },
   "include": [
     "tests/**/*.ts",

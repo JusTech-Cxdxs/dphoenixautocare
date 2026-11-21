@@ -1,6 +1,7 @@
 import { portalBaseUrl } from '@/lib/portal-url';
 import { notFound } from 'next/navigation';
-import { customerTotal, billingSplit, isCustomerLine, coveredLabel } from '@/lib/estimate-billing';
+import { billingOf, billingSplit, isCustomerLine, coveredLabel, jobCardTotals } from '@/lib/estimate-billing';
+import { vatLabel } from '@/lib/pdf/document-props';
 import { listWarrantiesFor } from '@/lib/actions/warranty';
 import { WarrantiesIssuedPrint } from '@/components/print/WarrantiesIssuedPrint';
 import { getJobCard } from '@/lib/actions/workshop';
@@ -71,7 +72,9 @@ export default async function PrintJobCardPage({
 
   const lineItems = jobCard.estimate?.lineItems ?? [];
   // What the customer pays — covered lines (warranty / goodwill / internal) are shown but not charged.
-  const totalEstimate = customerTotal(lineItems);
+  const totals = jobCardTotals(jobCard.estimate, billingOf(jobCard));
+  const totalEstimate = totals.total;
+  const discounts = Math.round((totals.lineDiscounts + totals.discountAmount) * 100) / 100;
   const coveredTotal = billingSplit(lineItems).covered;
   const totalPaid = jobCard.payments.reduce((sum: number, p: (typeof jobCard.payments)[number]) => sum + Number(p.amount), 0);
   const vehicleSummary = [jobCard.vehicle.year, jobCard.vehicle.make, jobCard.vehicle.model, jobCard.vehicle.engineType].filter(Boolean).join(' ') || 'No vehicle details on file';
@@ -225,6 +228,18 @@ export default async function PrintJobCardPage({
               <tr style={{ color: '#166534' }}>
                 <td style={{ padding: '6px 4px' }} colSpan={isOrgCopy ? 4 : 3}>{moduleIsOn('warranty') ? 'Covered by warranty / goodwill (not charged)' : 'Covered by goodwill / internal (not charged)'}</td>
                 <td style={{ padding: '6px 4px', textAlign: 'right' }}>{formatNaira(coveredTotal)}</td>
+              </tr>
+            ) : null}
+            {discounts > 0 ? (
+              <tr>
+                <td style={{ padding: '6px 4px' }} colSpan={isOrgCopy ? 4 : 3}>Discount{jobCard.estimate?.discountReason && totals.discountAmount > 0 ? ` — ${jobCard.estimate.discountReason}` : ''}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'right' }}>−{formatNaira(discounts)}</td>
+              </tr>
+            ) : null}
+            {totals.vatRate > 0 ? (
+              <tr>
+                <td style={{ padding: '6px 4px' }} colSpan={isOrgCopy ? 4 : 3}>{vatLabel(totals.vatRate)}</td>
+                <td style={{ padding: '6px 4px', textAlign: 'right' }}>{formatNaira(totals.vatAmount)}</td>
               </tr>
             ) : null}
             <tr style={{ borderTop: '1.5px solid #0F172A', fontWeight: 700 }}>

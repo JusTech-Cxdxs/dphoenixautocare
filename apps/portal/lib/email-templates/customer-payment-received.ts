@@ -3,6 +3,8 @@ import { renderEmailLayout, html, greeting, para, details, highlight } from './l
 export type CustomerPaymentReceivedEmailOptions = {
   customerName: string;
   jobNumber: string;
+  /** RCT-2026-000001; older callers may leave it out. */
+  receiptNumber?: string;
   amountReceived: string;
   totalPaidSoFar: string;
   totalEstimate: string;
@@ -20,12 +22,13 @@ export function renderCustomerPaymentReceivedEmail(o: CustomerPaymentReceivedEma
     ${para(`Thank you. We have received your payment towards Job Card ${o.jobNumber}.`)}
     ${highlight('Amount received', o.amountReceived, o.balanceRemaining ? `Balance still due: ${o.balanceRemaining}` : 'This Job Card is now paid in full.', 'success')}
     ${details([
+      ['Receipt number', o.receiptNumber ?? null],
       ['Job Card', o.jobNumber],
       ['Estimate total', o.totalEstimate],
       ['Paid so far', o.totalPaidSoFar],
       ['Balance due', o.balanceRemaining ?? 'None (paid in full)'],
     ])}
-    ${para('Keep this email as your confirmation. Your full payment history is in your customer portal.', 'small')}`;
+    ${para(`${o.receiptNumber ? `Keep this email as your receipt (${o.receiptNumber}).` : 'Keep this email as your confirmation.'} Your full payment history is in your customer portal.`, 'small')}`;
   return renderEmailLayout({
     previewText: `Payment of ${o.amountReceived} received for Job Card ${o.jobNumber}.`,
     companyName: o.companyName,

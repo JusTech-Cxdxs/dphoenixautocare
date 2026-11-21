@@ -33,6 +33,8 @@ import {
   submitEstimateForValidation,
   approveEstimate,
   approveEstimateAsManager,
+  setEstimateDiscount,
+  setEstimateLineDiscount,
   returnEstimateForChanges,
   notifyCustomerOfApprovedEstimate,
   recordPayment,
@@ -326,7 +328,7 @@ export async function approveEstimateFormAction(formData: FormData) {
 export async function approveEstimateAsManagerFormAction(formData: FormData) {
   const jobCardId = str(formData, 'jobCardId');
   try {
-    await approveEstimateAsManager(jobCardId);
+    await approveEstimateAsManager(jobCardId, formData.get('approveDiscount') === 'on');
   } catch (err) {
     const message = friendlyError(err, 'Could not approve estimate as manager.', 'workshop-form-handlers');
     redirect(`/workshop/job-cards/${jobCardId}?error=${encodeURIComponent(message)}`);
@@ -507,4 +509,28 @@ export async function sendReadyForCollectionReminderFormAction(formData: FormDat
     redirect(`/workshop/custody?error=${encodeURIComponent(message)}`);
   }
   revalidatePath('/workshop/custody');
+}
+
+export async function setEstimateDiscountFormAction(formData: FormData) {
+  const jobCardId = str(formData, 'jobCardId');
+  try {
+    await setEstimateDiscount(jobCardId, num(formData, 'discountAmount') ?? 0, str(formData, 'discountReason'));
+  } catch (err) {
+    const message = friendlyError(err, 'Could not save the discount.', 'workshop-form-handlers');
+    redirect(`/workshop/job-cards/${jobCardId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/job-cards/${jobCardId}`);
+  redirect(`/workshop/job-cards/${jobCardId}?status=discount-saved`);
+}
+
+export async function setEstimateLineDiscountFormAction(formData: FormData) {
+  const jobCardId = str(formData, 'jobCardId');
+  try {
+    await setEstimateLineDiscount(str(formData, 'lineItemId'), num(formData, 'discountAmount') ?? 0, str(formData, 'discountReason'));
+  } catch (err) {
+    const message = friendlyError(err, 'Could not save the line discount.', 'workshop-form-handlers');
+    redirect(`/workshop/job-cards/${jobCardId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/job-cards/${jobCardId}`);
+  redirect(`/workshop/job-cards/${jobCardId}?status=discount-saved`);
 }

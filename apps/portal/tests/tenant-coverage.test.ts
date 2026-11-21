@@ -120,6 +120,7 @@ const AUTHORIZE_WITH_RECORD = /\bauthorize\([^,]+,\s*\{\s*branchId/;
 /** Writes checked another way, with the reason. */
 const WRITE_EXCEPTIONS: Record<string, string> = {
   'organisation.ts:updateOrganisation': 'refuses any organisation but the person\'s own (me.organisationId !== organisationId)',
+  'organisation.ts:updateBillingSettings': 'the same check as updateOrganisation: the person\'s own organisation only',
 };
 
 test('every write action that takes an id checks the record it changes', () => {

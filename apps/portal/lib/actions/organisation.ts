@@ -70,3 +70,52 @@ export async function updateOrganisation(organisationId: string, input: UpdateOr
     metadata: { name: trimmedName },
   });
 }
+
+export type UpdateBillingSettingsInput = {
+  vatEnabled: boolean;
+  /** Percent, e.g. 7.5. */
+  vatRate: number;
+  vatNumber?: string;
+  /** Whole percent; null = every discount needs the Manager. */
+  discountApprovalPercent: number | null;
+};
+
+/** Billing & tax: VAT on or off, its rate, the TIN printed on invoices, and
+ * when a discount needs the Manager. Same people as the organisation's
+ * details, for their own organisation only; every change is audited. */
+export async function updateBillingSettings(organisationId: string, input: UpdateBillingSettingsInput): Promise<void> {
+  const user = await requireUser();
+  await authorize('admin.organisation.manage', undefined, 'organisation.billing', 'You do not have permission to change billing and tax settings.');
+  const [me, principal] = await Promise.all([prisma.user.findUnique({ where: { id: user.id }, select: { organisationId: true } }), getPrincipal()]);
+  if (!principal.isSuperAdmin && me?.organisationId !== organisationId) {
+    throw new OrganisationActionError('Organisation not found.');
+  }
+  const vatRate = Math.round(Number(input.vatRate) * 100) / 100;
+  if (!Number.isFinite(vatRate) || vatRate < 0 || vatRate > 100) {
+    throw new OrganisationActionError('Enter a VAT rate between 0 and 100.');
+  }
+  const threshold = input.discountApprovalPercent;
+  if (threshold !== null && (!Number.isInteger(threshold) || threshold < 0 || threshold > 100)) {
+    throw new OrganisationActionError('Enter the discount limit as a whole percentage between 0 and 100, or leave it blank.');
+  }
+  const vatNumber = input.vatNumber?.trim() || null;
+  if (input.vatEnabled && !vatNumber) {
+    throw new OrganisationActionError('Enter the Tax ID (TIN) to print on invoices before switching VAT on.');
+  }
+  const before = await prisma.organisation.findUnique({ where: { id: organisationId }, select: { vatEnabled: true, vatRate: true, vatNumber: true, discountApprovalPercent: true } });
+  if (!before) throw new OrganisationActionError('Organisation not found.');
+  await prisma.organisation.update({
+    where: { id: organisationId },
+    data: { vatEnabled: input.vatEnabled, vatRate, vatNumber, discountApprovalPercent: threshold },
+  });
+  await writeAuditLog({
+    userId: user.id,
+    action: 'organisation.billing_updated',
+    entityType: 'Organisation',
+    entityId: organisationId,
+    metadata: {
+      from: { vatEnabled: before.vatEnabled, vatRate: Number(before.vatRate), vatNumber: before.vatNumber, discountApprovalPercent: before.discountApprovalPercent },
+      to: { vatEnabled: input.vatEnabled, vatRate, vatNumber, discountApprovalPercent: threshold },
+    },
+  });
+}

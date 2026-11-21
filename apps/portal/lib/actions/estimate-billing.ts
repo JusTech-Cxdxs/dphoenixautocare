@@ -7,7 +7,7 @@ import { writeAuditLog } from '@/lib/workshop-core';
 import { getWarrantyRoles } from './warranty';
 import { allows, authorizeOnJobCard, seeJobCard } from '@/lib/authz/server';
 import { warrantyCoverage } from '@/lib/warranty-state';
-import { BILL_TO_LABEL, billingSplit, type BillTo } from '@/lib/estimate-billing';
+import { BILL_TO_LABEL, billingOf, billingSplit, jobCardTotals, JOB_CARD_BILLING_SELECT, type BillTo } from '@/lib/estimate-billing';
 import { moduleIsOn } from '@/lib/modules';
 
 class BillingError extends Error {}
@@ -45,12 +45,14 @@ export async function getJobCardBilling(jobCardId: string) {
       refunds: { select: { amount: true } },
       estimate: {
         select: {
+          discountAmount: true,
           lineItems: {
             orderBy: { createdAt: 'asc' },
-            select: { id: true, type: true, description: true, amount: true, billTo: true, billToNote: true, coveringWarranty: { select: { id: true, warrantyNumber: true } } },
+            select: { id: true, type: true, description: true, amount: true, discountAmount: true, billTo: true, billToNote: true, coveringWarranty: { select: { id: true, warrantyNumber: true } } },
           },
         },
       },
+      ...JOB_CARD_BILLING_SELECT,
     },
   });
   if (!jc) return null;
@@ -62,12 +64,17 @@ export async function getJobCardBilling(jobCardId: string) {
   ]);
   const lines = jc.estimate?.lineItems ?? [];
   const split = billingSplit(lines);
+  // What the customer owes after discounts and VAT: the one shared calculation.
+  const settings = billingOf(jc);
+  const totals = jobCardTotals(jc.estimate, settings);
   const paid = jc.payments.reduce((s: number, p: { amount: unknown }) => s + Number(p.amount), 0) - jc.refunds.reduce((s: number, r: { amount: unknown }) => s + Number(r.amount), 0);
   return {
-    lines: lines.map((l: (typeof lines)[number]) => ({ ...l, amount: l.amount === null ? null : Number(l.amount) })),
+    lines: lines.map((l: (typeof lines)[number]) => ({ ...l, amount: l.amount === null ? null : Number(l.amount), discountAmount: l.discountAmount === null ? null : Number(l.discountAmount) })),
     split,
+    totals,
+    settings: { vatEnabled: settings.vatEnabled, vatRate: Number(settings.vatRate), vatNumber: settings.vatNumber ?? null, discountApprovalPercent: settings.discountApprovalPercent ?? null },
     netPaid: Math.round(paid * 100) / 100,
-    overpaid: Math.max(0, Math.round((paid - split.customer) * 100) / 100),
+    overpaid: Math.max(0, Math.round((paid - totals.total) * 100) / 100),
     warranties: warranties.map((w: (typeof warranties)[number]) => ({ id: w.id, warrantyNumber: w.warrantyNumber, kind: w.kind, subject: w.subjectDescription, provider: w.provider.name })),
     canEdit: canDecide && !CLOSED.includes(jc.status),
     isClosed: CLOSED.includes(jc.status),

@@ -109,6 +109,14 @@ model Organisation {
   // Data Exchange: days after an import is finished (and its totals signed
   // off) before the staged copy of its file is released. Null = 30; 0 = never.
   importStagingDays Int?
+  // Billing & tax (Organisation → Billing & tax). VAT is charged on the
+  // discounted customer total only when switched on; the TIN prints on
+  // invoices. A whole-estimate discount above discountApprovalPercent of the
+  // customer subtotal needs the Manager; null = every discount does.
+  vatEnabled  Boolean  @default(false)
+  vatRate     Decimal  @default(7.5) @db.Decimal(5, 2)
+  vatNumber   String?
+  discountApprovalPercent Int?
   // A demonstration organisation: the only kind that gets demo people with
   // sign-ins and demo records (apps/portal/lib/demo). Set by the platform
   // team or `npm run demo:reset`; a real organisation never has it.
@@ -141,6 +149,7 @@ model Organisation {
   plantRoutes   PlantRoute[]
   plantStationVisits PlantStationVisit[]
   plantDefects  PlantDefect[]
+  invoices      Invoice[]
   plantQaAudits PlantQaAudit[]
 }
 
@@ -255,6 +264,7 @@ model Branch {
   partTypes      PartType[]
   vehicleServices VehicleService[]
 
+  invoices     Invoice[]
   @@map("branches")
   visits Visit[]
   exitPasses ExitPass[]
@@ -395,6 +405,8 @@ model User {
   vehicleServiceCloseRequestsMade VehicleServiceCloseRequest[] @relation("VehicleServiceCloseRequestedBy")
   vehicleServiceCloseRequestsDecided VehicleServiceCloseRequest[] @relation("VehicleServiceCloseDecidedBy")
   refundsRecorded Refund[] @relation("RefundRecordedBy")
+  invoicesIssued  Invoice[] @relation("InvoiceIssuedBy")
+  estimateDiscountsApproved Estimate[] @relation("EstimateDiscountApprovedBy")
   vehicleServiceCancellationRequestsMade VehicleServiceCancellationRequest[] @relation("VehicleServiceCancellationRequestedBy")
   vehicleServiceCancellationRequestsDecided VehicleServiceCancellationRequest[] @relation("VehicleServiceCancellationDecidedBy")
   serviceEstimatesMatchingRequested ServiceEstimate[] @relation("ServiceEstimateMatchingRequestedBy")
@@ -673,6 +685,7 @@ model Customer {
   @@index([importJobId])
   // Search by the SAP / old-system number alone.
   @@index([organisationId, externalId])
+  invoices        Invoice[]
   @@map("customers")
   warranties      Warranty[]
   warrantyClaims WarrantyClaim[]
@@ -884,6 +897,7 @@ model JobCard {
   estimate           Estimate?
   payments           Payment[]
   refunds Refund[]
+  invoice Invoice?
   cancellationRequests CancellationRequest[]
   closeRequests        CloseRequest[]
   partRequestSlips     PartRequestSlip[]
@@ -956,6 +970,13 @@ model Estimate {
   // appear in the queue straight away.
   matchingRequestedAt   DateTime?
   matchingRequestedById String?
+  // A discount on the whole estimate (customer lines only), with the reason.
+  // Above the organisation's threshold the Manager approves it; the Manager's
+  // final approval of the estimate records that approval here.
+  discountAmount       Decimal?  @db.Decimal(12, 2)
+  discountReason       String?
+  discountApprovedById String?
+  discountApprovedAt   DateTime?
   createdById String
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
@@ -966,6 +987,7 @@ model Estimate {
   managerApprovedBy User?        @relation("EstimateManagerApprovedBy", fields: [managerApprovedById], references: [id])
   customerNotifiedBy User?       @relation("EstimateCustomerNotifiedBy", fields: [customerNotifiedById], references: [id])
   matchingRequestedBy User?      @relation("EstimateMatchingRequestedBy", fields: [matchingRequestedById], references: [id])
+  discountApprovedBy User?       @relation("EstimateDiscountApprovedBy", fields: [discountApprovedById], references: [id])
   lineItems   EstimateLineItem[]
 
   @@map("estimates")
@@ -1005,6 +1027,9 @@ model EstimateLineItem {
   // unitPrice are both known.
   unitPrice   Decimal?             @db.Decimal(12, 2)
   amount      Decimal?             @db.Decimal(12, 2)
+  // Taken off this line's amount (customer lines only; never more than the
+  // amount). Null = no discount.
+  discountAmount Decimal?          @db.Decimal(12, 2)
   enteredById String
   createdAt   DateTime             @default(now())
   // @default(now()) gives existing rows a value when the column is added;
@@ -1062,6 +1087,9 @@ model Payment {
   updatedAt     DateTime      @default(now()) @updatedAt
   /// Operation id from the form — UNIQUE, so the same submission is never recorded twice.
   idempotencyKey String? @unique
+  // The customer's receipt number, RCT-2026-000001, given when a Job Card
+  // payment is recorded. Payments recorded before receipts existed have none.
+  receiptNumber  String? @unique
 
   jobCard        JobCard?        @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
   vehicleService VehicleService? @relation(fields: [vehicleServiceId], references: [id], onDelete: Cascade)
@@ -1104,6 +1132,47 @@ model Refund {
   @@index([jobCardId])
   @@index([vehicleServiceId])
   @@map("refunds")
+}
+
+// The customer's invoice for a Job Card (one per Job Card for now), issued
+// when the work is completed. Every figure and line is frozen at issue, so a
+// reprint is always the document the customer was given, whatever changes
+// later. INV-2026-000001.
+model Invoice {
+  id                String   @id @default(cuid())
+  invoiceNumber     String   @unique
+  organisationId    String
+  branchId          String
+  jobCardId         String   @unique
+  customerId        String
+  // Customer lines after their own discounts; the line discounts; the
+  // whole-estimate discount; VAT (rate 0 when VAT was off); what was due.
+  subtotal          Decimal  @db.Decimal(12, 2)
+  lineDiscounts     Decimal  @db.Decimal(12, 2)
+  discountAmount    Decimal  @db.Decimal(12, 2)
+  discountReason    String?
+  vatRate           Decimal  @db.Decimal(5, 2)
+  vatAmount         Decimal  @db.Decimal(12, 2)
+  // The organisation's TIN, when VAT was charged.
+  vatNumber         String?
+  total             Decimal  @db.Decimal(12, 2)
+  amountPaidAtIssue Decimal  @db.Decimal(12, 2)
+  // [{ description, type, quantity, unitOfMeasure, unitPrice, lineDiscount, amount, billTo }]
+  lines             Json
+  issuedAt          DateTime @default(now())
+  issuedById        String
+  createdAt         DateTime @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  jobCard      JobCard      @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  issuedBy     User         @relation("InvoiceIssuedBy", fields: [issuedById], references: [id])
+
+  @@index([organisationId, issuedAt])
+  @@index([branchId])
+  @@index([customerId])
+  @@map("invoices")
 }
 
 // A cancellation request does not change JobCard.status until a Manager

@@ -8,7 +8,7 @@ import { Meter } from './Charts';
 import { Icon } from './Icon';
 import { moduleOn } from '@/lib/edition';
 
-export type EstimateLine = { id: string; type: string; description: string; quantity: number; unitPrice: number | null; amount: number | null; unit: string | null };
+export type EstimateLine = { id: string; type: string; description: string; quantity: number; unitPrice: number | null; amount: number | null; unit: string | null; discount?: number };
 export type BranchInfo = { name: string; address: string | null; hotlines: string[]; email: string | null; bank: BankDetails };
 export type LinkedWarranty = { id: string; number: string; subject: string; endsAt: Date; status: string };
 
@@ -171,6 +171,7 @@ export function ServiceDetail({ item, complaints, lines, branch, mileage, warran
                             <span className="hidden text-right tabular-nums text-[var(--ejo-text-muted)] @lg:block">{unitPrice !== null ? naira(unitPrice) : '—'}</span>
                             <span className="shrink-0 text-right font-semibold tabular-nums text-[var(--ejo-text)]">{l.amount !== null ? naira(l.amount) : '—'}</span>
                           </div>
+                          {l.discount ? <p className="mt-1 text-right text-xs font-medium text-[var(--ejo-success)] @lg:col-span-4">Discount −{naira(l.discount)}</p> : null}
                         </li>
                       );
                     })}
@@ -180,6 +181,8 @@ export function ServiceDetail({ item, complaints, lines, branch, mileage, warran
                   {[...groups.entries()].map(([g, v]) => (
                     <div key={g} className="flex justify-between gap-3 text-[var(--ejo-text-muted)]"><dt>{g}</dt><dd className="shrink-0 tabular-nums">{naira(v)}</dd></div>
                   ))}
+                  {m.discount > 0 ? <div className="flex justify-between gap-3 text-[var(--ejo-success)]"><dt>Discount</dt><dd className="shrink-0 tabular-nums">−{naira(m.discount)}</dd></div> : null}
+                  {m.vatRate > 0 ? <div className="flex justify-between gap-3 text-[var(--ejo-text-muted)]"><dt>VAT ({m.vatRate}%)</dt><dd className="shrink-0 tabular-nums">{naira(m.vatAmount)}</dd></div> : null}
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 border-t border-[var(--ejo-border)] pt-2.5 text-base font-bold text-[var(--ejo-text)]"><dt>Total estimate</dt><dd className="tabular-nums">{naira(m.estimateTotal)}</dd></div>
                 </dl>
                 {item.kind === 'jc' ? <p className="mt-2 text-xs text-[var(--ejo-text-muted)]">Only the items you pay for are shown. Anything covered by a warranty or by us is not included.</p> : null}
@@ -216,7 +219,7 @@ export function ServiceDetail({ item, complaints, lines, branch, mileage, warran
                 {item.payments.map((p) => (
                   <li key={p.id} className="flex items-center justify-between gap-2 text-sm">
                     <span className="flex items-center gap-2 text-[var(--ejo-text)]"><span className="text-[var(--ejo-success)]"><Icon name="checkCircle" size={15} /></span>{METHOD[p.method] ?? p.method}</span>
-                    <span className="text-right"><span className="block font-medium text-[var(--ejo-text)]">{naira(p.amount)}</span><span className="block text-xs text-[var(--ejo-text-muted)]">{fmtDateTime(p.recordedAt)}</span></span>
+                    <span className="text-right"><span className="block font-medium text-[var(--ejo-text)]">{naira(p.amount)}</span><span className="block text-xs text-[var(--ejo-text-muted)]">{p.receipt ? `Receipt ${p.receipt} · ` : ''}{fmtDateTime(p.recordedAt)}</span></span>
                   </li>
                 ))}
                 {item.refunds.map((r) => (
@@ -228,6 +231,20 @@ export function ServiceDetail({ item, complaints, lines, branch, mileage, warran
               </ul>
             ) : null}
           </Card>
+
+          {item.invoice ? (
+            <Card className="p-5" delay={100}>
+              <SectionTitle icon="receipt" title="Invoice" />
+              <div data-testid="customer-invoice" className="flex items-baseline justify-between gap-3">
+                <span className="font-mono text-sm font-semibold text-[var(--ejo-text)]">{item.invoice.number}</span>
+                <span className="tabular-nums text-sm font-semibold text-[var(--ejo-text)]">{naira(item.invoice.total)}</span>
+              </div>
+              <p className="mt-1 text-xs text-[var(--ejo-text-muted)]">Issued {fmtDate(item.invoice.issuedAt)}</p>
+              <Link href={`/customer-portal/dashboard/services/jc/${item.id}/invoice`} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--ejo-primary)] underline">
+                View, print or save as PDF
+              </Link>
+            </Card>
+          ) : null}
 
           {owe > 0 && item.phase === 'active' ? <PayHow branchBank={branch?.bank} reference={reference} /> : null}
 

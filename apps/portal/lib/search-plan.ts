@@ -15,6 +15,9 @@ export const REFERENCE_TYPES = [
   { prefix: 'GRN', model: 'GoodsReceipt', group: 'Goods receipts', path: (id: string) => `/inventory/goods-receipts/${id}` },
   // A refund has no page of its own: the id given is its Job Card's or Vehicle Service's page.
   { prefix: 'RF', model: 'Refund', group: 'Refunds', path: (parentUrl: string) => parentUrl },
+  // Invoices and payment receipts open on their Job Card too (each has its print page there).
+  { prefix: 'INV', model: 'Invoice', group: 'Invoices', path: (parentUrl: string) => parentUrl },
+  { prefix: 'RCT', model: 'Payment', group: 'Receipts', path: (parentUrl: string) => parentUrl },
   { prefix: 'WR', model: 'Warranty', group: 'Warranties', path: (id: string) => `/warranty/${id}` },
   { prefix: 'WC', model: 'WarrantyClaim', group: 'Warranty claims', path: (id: string) => `/warranty/claims/${id}` },
   { prefix: 'VIS', model: 'Visit', group: 'Visitors', path: (id: string) => `/security/visitors/${id}` },

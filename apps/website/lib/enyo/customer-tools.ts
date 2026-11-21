@@ -131,7 +131,8 @@ const myEstimate: WebTool = {
     if (!item) return { ok: false, message: args.number ? NOT_FOUND_MESSAGE : 'None of this customer\'s jobs has an estimate sent to them yet.' };
     const lines = await loadOwnEstimate(me.id, item);
     if (!lines) return { ok: true, data: { number: item.number, estimate: 'Not ready yet. It appears in the portal and by email as soon as the team sends it.' }, sources: [{ label: item.number, href: item.href }] };
-    const total = round2(lines.reduce((s, l) => s + (l.amount ?? 0), 0));
+    // After any discount and with VAT when charged: the same total as the job page (moneyFor).
+    const total = item.money.estimateTotal ?? round2(lines.reduce((s, l) => s + (l.amount ?? 0), 0));
     return {
       ok: true,
       data: {
@@ -139,6 +140,8 @@ const myEstimate: WebTool = {
         vehicle: item.vehicle.label,
         lines: lines.slice(0, 40).map((l) => ({ item: l.description, kind: l.type.toLowerCase().replace(/_/g, ' '), quantity: l.quantity, unitPrice: money(l.unitPrice), amount: money(l.amount) })),
         moreLines: lines.length > 40 ? `${lines.length - 40} more lines are on the job page.` : null,
+        discount: item.money.discount > 0 ? money(item.money.discount) : null,
+        vat: item.money.vatRate > 0 ? { rate: `${item.money.vatRate}%`, ...money(item.money.vatAmount) } : null,
         total: money(total),
         paidSoFar: money(item.money.netPaid),
         stillToPay: money(outstanding(item)),

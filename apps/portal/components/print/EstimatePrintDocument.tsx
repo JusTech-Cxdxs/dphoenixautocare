@@ -3,6 +3,7 @@ import { humanizeAction } from '@/lib/humanize-action';
 import { PrintOnLoad } from '@/components/print/PrintOnLoad';
 import { pluralize, pluralizeWord } from '@/lib/utils/pluralize';
 import { formatDateTime } from '@/lib/utils/format-date';
+import { coveredLabel } from '@/lib/estimate-billing';
 
 type OrganisationInfo = {
   name: string;
@@ -29,7 +30,17 @@ export type EstimatePrintLine = {
   unitPrice: number | null;
   amount: number | null;
   enteredBy: string | null;
+  /** Job Card lines only: who pays (a covered line is shown, never charged). */
+  billTo?: string | null;
 };
+
+/**
+ * A Job Card estimate's figures from the one shared calculation
+ * (lib/estimate-billing → @ejo/utils/billing): discounts, VAT and the
+ * total the customer pays. Without it (a Vehicle Service) the document adds
+ * up its lines as it always has.
+ */
+export type EstimatePrintBilling = { lineDiscounts: number; discountAmount: number; discountReason: string | null; vatRate: number; vatAmount: number; total: number };
 
 export type EstimatePrintPayment = { id: string; recordedAt: Date; method: string; amount: number; recordedBy: string; notes: string | null };
 
@@ -166,6 +177,7 @@ export function EstimatePrintDocument({
   bank,
   minimumDepositFraction,
   paymentReference,
+  billing,
 }: {
   isOrgCopy: boolean;
   organisation: OrganisationInfo;
@@ -194,8 +206,11 @@ export function EstimatePrintDocument({
   bank: { bankName: string; accountName: string; accountNumber: string };
   minimumDepositFraction: number;
   paymentReference: string;
+  billing?: EstimatePrintBilling;
 }) {
-  const total = lines.reduce((sum, l) => sum + (l.amount ?? 0), 0);
+  const charged = (l: EstimatePrintLine) => !l.billTo || l.billTo === 'CUSTOMER';
+  const total = billing ? billing.total : lines.reduce((sum, l) => sum + (l.amount ?? 0), 0);
+  const discounts = billing ? Math.round((billing.lineDiscounts + billing.discountAmount) * 100) / 100 : 0;
   const minimumDeposit = Math.round(total * minimumDepositFraction * 100) / 100;
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
   const balance = Math.max(0, Math.round((total - totalPaid) * 100) / 100);
@@ -206,13 +221,14 @@ export function EstimatePrintDocument({
   let labourTotal = 0;
   let sundryTotal = 0;
   for (const l of lines) {
+    if (!charged(l)) continue;
     const amount = l.amount ?? 0;
     if (l.typeKey === 'LABOUR') labourTotal += amount;
     else if (l.typeKey === 'SUNDRY') sundryTotal += amount;
     else servicesTotal += amount;
   }
   const typeSubtotals = typeOrder
-    .map((key) => ({ key, amount: lines.filter((l) => l.typeKey === key).reduce((s, l) => s + (l.amount ?? 0), 0) }))
+    .map((key) => ({ key, amount: lines.filter((l) => charged(l) && l.typeKey === key).reduce((s, l) => s + (l.amount ?? 0), 0) }))
     .filter((t) => t.amount > 0);
 
   const cell = { padding: '6px 4px' } as const;
@@ -286,7 +302,7 @@ export function EstimatePrintDocument({
                 {line.unitOfMeasure ? ` ${pluralizeWord(line.quantity, line.unitOfMeasure)}` : ''}
               </td>
               <td style={cellRight}>{line.unitPrice !== null ? formatNaira(line.unitPrice) : '—'}</td>
-              <td style={cellRight}>{line.amount !== null ? formatNaira(line.amount) : '—'}</td>
+              <td style={cellRight}>{!charged(line) ? <span style={{ color: '#166534', fontSize: '11px' }}>{coveredLabel(line.billTo)}</span> : line.amount !== null ? formatNaira(line.amount) : '—'}</td>
               {isOrgCopy ? <td style={cell}>{line.enteredBy ?? '—'}</td> : null}
             </tr>
           ))}
@@ -331,6 +347,18 @@ export function EstimatePrintDocument({
                   ) : null}
                 </>
               )}
+          {discounts > 0 ? (
+            <tr>
+              <td style={{ padding: '3px 0', color: '#475569' }}>Discount{billing?.discountReason && billing.discountAmount > 0 ? ` — ${billing.discountReason}` : ''}</td>
+              <td style={{ padding: '3px 0', textAlign: 'right' }}>−{formatNaira(discounts)}</td>
+            </tr>
+          ) : null}
+          {billing && billing.vatRate > 0 ? (
+            <tr>
+              <td style={{ padding: '3px 0', color: '#475569' }}>VAT ({Number(billing.vatRate.toFixed(2))}%)</td>
+              <td style={{ padding: '3px 0', textAlign: 'right' }}>{formatNaira(billing.vatAmount)}</td>
+            </tr>
+          ) : null}
           <tr style={{ borderTop: '1.5px solid #0F172A' }}>
             <td style={{ padding: '6px 0', fontSize: '14px', fontWeight: 700 }}>Total Estimate</td>
             <td style={{ padding: '6px 0', fontSize: '14px', fontWeight: 700, textAlign: 'right' }}>{formatNaira(total)}</td>

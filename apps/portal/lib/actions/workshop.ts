@@ -31,11 +31,12 @@ import { unstable_cache } from 'next/cache';
  */
 
 import { notifyGateOfRelease } from '@/lib/security-notify';
-import { customerTotal, isCustomerLine, coveredLabel } from '@/lib/estimate-billing';
+import { isCustomerLine, coveredLabel, BILLING_SETTINGS_SELECT, jobCardTotals, billingOf, paidInFull, balanceDue, depositOf, discountNeedsManager, discountPercent, ESTIMATE_TOTALS_SELECT, JOB_CARD_BILLING_SELECT, type BillingTotals } from '@/lib/estimate-billing';
+import { ensureInvoice, sendInvoiceEmail } from '@/lib/invoices';
 import { moduleIsOn } from '@/lib/modules';
 import { prisma, JobCardStatus, setAuditActor, setAuditActorResolver, type Prisma } from '@ejo/database';
 import { claimed, lockExisting } from '@/lib/integrity';
-import { exceedsBalance, NUMBER_CLASH_TRIES, numberClashPause } from '@/lib/integrity-core';
+import { exceedsBalance, NUMBER_CLASH_TRIES, numberClashPause, retryOnNumberClash } from '@/lib/integrity-core';
 import { MINIMUM_DEPOSIT_FRACTION, APPROVAL_DEADLINE_WORKING_DAYS, APPROVAL_REMINDER_WORKING_DAYS, CANCELLED_COLLECTION_GRACE_WORKING_DAYS, READY_FOR_COLLECTION_GRACE_WORKING_DAYS } from '@/lib/workshop-constants';
 import { workingDaysBetween, addWorkingDays } from '@/lib/utils/working-days';
 import { pluralize } from '@/lib/utils/pluralize';
@@ -45,7 +46,7 @@ import { anchorEscalatedServiceFromJobCard, serviceJobCardCycle } from '@/lib/ve
 import { custodyReminderState, notDueYetMessage, type CustodyReminderKind } from '@/lib/custody-reminders';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { EstimatePdf } from '@/lib/pdf/estimate-pdf';
-import { jobEstimatePdfProps, letterhead } from '@/lib/pdf/document-props';
+import { jobEstimatePdfProps, jobEstimateTotals, letterhead, nairaForPdf, vatLabel } from '@/lib/pdf/document-props';
 import { activeAssistFor, signedInSession, type ActiveAssist } from '@/lib/assist/server';
 import { sendEmail } from '@/lib/email';
 import { renderSupervisorJobCardAssignedEmail } from '@/lib/email-templates/supervisor-job-card-assigned';
@@ -738,6 +739,13 @@ export async function getVehicleAuditTrail(vehicleId: string): Promise<VehicleAu
  * so a descending string sort matches numeric order. Concurrent creates can
  * still collide; createJobCard retries on that.
  */
+/** What the customer owes on a Job Card right now: its estimate through the
+ * one shared calculation (lib/estimate-billing → @ejo/utils/billing). */
+async function jobCardTotalsNow(jobCardId: string): Promise<BillingTotals> {
+  const jc = await prisma.jobCard.findUnique({ where: { id: jobCardId }, select: { estimate: { select: ESTIMATE_TOTALS_SELECT }, ...JOB_CARD_BILLING_SELECT } });
+  return jobCardTotals(jc?.estimate, jc ? billingOf(jc) : null);
+}
+
 async function generateJobNumber(): Promise<string> {
   const year = lagosYear();
   const prefix = `JC-${year}-`;
@@ -797,7 +805,8 @@ async function getJobCardUnscoped(id: string) {
       approvedBy: { select: { id: true, fullName: true } },
       department: { select: { id: true, name: true } },
       createdBy: { select: { id: true, fullName: true } },
-      branch: { select: { name: true, address: true, hotlines: true, email: true } },
+      // The organisation's billing switches travel with the branch (lib/estimate-billing billingOf).
+      branch: { select: { name: true, address: true, hotlines: true, email: true, businessUnit: { select: { organisation: { select: BILLING_SETTINGS_SELECT } } } } },
       complaints: { orderBy: { sequenceNumber: 'asc' } },
       // Estimate lines and payments, for the Vehicle Collection Receipt.
       estimate: { include: { lineItems: { orderBy: { createdAt: 'asc' }, include: { coveringWarranty: { select: { id: true, warrantyNumber: true } } } } } },
@@ -1101,7 +1110,8 @@ export async function updateJobCardStatus(id: string, status: JobCardStatus, col
       department: { select: { name: true } },
       customer: { select: { fullName: true, email: true } },
       vehicle: { select: { make: true, model: true } },
-      estimate: { select: { lineItems: { select: { amount: true, billTo: true } } } },
+      estimate: { select: ESTIMATE_TOTALS_SELECT },
+      ...JOB_CARD_BILLING_SELECT,
       payments: { select: { amount: true } },
       refunds: { select: { amount: true } },
     },
@@ -1149,9 +1159,9 @@ export async function updateJobCardStatus(id: string, status: JobCardStatus, col
     status === JobCardStatus.CHECKED_OUT
     && jobCard.status !== JobCardStatus.CANCELLED
   ) {
-    const totalEstimate = customerTotal(jobCard.estimate?.lineItems ?? []);
+    const totalEstimate = jobCardTotals(jobCard.estimate, billingOf(jobCard)).total;
     const totalPaid = jobCard.payments.reduce((sum: number, p: { amount: unknown }) => sum + Number(p.amount), 0);
-    if (totalPaid < totalEstimate) {
+    if (!paidInFull(totalPaid, totalEstimate)) {
       throw new WorkshopActionError('Payment must be completed in full before this Job Card can be checked out.');
     }
   }
@@ -1213,6 +1223,19 @@ export async function updateJobCardStatus(id: string, status: JobCardStatus, col
     },
   }));
   const result = (await prisma.jobCard.findUnique({ where: { id } }))!;
+
+  // Completing the work issues the customer's invoice in the same step
+  // (once: a second completion, e.g. after rework, finds the one already
+  // issued). A failure never undoes the completion; "Issue invoice" on the
+  // Job Card page catches up.
+  if (status === JobCardStatus.COMPLETED && priorStatus !== JobCardStatus.COMPLETED) {
+    try {
+      const issued = await ensureInvoice(id, user.id);
+      if (issued?.created) await sendInvoiceEmail(issued.invoice.id);
+    } catch (err) {
+      logFailure('Failed to issue the invoice on completion', id, err);
+    }
+  }
 
   // Security expects the vehicle at the gate: checkout or hand-back.
   if (status === JobCardStatus.CHECKED_OUT && priorStatus !== JobCardStatus.CHECKED_OUT) {
@@ -2126,6 +2149,7 @@ export async function updateEstimateLineItem(lineItemId: string, input: Estimate
       type: true,
       estimateId: true,
       matchedPartId: true,
+      discountAmount: true,
       matchedPart: { select: { sellingPrice: true, name: true } },
       estimate: {
         select: {
@@ -2176,6 +2200,8 @@ export async function updateEstimateLineItem(lineItemId: string, input: Estimate
       quantity: input.quantity,
       unitPrice: unitPrice ?? null,
       amount,
+      // A line made cheaper keeps its discount no larger than itself.
+      ...(lineItem.discountAmount !== null && amount !== null && Number(lineItem.discountAmount) > amount ? { discountAmount: amount > 0 ? amount : null } : {}),
       ...(lineItem.type !== 'STORE_PART' ? { unitOfMeasure: input.unitOfMeasure?.trim() || null } : {}),
     },
   }));
@@ -2233,6 +2259,91 @@ export async function deleteEstimateLineItem(lineItemId: string): Promise<void> 
     entityType: 'JobCard',
     entityId: lineItem.estimate.jobCardId,
     metadata: { description: lineItem.description },
+  });
+}
+
+const DISCOUNT_EDITABLE = ['DRAFT', 'SUBMITTED'] as const;
+const discountLockedMessage = (status: string) => status === 'APPROVED'
+  ? 'This estimate is waiting for the Manager — discounts can no longer change. Ask the Manager to send it back if it needs changing.'
+  : 'This estimate has already been approved by the manager — discounts can no longer change.';
+const nairaText = (value: number) => `₦${value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/** A discount amount as typed: two decimals, never negative. */
+function cleanDiscount(amount: number): number {
+  if (!Number.isFinite(amount) || amount < 0) throw new WorkshopActionError('Enter a discount of zero or more.');
+  return Math.round(amount * 100) / 100;
+}
+
+/**
+ * A discount on one estimate line, with the reason. Only lines the customer
+ * pays (a goodwill or internal line is already free to them), by whoever may
+ * price that line, while the estimate is a draft or with its supervisor.
+ * Never more than the line's amount; 0 removes it. Audited.
+ */
+export async function setEstimateLineDiscount(lineItemId: string, amount: number, reason: string): Promise<void> {
+  const discount = cleanDiscount(amount);
+  const why = reason.trim().slice(0, 300);
+  const line = await prisma.estimateLineItem.findUnique({
+    where: { id: lineItemId },
+    select: { type: true, description: true, amount: true, billTo: true, discountAmount: true, estimateId: true, estimate: { select: { jobCardId: true, status: true, jobCard: { select: { supervisorId: true, assignedTechnicianId: true } } } } },
+  });
+  if (!line) throw new WorkshopActionError('Estimate line item not found.');
+  if (!(DISCOUNT_EDITABLE as readonly string[]).includes(line.estimate.status)) throw new WorkshopActionError(discountLockedMessage(line.estimate.status));
+  const editor = await requireEstimateContributor(line.estimate.jobCard);
+  await requirePricingAuthority(line.type, line.estimate.jobCard, editor.id);
+  if (!isCustomerLine(line)) throw new WorkshopActionError('This line is not charged to the customer, so there is nothing to discount.');
+  if (line.amount === null) throw new WorkshopActionError('Price this line before giving a discount on it.');
+  if (discount > Number(line.amount)) throw new WorkshopActionError(`A discount can't be more than the line itself (${nairaText(Number(line.amount))}).`);
+  if (discount > 0 && !why) throw new WorkshopActionError('Give the reason for this discount.');
+  await withEstimateUnchanged(line.estimateId, line.estimate.status as 'DRAFT' | 'SUBMITTED', (tx) => tx.estimateLineItem.update({ where: { id: lineItemId }, data: { discountAmount: discount > 0 ? discount : null } }));
+  await writeAuditLog({
+    userId: editor.id,
+    action: discount > 0 ? 'estimate.line_discount_set' : 'estimate.line_discount_removed',
+    entityType: 'JobCard',
+    entityId: line.estimate.jobCardId,
+    metadata: { description: line.description, from: line.discountAmount === null ? null : Number(line.discountAmount), to: discount > 0 ? discount : null, reason: why || undefined },
+  });
+}
+
+/**
+ * A discount on the whole estimate (taken off the customer's subtotal), with
+ * the reason. Whoever works on the estimate may set it while it is a draft
+ * or with its supervisor; never more than the subtotal. Above the
+ * organisation's limit (Billing & tax) — or any discount, with no limit set —
+ * the Manager approves it in the same step as the estimate's final approval.
+ * Every change clears an earlier approval. 0 removes it. Audited.
+ */
+export async function setEstimateDiscount(jobCardId: string, amount: number, reason: string): Promise<void> {
+  const discount = cleanDiscount(amount);
+  const why = reason.trim().slice(0, 300);
+  const jobCard = await prisma.jobCard.findUnique({
+    where: { id: jobCardId },
+    select: { supervisorId: true, assignedTechnicianId: true, estimate: { select: { id: true, status: true, discountAmount: true, discountReason: true, lineItems: ESTIMATE_TOTALS_SELECT.lineItems } }, ...JOB_CARD_BILLING_SELECT },
+  });
+  if (!jobCard?.estimate) throw new WorkshopActionError('This Job Card has no estimate yet.');
+  const estimate = jobCard.estimate;
+  if (!(DISCOUNT_EDITABLE as readonly string[]).includes(estimate.status)) throw new WorkshopActionError(discountLockedMessage(estimate.status));
+  const editor = await requireEstimateContributor(jobCard);
+  if (discount > 0 && !why) throw new WorkshopActionError('Give the reason for this discount.');
+  const t = jobCardTotals({ lineItems: estimate.lineItems }, billingOf(jobCard));
+  if (discount > t.subtotal) throw new WorkshopActionError(`A discount can't be more than the customer's subtotal (${nairaText(t.subtotal)}).`);
+  const needsManager = discountNeedsManager({ subtotal: t.subtotal, discountAmount: discount }, billingOf(jobCard).discountApprovalPercent);
+  await withEstimateUnchanged(estimate.id, estimate.status as 'DRAFT' | 'SUBMITTED', (tx) => tx.estimate.update({
+    where: { id: estimate.id },
+    data: { discountAmount: discount > 0 ? discount : null, discountReason: discount > 0 ? why : null, discountApprovedById: null, discountApprovedAt: null },
+  }));
+  await writeAuditLog({
+    userId: editor.id,
+    action: discount > 0 ? 'estimate.discount_set' : 'estimate.discount_removed',
+    entityType: 'JobCard',
+    entityId: jobCardId,
+    metadata: {
+      from: estimate.discountAmount === null ? null : Number(estimate.discountAmount),
+      to: discount > 0 ? discount : null,
+      reason: why || undefined,
+      percentOfSubtotal: discountPercent({ subtotal: t.subtotal, discountAmount: discount }),
+      needsManager,
+    },
   });
 }
 
@@ -2426,7 +2537,7 @@ export async function submitEstimateForValidation(jobCardId: string): Promise<vo
     // Independent lookups for the email — run together.
     const [submitter, orgContext] = await Promise.all([prisma.user.findUnique({ where: { id: user.id }, select: { fullName: true } }), getWorkshopOrgContext(estimate.jobCard.department?.name)]);
     const portalUrl = portalBaseUrl();
-    const total = customerTotal(estimate.lineItems);
+    const total = (await jobCardTotalsNow(jobCardId)).total;
     await sendEmail(
       estimate.jobCard.supervisor.email,
       `Estimate for Job Card ${estimate.jobCard.jobNumber} needs your validation`,
@@ -2550,8 +2661,7 @@ export async function approveEstimate(jobCardId: string): Promise<void> {
     const managers = await listEligibleManagersForBranch(estimate.jobCard.branchId);
     if (managers.supervisors.length === 0) return;
     const approver = await prisma.user.findUnique({ where: { id: user.id }, select: { fullName: true } });
-    const lineItems = await prisma.estimateLineItem.findMany({ where: { estimateId: estimate.id }, select: { amount: true, billTo: true } });
-    const total = customerTotal(lineItems);
+    const total = (await jobCardTotalsNow(jobCardId)).total;
     const portalUrl = portalBaseUrl();
     const companyName = estimate.jobCard.branch.businessUnit.organisation.name;
     const branchName = estimate.jobCard.branch.name;
@@ -2579,8 +2689,13 @@ export async function approveEstimate(jobCardId: string): Promise<void> {
 
 /** The Manager's sign-off. The Job Card's creator is then told the
  * estimate is ready; sending it to the customer is a separate, explicit
- * step (notifyCustomerOfApprovedEstimate). */
-export async function approveEstimateAsManager(jobCardId: string): Promise<void> {
+ * step (notifyCustomerOfApprovedEstimate).
+ *
+ * A whole-estimate discount above the organisation's limit (or any, with no
+ * limit set) is approved here too, but only when the Manager ticks to
+ * approve it (`approveDiscount`): never silently. Without the tick the
+ * estimate is refused; the Manager can send it back instead. */
+export async function approveEstimateAsManager(jobCardId: string, approveDiscount = false): Promise<void> {
   // Decisions are never taken during an assisted session (the assistant approves nothing).
   await refuseDuringAssist('approveEstimateAsManager');
   const estimate = await prisma.estimate.findUnique({
@@ -2589,13 +2704,17 @@ export async function approveEstimateAsManager(jobCardId: string): Promise<void>
       id: true,
       status: true,
       approvedById: true,
+      discountAmount: true,
+      discountReason: true,
+      discountApprovedAt: true,
+      lineItems: ESTIMATE_TOTALS_SELECT.lineItems,
       jobCard: {
         select: {
           branchId: true,
           jobNumber: true,
           createdBy: { select: { fullName: true, email: true } },
           customer: { select: { fullName: true } },
-          branch: { select: { name: true, businessUnit: { select: { organisation: { select: { name: true } } } } } },
+          branch: { select: { name: true, businessUnit: { select: { organisation: { select: { name: true, ...BILLING_SETTINGS_SELECT } } } } } },
         },
       },
     },
@@ -2613,10 +2732,22 @@ export async function approveEstimateAsManager(jobCardId: string): Promise<void>
   if (estimate.approvedById === user.id && !(await currentUserIsMasterAdmin())) {
     throw new WorkshopActionError('You approved this estimate as its supervisor — another Manager gives the final approval.');
   }
+  // The discount rule (Billing & tax): above the limit, the Manager approves it explicitly.
+  const settings = estimate.jobCard.branch.businessUnit.organisation;
+  const totals = jobCardTotals(estimate, settings);
+  const discountToApprove = !estimate.discountApprovedAt && discountNeedsManager(totals, settings.discountApprovalPercent);
+  if (discountToApprove && !approveDiscount) {
+    throw new WorkshopActionError(`This estimate carries a discount of ${nairaText(totals.discountAmount)} (${discountPercent(totals)}% of the customer's subtotal), which needs your approval. Tick "Approve the discount" to approve both, or send the estimate back.`);
+  }
+  const approvedAt = new Date();
 
   claimed(await prisma.estimate.updateMany({
-    where: { id: estimate.id, status: 'APPROVED' },
-    data: { status: 'MANAGER_APPROVED', managerApprovedAt: new Date(), managerApprovedById: user.id },
+    // The discount must still be the one the Manager saw.
+    where: { id: estimate.id, status: 'APPROVED', discountAmount: estimate.discountAmount },
+    data: {
+      status: 'MANAGER_APPROVED', managerApprovedAt: approvedAt, managerApprovedById: user.id,
+      ...(discountToApprove ? { discountApprovedById: user.id, discountApprovedAt: approvedAt } : {}),
+    },
   }), 'This estimate was just approved or changed by someone else — refresh the page.');
 
   await writeAuditLog({
@@ -2625,6 +2756,15 @@ export async function approveEstimateAsManager(jobCardId: string): Promise<void>
     entityType: 'JobCard',
     entityId: jobCardId,
   });
+  if (discountToApprove) {
+    await writeAuditLog({
+      userId: user.id,
+      action: 'estimate.discount_approved',
+      entityType: 'JobCard',
+      entityId: jobCardId,
+      metadata: { amount: totals.discountAmount, percentOfSubtotal: discountPercent(totals), reason: estimate.discountReason ?? undefined, limitPercent: settings.discountApprovalPercent },
+    });
+  }
   // Enyo: score its prediction against the approved lines (once; errors only logged).
   scheduleResolution({ kind: 'JOB_CARD', id: jobCardId });
   // Enyo: how long the job is likely to take, now its lines are known (when switched on; errors only logged).
@@ -2634,8 +2774,7 @@ export async function approveEstimateAsManager(jobCardId: string): Promise<void>
   // (notifyCustomerOfApprovedEstimate). Fail-soft.
   try {
     const manager = await prisma.user.findUnique({ where: { id: user.id }, select: { fullName: true } });
-    const lineItems = await prisma.estimateLineItem.findMany({ where: { estimateId: estimate.id }, select: { amount: true, billTo: true } });
-    const total = customerTotal(lineItems);
+    const total = (await jobCardTotalsNow(jobCardId)).total;
     const portalUrl = portalBaseUrl();
     await sendEmail(
       estimate.jobCard.createdBy.email,
@@ -2706,16 +2845,17 @@ export async function notifyCustomerOfApprovedEstimate(jobCardId: string): Promi
       id: true,
       status: true,
       customerNotifiedAt: true,
+      discountAmount: true,
       jobCard: {
         select: {
           createdById: true,
           jobNumber: true,
           vehicle: { select: { make: true, model: true, plateNumber: true, chassisNumber: true } },
           customer: { select: { fullName: true, email: true, address: true } },
-          branch: { select: { id: true, name: true, address: true, hotlines: true, email: true, businessUnit: { select: { organisation: { select: { name: true } } } } } },
+          branch: { select: { id: true, name: true, address: true, hotlines: true, email: true, businessUnit: { select: { organisation: { select: { name: true, ...BILLING_SETTINGS_SELECT } } } } } },
         },
       },
-      lineItems: { orderBy: { createdAt: 'asc' }, select: { type: true, description: true, quantity: true, amount: true, unitOfMeasure: true, billTo: true, coveringWarranty: { select: { warrantyNumber: true } } } },
+      lineItems: { orderBy: { createdAt: 'asc' }, select: { type: true, description: true, quantity: true, amount: true, unitOfMeasure: true, billTo: true, discountAmount: true, coveringWarranty: { select: { warrantyNumber: true } } } },
     },
   });
   if (!estimate) {
@@ -2757,22 +2897,11 @@ export async function notifyCustomerOfApprovedEstimate(jobCardId: string): Promi
 
   try {
     // The customer sees three figures: Parts & Services (all parts and work
-    // types combined), Labour and Sundry. Never the internal line types.
-    const servicesTypes = new Set(['STORE_PART', 'EXTERNAL_PART', 'EXTERNAL_JOB', 'INTERNAL_JOB']);
-    let servicesTotal = 0;
-    let labourTotal = 0;
-    let sundryTotal = 0;
-    for (const li of estimate.lineItems as { type: string; amount: unknown; billTo?: string | null }[]) {
-      // Covered lines (warranty, goodwill, internal) are never charged.
-      if (!isCustomerLine(li)) continue;
-      const amount = Number(li.amount ?? 0);
-      if (li.type === 'LABOUR') labourTotal += amount;
-      else if (li.type === 'SUNDRY') sundryTotal += amount;
-      else if (servicesTypes.has(li.type)) servicesTotal += amount;
-    }
-    const total = servicesTotal + labourTotal + sundryTotal;
-    const minimumDeposit = Math.round(total * MINIMUM_DEPOSIT_FRACTION * 100) / 100;
-    const formatNaira = (value: number) => `₦${value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    // types combined), Labour and Sundry, then any discount and VAT. Never
+    // the internal line types. The same figures as the attached PDF.
+    const billing = { discountAmount: estimate.discountAmount, vat: estimate.jobCard.branch.businessUnit.organisation };
+    const t = jobEstimateTotals(estimate.lineItems, billing);
+    const formatNaira = nairaForPdf;
 
     const websiteUrl = websiteBaseUrl();
     const vehicleDescription = [estimate.jobCard.vehicle.make, estimate.jobCard.vehicle.model].filter(Boolean).join(' ') || 'Vehicle';
@@ -2796,11 +2925,14 @@ export async function notifyCustomerOfApprovedEstimate(jobCardId: string): Promi
           unitOfMeasure: li.unitOfMeasure,
           amount: isCustomerLine(li) ? formatNaira(Number(li.amount ?? 0)) : coveredLabel(li.billTo, li.coveringWarranty?.warrantyNumber),
         })),
-        servicesSubtotal: servicesTotal > 0 ? formatNaira(servicesTotal) : undefined,
-        labourSubtotal: labourTotal > 0 ? formatNaira(labourTotal) : undefined,
-        sundrySubtotal: sundryTotal > 0 ? formatNaira(sundryTotal) : undefined,
-        totalAmount: formatNaira(total),
-        minimumDepositAmount: formatNaira(minimumDeposit),
+        servicesSubtotal: t.services > 0 ? formatNaira(t.services) : undefined,
+        labourSubtotal: t.labour > 0 ? formatNaira(t.labour) : undefined,
+        sundrySubtotal: t.sundry > 0 ? formatNaira(t.sundry) : undefined,
+        discountAmount: t.discounts > 0 ? `−${formatNaira(t.discounts)}` : undefined,
+        vatLabel: t.vatRate > 0 ? vatLabel(t.vatRate) : undefined,
+        vatAmount: t.vatRate > 0 ? formatNaira(t.vatAmount) : undefined,
+        totalAmount: formatNaira(t.total),
+        minimumDepositAmount: formatNaira(t.minimumDeposit),
         depositPercent: Math.round(MINIMUM_DEPOSIT_FRACTION * 100),
         ...(await bankDetailsFor(estimate.jobCard.branch.id)),
         paymentRemarkSuggestion,
@@ -2824,6 +2956,7 @@ export async function notifyCustomerOfApprovedEstimate(jobCardId: string): Promi
               customer: estimate.jobCard.customer,
               vehicle: estimate.jobCard.vehicle,
               lineItems: estimate.lineItems,
+              billing,
             })),
           );
           return [{ filename: `Estimate-${estimate.jobCard.jobNumber}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }];
@@ -2890,6 +3023,15 @@ export async function getJobCardPayments(jobCardId: string) {
   });
 }
 
+/** RCT-2026-000001: the customer's receipt for one Job Card payment, given
+ * inside recordPayment's locked step. Payments recorded before receipts
+ * existed have none. */
+async function generateReceiptNumber(db: Pick<typeof prisma, 'payment'>): Promise<string> {
+  const prefix = `RCT-${lagosYear()}-`;
+  const latest = await db.payment.findFirst({ where: { receiptNumber: { startsWith: prefix } }, orderBy: { receiptNumber: 'desc' }, select: { receiptNumber: true } });
+  return `${prefix}${String(highestSequence(prefix, [latest?.receiptNumber]) + 1).padStart(6, '0')}`;
+}
+
 /** Records one payment toward a Job Card.
  *
  * `amount` is exactly what is recorded; the UI's suggestions (70%, full,
@@ -2925,7 +3067,8 @@ export async function recordPayment(
       workStartedAt: true,
       customer: { select: { fullName: true, email: true } },
       department: { select: { name: true } },
-      estimate: { select: { lineItems: { select: { amount: true, billTo: true } } } },
+      estimate: { select: ESTIMATE_TOTALS_SELECT },
+      ...JOB_CARD_BILLING_SELECT,
       payments: { select: { amount: true } },
     },
   });
@@ -2965,20 +3108,20 @@ export async function recordPayment(
     throw new WorkshopActionError('This payment was just recorded — check the payments list before recording it again.');
   }
 
-  const total = customerTotal(jobCard.estimate?.lineItems ?? []);
-  const minimumDeposit = Math.round(total * MINIMUM_DEPOSIT_FRACTION * 100) / 100;
+  // The total after discounts and VAT: the one shared calculation, as on every screen and document.
+  const total = jobCardTotals(jobCard.estimate, billingOf(jobCard)).total;
+  const minimumDeposit = depositOf(total, MINIMUM_DEPOSIT_FRACTION);
   const alreadyPaid = jobCard.payments.reduce((sum: number, p: { amount: unknown }) => sum + Number(p.amount ?? 0), 0);
   const formatNaira = (value: number) => `₦${value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  if (total > 0 && alreadyPaid >= total) {
+  if (total > 0 && paidInFull(alreadyPaid, total)) {
     throw new WorkshopActionError('This estimate has already been paid in full — nothing left to record.');
   }
 
   const roundedAmount = Math.round(amount * 100) / 100;
-  const prospectiveTotal = Math.round((alreadyPaid + roundedAmount) * 100) / 100;
   const roundedTotal = Math.round(total * 100) / 100;
-  if (prospectiveTotal > roundedTotal) {
-    const remaining = Math.round((roundedTotal - alreadyPaid) * 100) / 100;
+  if (exceedsBalance(alreadyPaid, roundedAmount, roundedTotal)) {
+    const remaining = balanceDue(roundedTotal, alreadyPaid);
     throw new WorkshopActionError(
       `This amount exceeds the remaining balance on this estimate. Please review — up to ${formatNaira(remaining)} can be recorded.`,
     );
@@ -2987,31 +3130,34 @@ export async function recordPayment(
   // Two cashiers at once: the checks above are only a fast answer. The
   // decision is made again here with the Job Card row locked, against the
   // payments as they are now, so two payments can never both fit into the
-  // same remaining balance.
-  const settled = await prisma.$transaction(async (tx) => {
+  // same remaining balance. The receipt number is given in the same step
+  // (two cashiers at the same instant: the second simply gets the next one).
+  const settled = await retryOnNumberClash('receiptNumber', () => prisma.$transaction(async (tx) => {
     await lockExisting(tx, 'jobCard', [jobCardId], 'This Job Card no longer exists — refresh the page.');
     // The same form, resent while the first was still saving: already recorded.
     if (idempotencyKey && (await tx.payment.findUnique({ where: { idempotencyKey }, select: { id: true } }))) return null;
     const now = await tx.jobCard.findUnique({
       where: { id: jobCardId },
-      select: { status: true, workStartedAt: true, estimate: { select: { lineItems: { select: { amount: true, billTo: true } } } }, payments: { select: { amount: true } } },
+      select: { status: true, workStartedAt: true, estimate: { select: ESTIMATE_TOTALS_SELECT }, ...JOB_CARD_BILLING_SELECT, payments: { select: { amount: true } } },
     });
     if (!now || !PAYABLE_STATUSES.includes(now.status)) {
       throw new WorkshopActionError('This Job Card changed while you were recording the payment — refresh the page.');
     }
-    const totalNow = Math.round(customerTotal(now.estimate?.lineItems ?? []) * 100) / 100;
+    const totalNow = jobCardTotals(now.estimate, billingOf(now)).total;
     const paidNow = now.payments.reduce((sum: number, p: { amount: unknown }) => sum + Number(p.amount ?? 0), 0);
     if (exceedsBalance(paidNow, roundedAmount, totalNow)) {
-      const remaining = Math.max(0, Math.round((totalNow - paidNow) * 100) / 100);
+      const remaining = balanceDue(totalNow, paidNow);
       throw new WorkshopActionError(
         `Another payment was recorded on this Job Card just now. Up to ${formatNaira(remaining)} can still be recorded — refresh to see it.`,
       );
     }
-    const minimumNow = Math.round(totalNow * MINIMUM_DEPOSIT_FRACTION * 100) / 100;
+    const minimumNow = depositOf(totalNow, MINIMUM_DEPOSIT_FRACTION);
     const afterNow = Math.round((paidNow + roundedAmount) * 100) / 100;
-    const autoApprove = now.status === JobCardStatus.AWAITING_CUSTOMER_APPROVAL
-      && ((paidNow < minimumNow && afterNow >= minimumNow) || (paidNow < totalNow && afterNow >= totalNow));
-    await tx.payment.create({
+    const metDeposit = !paidInFull(paidNow, minimumNow) && paidInFull(afterNow, minimumNow);
+    const metTotal = !paidInFull(paidNow, totalNow) && paidInFull(afterNow, totalNow);
+    const autoApprove = now.status === JobCardStatus.AWAITING_CUSTOMER_APPROVAL && (metDeposit || metTotal);
+    const receiptNumber = await generateReceiptNumber(tx);
+    const payment = await tx.payment.create({
       data: {
         idempotencyKey: idempotencyKey || null,
         jobCardId,
@@ -3019,7 +3165,9 @@ export async function recordPayment(
         method,
         notes: notes?.trim() || null,
         recordedById: user.id,
+        receiptNumber,
       },
+      select: { id: true, receiptNumber: true },
     });
     if (autoApprove) {
       // Compare-and-set as well as the lock: only from AWAITING_CUSTOMER_APPROVAL.
@@ -3035,11 +3183,14 @@ export async function recordPayment(
     }
     return {
       newTotal: afterNow,
+      totalNow,
       autoApprove,
-      justMetDeposit: paidNow < minimumNow && afterNow >= minimumNow,
-      justCompletedFull: paidNow < totalNow && afterNow >= totalNow,
+      justMetDeposit: metDeposit,
+      justCompletedFull: metTotal,
+      paymentId: payment.id,
+      receiptNumber: payment.receiptNumber!,
     };
-  });
+  }));
   if (!settled) return;
   const newTotal = settled.newTotal;
   const shouldAutoApprove = settled.autoApprove;
@@ -3051,7 +3202,14 @@ export async function recordPayment(
     action: 'payment.recorded',
     entityType: 'JobCard',
     entityId: jobCardId,
-    metadata: { amount: roundedAmount, method, notes: notes?.trim() || undefined },
+    metadata: { amount: roundedAmount, method, notes: notes?.trim() || undefined, receiptNumber: settled.receiptNumber },
+  });
+  await writeAuditLog({
+    userId: user.id,
+    action: 'receipt.issued',
+    entityType: 'Payment',
+    entityId: settled.paymentId,
+    metadata: { receiptNumber: settled.receiptNumber, jobCardId, jobNumber: jobCard.jobNumber, amount: roundedAmount },
   });
   if (shouldAutoApprove) {
     await writeAuditLog({
@@ -3068,7 +3226,7 @@ export async function recordPayment(
   try {
     const orgContext = await getWorkshopOrgContext(jobCard.department?.name);
     const portalUrl = portalBaseUrl();
-    const balance = roundedTotal - newTotal;
+    const balance = balanceDue(settled.totalNow, newTotal);
 
     const recipientIds = new Set<string>();
     const managers = await listEligibleManagersForBranch(jobCard.branchId);
@@ -3091,7 +3249,7 @@ export async function recordPayment(
           customerName: jobCard.customer.fullName,
           amountReceived: formatNaira(roundedAmount),
           totalPaidSoFar: formatNaira(newTotal),
-          totalEstimate: formatNaira(roundedTotal),
+          totalEstimate: formatNaira(settled.totalNow),
           balanceRemaining: balance > 0 ? formatNaira(balance) : undefined,
           jobCardUrl: `${portalUrl}/workshop/job-cards/${jobCardId}`,
           logoUrl: `${portalUrl}/images/logo/email-logo.png`,
@@ -3153,7 +3311,7 @@ export async function recordPayment(
               jobNumber: jobCard.jobNumber,
               customerName: jobCard.customer.fullName,
               totalPaidSoFar: formatNaira(newTotal),
-              totalEstimate: formatNaira(roundedTotal),
+              totalEstimate: formatNaira(settled.totalNow),
               jobCardUrl: `${portalUrl}/workshop/job-cards/${jobCardId}`,
               logoUrl: `${portalUrl}/images/logo/email-logo.png`,
               companyName: orgContext.companyName,
@@ -3171,16 +3329,17 @@ export async function recordPayment(
   try {
     const orgContext = await getWorkshopOrgContext(jobCard.department?.name);
     const websiteUrl = websiteBaseUrl();
-    const balance = roundedTotal - newTotal;
+    const balance = balanceDue(settled.totalNow, newTotal);
     await sendEmail(
       jobCard.customer.email,
       `Payment received — Job Card ${jobCard.jobNumber}`,
       renderCustomerPaymentReceivedEmail({
         customerName: jobCard.customer.fullName,
         jobNumber: jobCard.jobNumber,
+        receiptNumber: settled.receiptNumber,
         amountReceived: formatNaira(roundedAmount),
         totalPaidSoFar: formatNaira(newTotal),
-        totalEstimate: formatNaira(roundedTotal),
+        totalEstimate: formatNaira(settled.totalNow),
         balanceRemaining: balance > 0 ? formatNaira(balance) : undefined,
         dashboardUrl: `${customerLinks(websiteUrl).jobCard(jobCardId)}`,
         logoUrl: `${websiteUrl}/images/logo/email-logo.png`,
@@ -3552,7 +3711,8 @@ export async function requestJobCardClose(jobCardId: string): Promise<void> {
       supervisorId: true,
       customer: { select: { fullName: true } },
       department: { select: { name: true } },
-      estimate: { select: { lineItems: { select: { amount: true, billTo: true } } } },
+      estimate: { select: ESTIMATE_TOTALS_SELECT },
+      ...JOB_CARD_BILLING_SELECT,
       payments: { select: { amount: true } },
     },
   });
@@ -3569,9 +3729,9 @@ export async function requestJobCardClose(jobCardId: string): Promise<void> {
   }
   // Same full-payment rule as checkout, checked now so a request that could
   // never be approved isn't sent to a Manager.
-  const totalEstimate = customerTotal(jobCard.estimate?.lineItems ?? []);
+  const totalEstimate = jobCardTotals(jobCard.estimate, billingOf(jobCard)).total;
   const totalPaid = jobCard.payments.reduce((sum: number, p: { amount: unknown }) => sum + Number(p.amount), 0);
-  if (totalPaid < totalEstimate) {
+  if (!paidInFull(totalPaid, totalEstimate)) {
     throw new WorkshopActionError('Payment must be completed in full before a close can be requested.');
   }
   const user = await requireJobCardCreatorOrSupervisor(jobCard);
@@ -4085,17 +4245,18 @@ export async function sendApprovalReminder(jobCardId: string): Promise<void> {
         select: {
           id: true,
           customerNotifiedAt: true,
-          lineItems: { select: { amount: true, billTo: true } },
+          ...ESTIMATE_TOTALS_SELECT,
         },
       },
+      ...JOB_CARD_BILLING_SELECT,
     },
   });
   if (!jobCard || jobCard.status !== JobCardStatus.AWAITING_CUSTOMER_APPROVAL || !jobCard.estimate?.customerNotifiedAt) {
     throw new WorkshopActionError('This Job Card is not currently awaiting customer approval.');
   }
 
-  const total = customerTotal(jobCard.estimate.lineItems);
-  const minimumDeposit = Math.round(total * MINIMUM_DEPOSIT_FRACTION * 100) / 100;
+  const total = jobCardTotals(jobCard.estimate, billingOf(jobCard)).total;
+  const minimumDeposit = depositOf(total, MINIMUM_DEPOSIT_FRACTION);
   const dueDate = addWorkingDays(jobCard.estimate.customerNotifiedAt, APPROVAL_DEADLINE_WORKING_DAYS);
   const formatNaira = (value: number) => `₦${value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const websiteUrl = websiteBaseUrl();

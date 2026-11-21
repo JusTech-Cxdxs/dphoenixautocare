@@ -18,7 +18,7 @@ export default async function PaymentsPage() {
   type Row = { id: string; at: Date; kind: 'payment' | 'refund'; amount: number; method: string; number: string; href: string; reference?: string };
   const rows: Row[] = [];
   for (const i of items) {
-    for (const p of i.payments) rows.push({ id: p.id, at: p.recordedAt, kind: 'payment', amount: p.amount, method: p.method, number: i.number, href: i.href });
+    for (const p of i.payments) rows.push({ id: p.id, at: p.recordedAt, kind: 'payment', amount: p.amount, method: p.method, number: i.number, href: i.href, reference: p.receipt ?? undefined });
     for (const r of i.refunds) rows.push({ id: r.id, at: r.recordedAt, kind: 'refund', amount: r.amount, method: r.method, number: i.number, href: i.href, reference: r.reference });
   }
   rows.sort((a, b) => b.at.getTime() - a.at.getTime());
@@ -78,7 +78,7 @@ export default async function PaymentsPage() {
                       <Link href={r.href} className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-[var(--ejo-bg)] sm:items-center">
                         <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${r.kind === 'payment' ? 'bg-[var(--ejo-success)]/12 text-[var(--ejo-success)]' : 'bg-[var(--ejo-info)]/10 text-[var(--ejo-info)]'}`}><Icon name={r.kind === 'payment' ? 'wallet' : 'refund'} size={16} /></span>
                         <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-medium text-[var(--ejo-text)]">{r.kind === 'payment' ? 'Payment' : <>Refund <span className="whitespace-nowrap">{r.reference}</span></>} · <span className="whitespace-nowrap">{r.number}</span></span>
+                          <span className="block text-sm font-medium text-[var(--ejo-text)]">{r.kind === 'payment' ? (r.reference ? <>Payment <span className="whitespace-nowrap">{r.reference}</span></> : 'Payment') : <>Refund <span className="whitespace-nowrap">{r.reference}</span></>} · <span className="whitespace-nowrap">{r.number}</span></span>
                           <span className="mt-0.5 flex items-baseline justify-between gap-3">
                             <span className="text-xs text-[var(--ejo-text-muted)]"><span className="whitespace-nowrap">{fmtDate(r.at)}</span> · <span className="whitespace-nowrap">{METHOD[r.method] ?? r.method}</span></span>
                             {/* On a phone the amount sits under the title so neither is squeezed. */}

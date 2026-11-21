@@ -10,7 +10,7 @@ import { withdrawOpenSourcing } from '@/lib/sourcing-lifecycle';
 import { authorize, canSeeRecord, reachWhere, authorizeOnService, authorizeOnJobCard, refuse, branchWithinReach, orgWhere, seeService, seeVehicle, refuseDuringAssist, inMyOrganisation } from '@/lib/authz/server';
 
 import { notifyGateOfRelease } from '@/lib/security-notify';
-import { customerTotal } from '@/lib/estimate-billing';
+import { billingOf, jobCardTotals, ESTIMATE_TOTALS_SELECT, JOB_CARD_BILLING_SELECT } from '@/lib/estimate-billing';
 import { prisma, type VehicleServiceStatus } from '@ejo/database';
 import { requireUser, createJobCard, currentUserIsMasterAdmin, requireJobCardApprover, listEligibleManagersForBranch, requireEligibleManager } from './workshop';
 import { writeAuditLog, getWorkshopBranchId, getWorkshopDepartmentForVehicleType, isEligibleSupervisor, getWorkshopOrgContext } from '@/lib/workshop-core';
@@ -629,7 +629,8 @@ export async function getVehicleAnalytics(vehicleId: string): Promise<VehicleAna
         jobNumber: true,
         createdAt: true,
         mileageAtCheckIn: true,
-        estimate: { select: { status: true, lineItems: { select: { amount: true, billTo: true } } } },
+        estimate: { select: { status: true, ...ESTIMATE_TOTALS_SELECT } },
+        ...JOB_CARD_BILLING_SELECT,
       },
     }),
     prisma.vehicleInspection.findMany({
@@ -703,7 +704,7 @@ export async function getVehicleAnalytics(vehicleId: string): Promise<VehicleAna
       .filter((j: (typeof jobCards)[number]) => j.estimate?.status === 'MANAGER_APPROVED')
       // Job Cards: only what the customer pays. Warranty, goodwill and internal
       // lines are not the customer's spend or balance.
-      .map((j: (typeof jobCards)[number]) => ({ date: j.createdAt, amount: customerTotal(j.estimate?.lineItems ?? []), label: j.jobNumber, source: 'JOB_CARD' as const })),
+      .map((j: (typeof jobCards)[number]) => ({ date: j.createdAt, amount: jobCardTotals(j.estimate, billingOf(j)).total, label: j.jobNumber, source: 'JOB_CARD' as const })),
   ].sort((a, b) => a.date.getTime() - b.date.getTime());
   const approvedJobCard = spendTimeline.filter((p) => p.source === 'JOB_CARD').reduce((sum, p) => sum + p.amount, 0);
   const approvedService = spendTimeline.filter((p) => p.source === 'VEHICLE_SERVICE').reduce((sum, p) => sum + p.amount, 0);

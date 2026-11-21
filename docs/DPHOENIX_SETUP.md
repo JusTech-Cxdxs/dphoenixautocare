@@ -147,6 +147,16 @@ header reads it:
   website, logo and colours.
 - Add: **RC number**, **PO Box** if any, and check every line.
 
+**Settings → Organisation profile → Billing & tax** (below the details, **Edit Billing & Tax**) — how
+estimates, invoices and receipts add up:
+
+- **Charge VAT**: off until you switch it on. VAT is added after any discount.
+- **VAT rate (%)**: preset to **7.5%**.
+- **Tax ID (TIN) on invoices**: needed before VAT can be switched on; it prints beside the VAT line.
+- **Discounts above this % need the Manager**: a discount on a whole estimate above this share of the
+  customer's subtotal waits for the Manager, who approves it with the estimate. Leave it blank and
+  every discount needs the Manager.
+
 **Settings → Branches and departments → Victoria Island Workshop**: add the **bank name, account name
 and account number** customers pay into. They print on estimates and payment requests.
 
@@ -254,12 +264,10 @@ key never reaches a browser. Settings → Enyo shows the provider and lets you s
 | Enyo | Dressed in D'Phoenix navy with orange trim and a gold chain |
 | App icon | The logo on the phone home screen and browser tab (navy background when installed) |
 | Emails | D'Phoenix header, colours and logo; orange buttons with navy text |
-| Printouts (Job Card, estimate, inspection, refund, exit pass) | Letterhead with the logo, name, address, phones, email and RC number from **Settings → Organisation profile**; gold rules; ₦ amounts |
-| Estimate and inspection PDFs (email attachments) | The same letterhead and colours |
-
-Coming in the next phase: the **invoice** and **receipt** (own numbers, VAT, discounts) on the same
-letterhead, and the ₦ sign inside PDF attachments through an embedded font (PDFs print "NGN" until
-then).
+| Printouts (Job Card, estimate, inspection, invoice, receipt, refund, exit pass) | Letterhead with the logo, name, address, phones, email and RC number from **Settings → Organisation profile**; gold rules; ₦ amounts |
+| Invoices | Issued by themselves when a Job Card is marked **Completed** (`INV-2026-000001`), emailed to the customer with a PDF, and shown on the Job Card (Print, Email) and in the customer portal; discounts, VAT with the rate and your TIN, amount paid, balance due and the branch's bank details; "Thank you for choosing D'Phoenix Autocare" at the foot |
+| Receipts | Every payment gets its own number (`RCT-2026-000001`), in the payment email, on the Job Card's payments list (Print receipt) and in the customer portal. Payments recorded before receipts existed show "—" |
+| Estimate, invoice and inspection PDFs (email attachments) | The same letterhead and colours; the ₦ sign prints, through the embedded Noto Sans font |
 
 ## 9. Before real customers
 

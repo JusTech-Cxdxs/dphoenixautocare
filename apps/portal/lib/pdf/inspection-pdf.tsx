@@ -1,41 +1,42 @@
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
-import { PLATFORM } from '@/lib/brand';
+import { PLATFORM } from '../brand';
+import { PDF_FONT, registerPdfFonts } from './fonts';
 import type { InspectionPdfItem, InspectionPdfProps } from './document-types';
 export type { InspectionPdfItem, InspectionPdfProps } from './document-types';
 
 const styles = StyleSheet.create({
-  page: { paddingTop: 32, paddingBottom: 32, paddingHorizontal: 36, fontSize: 10, fontFamily: 'Helvetica', color: '#0F172A' },
+  page: { paddingTop: 32, paddingBottom: 32, paddingHorizontal: 36, fontSize: 10, fontFamily: PDF_FONT, color: '#0F172A' },
   headerRow: { flexDirection: 'row', alignItems: 'center' },
   logo: { width: 44, height: 53 },
   wordmarkWrap: { marginLeft: 8 },
-  wordmarkTop: { fontSize: 20, fontFamily: 'Helvetica-Bold' },
+  wordmarkTop: { fontSize: 20, fontFamily: PDF_FONT, fontWeight: 'bold' },
   wordmarkBottomRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
   wordmarkRule: { flex: 1, borderBottomWidth: 1, borderBottomColor: '#D6890B', marginRight: 5 },
-  wordmarkBottom: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#334155' },
+  wordmarkBottom: { fontSize: 10, fontFamily: PDF_FONT, fontWeight: 'bold', color: '#334155' },
   docTitleWrap: { marginLeft: 'auto', alignItems: 'flex-end' },
-  docTitle: { fontSize: 13, fontFamily: 'Helvetica-Bold', color: '#0A1628' },
+  docTitle: { fontSize: 13, fontFamily: PDF_FONT, fontWeight: 'bold', color: '#0A1628' },
   docRef: { fontSize: 11, marginTop: 2 },
   ruleThick: { borderBottomWidth: 1.5, borderBottomColor: '#D6890B', marginTop: 12, paddingTop: 8 },
-  eyebrow: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#94A3B8', letterSpacing: 0.5 },
-  legalName: { fontSize: 11, fontFamily: 'Helvetica-Bold', marginTop: 2 },
+  eyebrow: { fontSize: 8, fontFamily: PDF_FONT, fontWeight: 'bold', color: '#94A3B8', letterSpacing: 0.5 },
+  legalName: { fontSize: 11, fontFamily: PDF_FONT, fontWeight: 'bold', marginTop: 2 },
   smallMuted: { fontSize: 9, color: '#475569', marginTop: 1 },
   ruleThin: { borderBottomWidth: 0.5, borderBottomColor: '#E2E8F0', marginTop: 10, paddingTop: 8 },
   fieldGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 16 },
   field: { width: '50%', marginBottom: 10 },
-  fieldLabel: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#94A3B8', letterSpacing: 0.5 },
-  fieldValue: { fontSize: 11, fontFamily: 'Helvetica-Bold', marginTop: 1 },
+  fieldLabel: { fontSize: 8, fontFamily: PDF_FONT, fontWeight: 'bold', color: '#94A3B8', letterSpacing: 0.5 },
+  fieldValue: { fontSize: 11, fontFamily: PDF_FONT, fontWeight: 'bold', marginTop: 1 },
   zone: { marginTop: 16, backgroundColor: '#F0FDF4', borderWidth: 0.5, borderColor: '#BBF7D0', borderRadius: 6, padding: 12 },
-  zoneTitle: { fontSize: 10, fontFamily: 'Helvetica-Bold' },
-  sectionTitle: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#475569', marginTop: 10, marginBottom: 3, letterSpacing: 0.3 },
+  zoneTitle: { fontSize: 10, fontFamily: PDF_FONT, fontWeight: 'bold' },
+  sectionTitle: { fontSize: 8, fontFamily: PDF_FONT, fontWeight: 'bold', color: '#475569', marginTop: 10, marginBottom: 3, letterSpacing: 0.3 },
   tHeadRow: { flexDirection: 'row', borderBottomWidth: 1.5, borderBottomColor: '#0F172A', paddingBottom: 4 },
   tRow: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: '#E2E8F0', paddingVertical: 4 },
   colItem: { width: '30%' },
   colCondition: { width: '25%' },
   colSeverity: { width: '20%' },
   colAction: { width: '25%' },
-  th: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#475569' },
+  th: { fontSize: 8, fontFamily: PDF_FONT, fontWeight: 'bold', color: '#475569' },
   td: { fontSize: 8.5 },
-  tdItem: { fontSize: 8.5, fontFamily: 'Helvetica-Bold' },
+  tdItem: { fontSize: 8.5, fontFamily: PDF_FONT, fontWeight: 'bold' },
   emptyBox: { marginTop: 16, backgroundColor: '#F8FAFC', borderWidth: 0.5, borderColor: '#E2E8F0', borderRadius: 6, padding: 12 },
   emptyText: { fontSize: 9, color: '#475569' },
   footer: { marginTop: 28, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: '#E2E8F0', textAlign: 'center' },
@@ -64,6 +65,7 @@ const SEVERITY_COLOR: Record<string, string> = {
  * internal notes), as on print/vehicle-inspections/[id].
  */
 export function InspectionPdf(props: InspectionPdfProps) {
+  registerPdfFonts();
   const { organisation, branch, logoUrl, serviceNumber, customerName, vehicleDescription, plateNumber, chassisNumber, inspectedByName, completedOnLabel, reviewedItems } = props;
 
   const nameWords = organisation.name.trim().split(/\s+/);
@@ -170,7 +172,7 @@ export function InspectionPdf(props: InspectionPdfProps) {
                   <View key={i} style={styles.tRow}>
                     <Text style={[styles.tdItem, styles.colItem]}>{item.name}</Text>
                     <Text style={[styles.td, styles.colCondition]}>{item.condition ?? '—'}</Text>
-                    <Text style={[styles.td, styles.colSeverity, { color: item.severity ? SEVERITY_COLOR[item.severity] : '#94A3B8', fontFamily: 'Helvetica-Bold' }]}>
+                    <Text style={[styles.td, styles.colSeverity, { color: item.severity ? SEVERITY_COLOR[item.severity] : '#94A3B8', fontFamily: PDF_FONT, fontWeight: 'bold' }]}>
                       {item.severity ? SEVERITY_LABEL[item.severity] : 'Not Reviewed'}
                     </Text>
                     <Text style={[styles.td, styles.colAction]}>{item.action ?? '—'}</Text>

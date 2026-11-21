@@ -25,7 +25,7 @@ test('the letterhead: only its own fields, the portal’s logo', () => {
   assert.equal(head.logoUrl, 'https://portal.example/images/logo/logo.png');
 });
 
-test('a Job Card estimate: covered lines are shown but never charged; three figures; the 70% deposit; NGN in the PDF', () => {
+test('a Job Card estimate: covered lines are shown but never charged; three figures; the 70% deposit; ₦ in the PDF', () => {
   const lines = [
     { type: 'STORE_PART', description: 'Oil filter', quantity: 2, amount: '5000.00', unitOfMeasure: 'piece' },
     { type: 'EXTERNAL_JOB', description: 'Machining', quantity: 1, amount: 2500, unitOfMeasure: null },
@@ -33,18 +33,26 @@ test('a Job Card estimate: covered lines are shown but never charged; three figu
     { type: 'LABOUR', description: 'Warranty labour', quantity: 1, amount: 9000, unitOfMeasure: null, billTo: 'WARRANTY', coveringWarranty: { warrantyNumber: 'WR-1' } },
     { type: 'SUNDRY', description: 'Rags', quantity: 1, amount: 500, unitOfMeasure: null },
   ];
-  assert.deepEqual(jobEstimateTotals(lines), { services: 7500, labour: 3000, sundry: 500, total: 11000, minimumDeposit: 7700 });
+  assert.deepEqual(jobEstimateTotals(lines), { services: 7500, labour: 3000, sundry: 500, discounts: 0, vatRate: 0, vatAmount: 0, total: 11000, minimumDeposit: 7700 });
   const p = jobEstimatePdfProps({ letterhead: head, bank, jobNumber: 'JC-2026-000001', customer, vehicle, lineItems: lines });
-  assert.equal(p.totalAmount, 'NGN 11,000.00');
-  assert.equal(p.minimumDepositAmount, 'NGN 7,700.00');
-  assert.deepEqual([p.servicesSubtotal, p.labourSubtotal, p.sundrySubtotal], ['NGN 7,500.00', 'NGN 3,000.00', 'NGN 500.00']);
-  assert.deepEqual(p.lineItems[0], { description: 'Oil filter', quantity: 2, unitLabel: 'pieces', amount: 'NGN 5,000.00' });
+  assert.equal(p.totalAmount, '₦11,000.00');
+  assert.equal(p.minimumDepositAmount, '₦7,700.00');
+  assert.deepEqual([p.servicesSubtotal, p.labourSubtotal, p.sundrySubtotal], ['₦7,500.00', '₦3,000.00', '₦500.00']);
+  assert.deepEqual([p.discountAmount, p.vatLabel, p.vatAmount], [null, null, null], 'no discount, VAT off');
+  assert.deepEqual(p.lineItems[0], { description: 'Oil filter', quantity: 2, unitLabel: 'pieces', amount: '₦5,000.00' });
   assert.equal(p.lineItems[3]!.amount, 'Covered by warranty WR-1 — not charged');
   assert.equal(p.paymentRemarkSuggestion, 'JC-2026-000001 Isuzu NQR ABC-123XY');
   assert.equal(p.vehicleDescription, 'Isuzu NQR');
   assert.equal(p.accountNumber, '0001112223');
   assert.ok(!('type' in p.lineItems[0]!), 'the internal line types never reach the customer');
-  assert.equal(nairaForPdf(0), 'NGN 0.00');
+  assert.equal(nairaForPdf(0), '₦0.00');
+  // A discount and VAT: the same figures as the shared calculation (subtotal − discount, then 7.5%).
+  const withBilling = jobEstimatePdfProps({ letterhead: head, bank, jobNumber: 'JC-2026-000001', customer, vehicle, lineItems: lines, billing: { discountAmount: 1000, vat: { vatEnabled: true, vatRate: '7.5' } } });
+  assert.equal(withBilling.discountAmount, '−₦1,000.00');
+  assert.equal(withBilling.vatLabel, 'VAT (7.5%)');
+  assert.equal(withBilling.vatAmount, '₦750.00');
+  assert.equal(withBilling.totalAmount, '₦10,750.00');
+  assert.equal(withBilling.minimumDepositAmount, '₦7,525.00');
 });
 
 test('a Vehicle Service estimate: everything but labour and sundry is Parts & Services; its own label; the year on the vehicle', () => {

@@ -8,7 +8,9 @@ import { RoadTestsPanel } from '@/components/RoadTestsPanel';
 import { listRoadTestsFor } from '@/lib/actions/security';
 import { securityActionDetail } from '@/lib/security-labels';
 import { LoadingLink } from '@/components/LoadingLink';
-import { customerTotal, isCustomerLine } from '@/lib/estimate-billing';
+import { depositOf, discountNeedsManager, discountPercent, isCustomerLine, jobCardTotals, paidInFull } from '@/lib/estimate-billing';
+import { canIssueInvoices, getJobCardInvoice } from '@/lib/actions/invoices';
+import { emailInvoiceFormAction, issueInvoiceFormAction } from '@/lib/actions/invoices-form-handlers';
 import { getJobCardBilling } from '@/lib/actions/estimate-billing';
 import { JobCardBillingPanel } from '@/components/JobCardBillingPanel';
 import { humanizeAction } from '@/lib/humanize-action';
@@ -31,7 +33,7 @@ import { Suspense } from 'react';
 import { EstimateLinesTable, EstimateLineEditLink, EstimateLineRemoveButton, EstimateLineEditor, type EstimateLineView } from '@/components/EstimateLinesTable';
 import { requestStoreMatchingFormAction } from '@/lib/actions/store-form-handlers';
 import { COMMON_ESTIMATE_LINE_DESCRIPTIONS, MINIMUM_DEPOSIT_FRACTION } from '@/lib/workshop-constants';
-import { assignTechnicianFormAction, approveJobCardFormAction, rejectJobCardFormAction, acceptTechnicianAssignmentFormAction, rejectTechnicianAssignmentFormAction, reassignSupervisorFormAction, updateEstimateLineItemFormAction, deleteEstimateLineItemFormAction, notifySupervisorAboutEstimateFormAction, notifyTechnicianAboutEstimateFormAction, submitEstimateForValidationFormAction, approveEstimateFormAction, approveEstimateAsManagerFormAction, returnEstimateForChangesFormAction, notifyCustomerOfApprovedEstimateFormAction, recordPaymentFormAction, requestJobCardCancellationFormAction, approveCancellationRequestFormAction, declineCancellationRequestFormAction, requestJobCardCloseFormAction, approveCloseRequestFormAction, declineCloseRequestFormAction, updateJobCardStatusFormAction } from '@/lib/actions/workshop-form-handlers';
+import { assignTechnicianFormAction, approveJobCardFormAction, rejectJobCardFormAction, acceptTechnicianAssignmentFormAction, rejectTechnicianAssignmentFormAction, reassignSupervisorFormAction, updateEstimateLineItemFormAction, deleteEstimateLineItemFormAction, notifySupervisorAboutEstimateFormAction, notifyTechnicianAboutEstimateFormAction, submitEstimateForValidationFormAction, approveEstimateFormAction, approveEstimateAsManagerFormAction, setEstimateDiscountFormAction, setEstimateLineDiscountFormAction, returnEstimateForChangesFormAction, notifyCustomerOfApprovedEstimateFormAction, recordPaymentFormAction, requestJobCardCancellationFormAction, approveCancellationRequestFormAction, declineCancellationRequestFormAction, requestJobCardCloseFormAction, approveCloseRequestFormAction, declineCloseRequestFormAction, updateJobCardStatusFormAction } from '@/lib/actions/workshop-form-handlers';
 import { formatDateOnly, formatDateTime } from '@/lib/utils/format-date';
 import { SubmitButton } from '@/components/SubmitButton';
 import { FormFeedbackBanner } from '@/components/FormFeedbackBanner';
@@ -104,6 +106,13 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   'estimate.nudge_to_supervisor': 'Technician notified supervisor about estimate',
   'payment.recorded': 'Payment recorded',
   'payment.approved': 'Payment approved — work can proceed',
+  'estimate.discount_set': 'Discount given on the estimate',
+  'estimate.discount_removed': 'Discount on the estimate removed',
+  'estimate.line_discount_set': 'Discount given on a line',
+  'estimate.line_discount_removed': 'Discount on a line removed',
+  'estimate.discount_approved': 'Discount approved by the Manager',
+  'invoice.issued': 'Invoice issued',
+  'invoice.emailed': 'Invoice emailed to the customer',
   'cancellation.requested': 'Cancellation requested',
   'cancellation.approved': 'Cancellation approved',
   'cancellation.declined': 'Cancellation declined',
@@ -176,6 +185,14 @@ function formatAuditDetail(entry: { action: string; metadata: unknown }): string
       return `${typeof meta.line === 'string' ? meta.line : 'Line'}${typeof meta.amount === 'number' ? ` (${formatNaira(meta.amount)})` : ''}: ${String(meta.from ?? 'Customer')} → ${String(meta.to ?? '')}${typeof meta.note === 'string' ? ` — ${meta.note}` : ''}`;
     case 'warranty.issued':
       return Array.isArray(meta.warrantyNumbers) ? `${(meta.warrantyNumbers as string[]).join(', ')}${typeof meta.referenceNumber === 'string' ? ` — with ${meta.referenceNumber}` : ''}` : null;
+    case 'estimate.discount_set':
+    case 'estimate.line_discount_set':
+      return [typeof meta.description === 'string' ? `"${meta.description}"` : null, typeof meta.to === 'number' ? formatNaira(meta.to) : null, typeof meta.reason === 'string' ? `Reason: ${meta.reason}` : null].filter(Boolean).join(' — ') || null;
+    case 'estimate.discount_approved':
+      return typeof meta.amount === 'number' ? `${formatNaira(meta.amount)}${typeof meta.percentOfSubtotal === 'number' ? ` (${meta.percentOfSubtotal}%)` : ''}` : null;
+    case 'invoice.issued':
+    case 'invoice.emailed':
+      return typeof meta.invoiceNumber === 'string' ? meta.invoiceNumber : null;
     case 'job_card.created_from_vehicle_service':
       return typeof meta.serviceNumber === 'string' ? `From Vehicle Service ${meta.serviceNumber}` : null;
     case 'estimate.line_item_added':
@@ -384,6 +401,7 @@ export default async function JobCardDetailPage({
     getJobCardBilling(id),
     getRecycleBinOffer('JobCard', id),
   ]);
+  const invoice = await getJobCardInvoice(id).catch(() => null);
   if (!jobCard) notFound();
   // Parts requests (PRS) need the Store; external procurement (EPR) needs its
   // approvals. Either switched off: nothing to raise, list or link to.
@@ -400,13 +418,14 @@ export default async function JobCardDetailPage({
   // Customer names link to their Customers (CRM) page for those who may open it.
   const canSeeCustomers = await allows('crm.view');
   // Round 2: what needs the branch or the estimate.
-  const [eligibleManagers, eligibleFinance, partCategories, partTypes, partWarrantyBadges] = await Promise.all([
+  const [eligibleManagers, eligibleFinance, partCategories, partTypes, partWarrantyBadges, mayInvoice] = await Promise.all([
     listEligibleManagersForBranch(jobCard.branchId),
     listEligibleFinanceOfficersForBranch(jobCard.branchId),
     STORE_ON ? listPartCategories(jobCard.branchId) : Promise.resolve([]),
     STORE_ON ? listPartTypes(jobCard.branchId) : Promise.resolve([]),
     // No part-warranty badges when Warranty is off.
     WARRANTY_ON ? getPartWarrantyBadges((estimate?.lineItems ?? []).map((li: { matchedPartId: string | null }) => li.matchedPartId ?? '')) : Promise.resolve({} as Record<string, string>),
+    canIssueInvoices(jobCard.branchId),
   ]);
   // Enyo, when switched on at Assist: unusual typed-in prices and when the vehicle is likely ready. Never in the way.
   // The record's own organisation decides (its model and level), never the viewer's.
@@ -446,9 +465,17 @@ export default async function JobCardDetailPage({
   }
   // With the Store off nothing waits on Store matching (the server agrees).
   const hasUnmatchedStoreParts = STORE_ON && estimateLineItems.some((li: (typeof estimateLineItems)[number]) => li.type === 'STORE_PART' && !li.matchedPartId);
-  // What the customer pays — covered lines (warranty / goodwill / internal) excluded.
-  const estimateTotal = customerTotal(estimateLineItems);
-  const minimumDeposit = Math.round(estimateTotal * MINIMUM_DEPOSIT_FRACTION * 100) / 100;
+  // What the customer pays — covered lines (warranty / goodwill / internal)
+  // excluded, after discounts, with VAT when charged: the one shared
+  // calculation (@ejo/utils/billing), as in every document and payment check.
+  const billingSettings = billing?.settings ?? null;
+  const estimateTotal = jobCardTotals(estimate, billingSettings).total;
+  const minimumDeposit = depositOf(estimateTotal, MINIMUM_DEPOSIT_FRACTION);
+  // The same figures on the lines as shown (a draft Store Part line follows its part's price).
+  const liveTotals = jobCardTotals(estimate ? { discountAmount: estimate.discountAmount, lineItems: estimateLineItems.map((li: (typeof estimateLineItems)[number]) => ({ amount: getLiveLineAmount(li), billTo: li.billTo, discountAmount: li.discountAmount })) } : null, billingSettings);
+  const discountForManager = Boolean(estimate && !estimate.discountApprovedAt && discountNeedsManager(liveTotals, billingSettings?.discountApprovalPercent ?? null));
+  const canDiscount = Boolean(estimate && isEstimateContributor && (estimate.status === 'DRAFT' || estimate.status === 'SUBMITTED') && estimateLineItems.length > 0);
+  const invoiceable = ['COMPLETED', 'READY_FOR_COLLECTION', 'CHECKED_OUT', 'CLOSED'].includes(jobCard.status) && estimate?.status === 'MANAGER_APPROVED';
   // A cancelled job that took money shows refund progress, not payment progress.
   const paymentStatus: 'AWAITING_PAYMENT' | 'PARTIAL' | 'DEPOSIT_MET' | 'PAID_IN_FULL' | 'REFUND_DUE' | 'REFUNDED' =
     jobCard.status === 'CANCELLED' && paymentsTotal > 0
@@ -457,9 +484,9 @@ export default async function JobCardDetailPage({
         : 'REFUND_DUE'
       : paymentsTotal <= 0
       ? 'AWAITING_PAYMENT'
-      : estimateTotal > 0 && paymentsTotal >= estimateTotal
+      : estimateTotal > 0 && paidInFull(paymentsTotal, estimateTotal)
         ? 'PAID_IN_FULL'
-        : estimateTotal > 0 && paymentsTotal >= minimumDeposit
+        : estimateTotal > 0 && paidInFull(paymentsTotal, minimumDeposit)
           ? 'DEPOSIT_MET'
           : 'PARTIAL';
   // Cancelled is terminal; the only step left is handing the vehicle back.
@@ -470,8 +497,8 @@ export default async function JobCardDetailPage({
   // Check-out is only offered once payments cover the total (the same rule
   // the server enforces). A Job Card with nothing owed counts as paid.
   // CLOSED is never offered here; it goes through the close request flow.
-  const isPaidInFull = paymentsTotal >= estimateTotal;
-  const outstanding = Math.max(0, estimateTotal - paymentsTotal);
+  const isPaidInFull = paidInFull(paymentsTotal, estimateTotal);
+  const outstanding = Math.max(0, Math.round((estimateTotal - paymentsTotal) * 100) / 100);
   // Next steps for this viewer's role. Master Admin sees the normal steps;
   // the override dropdown is separate. Handing a cancelled vehicle back is
   // a front-desk step (the server checks the same).
@@ -514,6 +541,21 @@ export default async function JobCardDetailPage({
       {status === 'bill_to_set' ? (
         <div className="mb-6 max-w-xl">
           <FormFeedbackBanner kind="success" message="Who pays for that line is updated. The customer's total, deposit and balance have been recalculated." />
+        </div>
+      ) : null}
+      {status === 'discount-saved' ? (
+        <div className="mb-6 max-w-xl">
+          <FormFeedbackBanner kind="success" message="Discount saved. The customer's total, deposit and balance have been recalculated." />
+        </div>
+      ) : null}
+      {status === 'invoice-issued' ? (
+        <div className="mb-6 max-w-xl">
+          <FormFeedbackBanner kind="success" message="Invoice issued — the customer has been emailed a copy if they have an email address." />
+        </div>
+      ) : null}
+      {status === 'invoice-emailed' ? (
+        <div className="mb-6 max-w-xl">
+          <FormFeedbackBanner kind="success" message="Invoice emailed to the customer." />
         </div>
       ) : null}
       {status === 'refund_recorded' ? (
@@ -847,6 +889,9 @@ export default async function JobCardDetailPage({
                             )
                           ) : null}
                           {priceFlags.get(item.id) ? <UnusualPrice check={priceFlags.get(item.id)!} /> : null}
+                          {item.discountAmount !== null && Number(item.discountAmount) > 0 && isCustomerLine(item) ? (
+                            <div className="mt-0.5 text-[11px] font-medium text-[var(--ejo-success)]">Discount −{formatNaira(item.discountAmount)}</div>
+                          ) : null}
                         </>
                       ),
                       quantity: item.quantity,
@@ -925,19 +970,67 @@ export default async function JobCardDetailPage({
                           )}
                         </span>
                       </div>
-                      <div className="flex justify-between text-base font-bold text-[var(--ejo-text)]">
-                        <span>Customer pays</span>
-                        <span>
-                          {formatNaira(
-                            estimate.lineItems
-                              .filter((item: (typeof estimate.lineItems)[number]) => isCustomerLine(item))
-                              .reduce((sum: number, item: (typeof estimate.lineItems)[number]) => sum + getLiveLineAmount(item), 0),
-                          )}
-                        </span>
-                      </div>
                     </>
                   ) : null}
+                  {liveTotals.lineDiscounts > 0 ? (
+                    <div className="flex justify-between text-sm text-[var(--ejo-success)]">
+                      <span>Line discounts</span>
+                      <span>−{formatNaira(liveTotals.lineDiscounts)}</span>
+                    </div>
+                  ) : null}
+                  {liveTotals.discountAmount > 0 ? (
+                    <div className="flex justify-between text-sm text-[var(--ejo-success)]">
+                      <span>
+                        Discount ({discountPercent(liveTotals)}%){estimate.discountReason ? ` — ${estimate.discountReason}` : ''}
+                        {estimate.discountApprovedAt ? ' · approved by the Manager' : discountForManager ? ' · needs the Manager' : ''}
+                      </span>
+                      <span>−{formatNaira(liveTotals.discountAmount)}</span>
+                    </div>
+                  ) : null}
+                  {liveTotals.vatRate > 0 ? (
+                    <div className="flex justify-between text-sm text-[var(--ejo-text-muted)]">
+                      <span>VAT ({liveTotals.vatRate}%)</span>
+                      <span>{formatNaira(liveTotals.vatAmount)}</span>
+                    </div>
+                  ) : null}
+                  {liveTotals.lineDiscounts > 0 || liveTotals.discountAmount > 0 || liveTotals.vatRate > 0 || estimate.lineItems.some((item: (typeof estimate.lineItems)[number]) => !isCustomerLine(item)) ? (
+                    <div className="flex justify-between text-base font-bold text-[var(--ejo-text)]" data-testid="customer-pays">
+                      <span>Customer pays</span>
+                      <span>{formatNaira(liveTotals.total)}</span>
+                    </div>
+                  ) : null}
                 </div>
+                {canDiscount ? (
+                  <details className="mt-3 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] p-3">
+                    <summary className="cursor-pointer text-xs font-medium text-[var(--ejo-text)]">Give a discount</summary>
+                    <p className="mt-2 text-xs text-[var(--ejo-text-muted)]">
+                      Only on what the customer pays, never more than the amount discounted.{' '}
+                      {billingSettings?.discountApprovalPercent != null
+                        ? `A discount on the whole estimate above ${billingSettings.discountApprovalPercent}% of the subtotal needs the Manager's approval.`
+                        : 'A discount on the whole estimate needs the Manager\'s approval.'}
+                    </p>
+                    <form action={setEstimateDiscountFormAction} className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[8rem_1fr_auto]">
+                      <FormPendingOverlay />
+                      <input type="hidden" name="jobCardId" value={jobCard.id} />
+                      <input name="discountAmount" type="number" min="0" step="0.01" defaultValue={estimate.discountAmount !== null ? Number(estimate.discountAmount).toFixed(2) : ''} placeholder="₦0.00" aria-label="Discount on the whole estimate (₦)" className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-2 py-1.5 text-xs text-[var(--ejo-text)]" />
+                      <input name="discountReason" maxLength={300} defaultValue={estimate.discountReason ?? ''} placeholder="Reason, e.g. Loyal fleet customer" aria-label="Reason for the discount" className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-2 py-1.5 text-xs text-[var(--ejo-text)]" />
+                      <SubmitButton label="Save estimate discount" pendingLabel="Saving…" className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] px-3 py-1.5 text-xs font-medium text-[var(--ejo-text)] hover:bg-[var(--ejo-bg)]" />
+                    </form>
+                    <form action={setEstimateLineDiscountFormAction} className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_8rem_1fr_auto]">
+                      <FormPendingOverlay />
+                      <input type="hidden" name="jobCardId" value={jobCard.id} />
+                      <select name="lineItemId" required aria-label="Line to discount" className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-2 py-1.5 text-xs text-[var(--ejo-text)]">
+                        {estimate.lineItems.filter((item: (typeof estimate.lineItems)[number]) => isCustomerLine(item) && item.amount !== null).map((item: (typeof estimate.lineItems)[number]) => (
+                          <option key={item.id} value={item.id}>{item.description} ({formatNaira(item.amount)})</option>
+                        ))}
+                      </select>
+                      <input name="discountAmount" type="number" min="0" step="0.01" placeholder="₦0.00" aria-label="Discount on this line (₦)" className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-2 py-1.5 text-xs text-[var(--ejo-text)]" />
+                      <input name="discountReason" maxLength={300} placeholder="Reason" aria-label="Reason for the line discount" className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-2 py-1.5 text-xs text-[var(--ejo-text)]" />
+                      <SubmitButton label="Save line discount" pendingLabel="Saving…" className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] px-3 py-1.5 text-xs font-medium text-[var(--ejo-text)] hover:bg-[var(--ejo-bg)]" />
+                    </form>
+                    <p className="mt-2 text-[11px] text-[var(--ejo-text-muted)]">Enter 0 to remove a discount.</p>
+                  </details>
+                ) : null}
               </>
             )}
 
@@ -1053,6 +1146,18 @@ export default async function JobCardDetailPage({
                   Approved by the supervisor. When you approve, {jobCard.createdBy.fullName} (who opened this Job
                   Card) is asked to review it and tell the customer.
                 </p>
+                {discountForManager ? (
+                  <div className="mb-3 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-warning)]/40 bg-[var(--ejo-warning)]/5 p-3 text-xs text-[var(--ejo-text)]" data-testid="discount-needs-manager">
+                    <p className="font-medium">
+                      This estimate carries a discount of {formatNaira(liveTotals.discountAmount)} ({discountPercent(liveTotals)}% of the customer&apos;s subtotal){estimate.discountReason ? ` — ${estimate.discountReason}` : ''}.
+                      {billingSettings?.discountApprovalPercent != null ? ` Discounts above ${billingSettings.discountApprovalPercent}% need your approval.` : ' Every discount needs your approval.'}
+                    </p>
+                    <label className="mt-2 flex items-center gap-2">
+                      <input type="checkbox" name="approveDiscount" required />
+                      Approve the discount with the estimate
+                    </label>
+                  </div>
+                ) : null}
                 <SubmitButton
                   label="Approve as Manager"
                   pendingLabel="Approving…"
@@ -1098,6 +1203,42 @@ export default async function JobCardDetailPage({
 
           {WARRANTY_ON ? <WarrantyList warranties={warranties} title="Warranties issued" /> : null}
 
+          {invoice || (invoiceable && mayInvoice) ? (
+            <div className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-6" data-testid="invoice-panel">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold text-[var(--ejo-text)]">Invoice</h2>
+                {invoice ? <span className="font-mono text-sm font-semibold text-[var(--ejo-text)]" data-testid="invoice-number">{invoice.invoiceNumber}</span> : null}
+              </div>
+              {invoice ? (
+                <>
+                  <p className="mt-1 text-xs text-[var(--ejo-text-muted)]">
+                    Issued {formatDateTime(invoice.issuedAt)} · {formatNaira(invoice.total)}
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <a href={`/print/invoices/${invoice.id}`} target="_blank" rel="noopener" className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] px-3 py-1.5 text-xs font-medium text-[var(--ejo-text)] hover:bg-[var(--ejo-bg)]">
+                      Print invoice
+                    </a>
+                    {mayInvoice && jobCard.customer.email ? (
+                      <form action={emailInvoiceFormAction}>
+                        <FormPendingOverlay />
+                        <input type="hidden" name="jobCardId" value={jobCard.id} />
+                        <input type="hidden" name="invoiceId" value={invoice.id} />
+                        <SubmitButton label="Email invoice" pendingLabel="Sending…" className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] px-3 py-1.5 text-xs font-medium text-[var(--ejo-text)] hover:bg-[var(--ejo-bg)]" />
+                      </form>
+                    ) : null}
+                  </div>
+                </>
+              ) : (
+                <form action={issueInvoiceFormAction} className="mt-2">
+                  <FormPendingOverlay />
+                  <input type="hidden" name="jobCardId" value={jobCard.id} />
+                  <p className="mb-2 text-xs text-[var(--ejo-text-muted)]">The work is finished but no invoice has been issued yet. Issuing one fixes its figures as they are now and emails the customer a copy.</p>
+                  <SubmitButton label="Issue invoice" pendingLabel="Issuing…" className="rounded-[var(--ejo-radius-md)] bg-[var(--ejo-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90" />
+                </form>
+              )}
+            </div>
+          ) : null}
+
           {refunds.length > 0 || ((jobCard.status === 'CANCELLED' || pendingCancellationRequest) && paymentsTotal > 0) || (billing?.overpaid ?? 0) > 0 ? (
             <RefundsPanel
               target={{ jobCardId: jobCard.id }}
@@ -1130,26 +1271,31 @@ export default async function JobCardDetailPage({
                           {formatNaira(p.amount)} — {p.method === 'CASH' ? 'Cash' : 'Bank Transfer'}
                         </p>
                         <p className="text-xs text-[var(--ejo-text-muted)]">
-                          {p.recordedBy.fullName} · {formatDateTime(p.recordedAt)}
+                          Receipt {p.receiptNumber ?? '—'} · {p.recordedBy.fullName} · {formatDateTime(p.recordedAt)}
                           {p.notes ? ` · ${p.notes}` : ''}
                         </p>
                       </div>
+                      {p.receiptNumber ? (
+                        <a href={`/print/receipts/${p.id}`} target="_blank" rel="noopener" className="shrink-0 text-xs font-medium text-[var(--ejo-primary)] hover:underline">
+                          Print receipt
+                        </a>
+                      ) : null}
                     </div>
                   ))}
                   <div className="flex justify-between pt-1 text-sm font-semibold text-[var(--ejo-text)]">
                     <span>Total recorded</span>
                     <span>{formatNaira(paymentsTotal)}</span>
                   </div>
-                  {estimateTotal > 0 && paymentsTotal < estimateTotal ? (
+                  {estimateTotal > 0 && !isPaidInFull ? (
                     <div className="flex justify-between text-sm text-[var(--ejo-warning)]">
                       <span>Balance remaining</span>
-                      <span>{formatNaira(estimateTotal - paymentsTotal)}</span>
+                      <span>{formatNaira(outstanding)}</span>
                     </div>
                   ) : null}
                 </div>
               )}
 
-              {estimateTotal > 0 && paymentsTotal >= estimateTotal ? (
+              {estimateTotal > 0 && isPaidInFull ? (
                 <p className="mt-4 border-t border-[var(--ejo-border)] pt-4 text-xs font-medium text-[var(--ejo-success)]">
                   Paid in full — nothing further to record.
                 </p>
@@ -1166,7 +1312,7 @@ export default async function JobCardDetailPage({
                     <PaymentAmountField
                       options={
                         paymentsTotal > 0
-                          ? [{ key: 'REMAINING', label: `Remaining balance (${formatNaira(estimateTotal - paymentsTotal)})`, value: (Math.round((estimateTotal - paymentsTotal) * 100) / 100).toFixed(2) }]
+                          ? [{ key: 'REMAINING', label: `Remaining balance (${formatNaira(outstanding)})`, value: outstanding.toFixed(2) }]
                           : [
                               { key: 'SEVENTY_PERCENT', label: `70% deposit (${formatNaira(minimumDeposit)})`, value: minimumDeposit.toFixed(2) },
                               { key: 'FULL', label: `Full payment (${formatNaira(estimateTotal)})`, value: estimateTotal.toFixed(2) },
