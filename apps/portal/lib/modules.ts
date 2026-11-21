@@ -21,9 +21,11 @@ export const platformModules: PlatformModuleDescriptor[] = [
   { key: 'permissions', name: 'Permissions', status: 'LIVE', href: '/permissions', icon: 'key' },
   { key: 'workshop', name: 'Workshop', status: 'LIVE', href: '/workshop', icon: 'wrench' },
   { key: 'crm', name: 'Customers', status: 'LIVE', href: '/crm', icon: 'users' },
-  { key: 'inventory', name: 'Inventory', status: 'LIVE', href: '/inventory', icon: 'boxes' },
-  { key: 'warranty', name: 'Warranty', status: 'LIVE', href: '/warranty', icon: 'shield' },
-  { key: 'plant', name: 'Assembly plant', status: 'LIVE', href: '/plant', icon: 'factory' },
+  // Not part of the D'Phoenix Autocare edition (kept in code, off the menu,
+  // the dashboard, search, Enyo and the customer portal). Switching one back on is this one line.
+  { key: 'inventory', name: 'Inventory', status: 'DISABLED', href: '/inventory', icon: 'boxes' },
+  { key: 'warranty', name: 'Warranty', status: 'DISABLED', href: '/warranty', icon: 'shield' },
+  { key: 'plant', name: 'Assembly plant', status: 'DISABLED', href: '/plant', icon: 'factory' },
   { key: 'security', name: 'Security', status: 'LIVE', href: '/security', icon: 'shield' },
   { key: 'scheduling', name: 'Scheduling', status: 'LIVE', href: '/schedule', icon: 'calendar' },
   { key: 'analytics', name: 'Business Analytics', status: 'LIVE', href: '/analytics', icon: 'bar-chart' },
@@ -32,3 +34,28 @@ export const platformModules: PlatformModuleDescriptor[] = [
   { key: 'recycle-bin', name: 'Recycle bin', status: 'LIVE', href: '/recycle-bin', icon: 'trash' },
   { key: 'settings', name: 'Settings', status: 'LIVE', href: '/settings', icon: 'settings' },
 ];
+
+/** Whether a module is switched on in this edition: a DISABLED module stays in code but is off the menu, the dashboard, search, Enyo and the customer portal. */
+export function moduleIsOn(key: string): boolean {
+  return platformModules.find((m) => m.key === key)?.status !== 'DISABLED';
+}
+
+/**
+ * Parts of the platform that are not menu modules, switched per edition.
+ * D'Phoenix Autocare: no SAP link (Zoho and spreadsheets come in through Data
+ * Exchange), no outside-purchase approvals (parts bought outside are priced on
+ * the estimate), no roadmap, news, speak-up or data-request pages.
+ */
+export const EDITION_FEATURES = {
+  sap: false,
+  externalProcurement: false,
+  roadmap: false,
+  news: false,
+  speakUp: false,
+  dataRequests: false,
+} as const;
+export type EditionFeature = keyof typeof EDITION_FEATURES;
+
+export function featureOn(feature: EditionFeature): boolean {
+  return EDITION_FEATURES[feature];
+}
