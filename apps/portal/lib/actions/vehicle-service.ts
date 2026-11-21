@@ -7,14 +7,14 @@ import { logFailure } from '@/lib/log';
 import { claimed, lockExisting } from '@/lib/integrity';
 import { retryOnNumberClash } from '@/lib/integrity-core';
 import { withdrawOpenSourcing } from '@/lib/sourcing-lifecycle';
-import { authorize, canSeeRecord, reachWhere, authorizeOnService, refuse, branchWithinReach, orgWhere, seeService, seeVehicle, refuseDuringAssist } from '@/lib/authz/server';
+import { authorize, canSeeRecord, reachWhere, authorizeOnService, authorizeOnJobCard, refuse, branchWithinReach, orgWhere, seeService, seeVehicle, refuseDuringAssist } from '@/lib/authz/server';
 
 import { notifyGateOfRelease } from '@/lib/security-notify';
 import { customerTotal } from '@/lib/estimate-billing';
 import { prisma, type VehicleServiceStatus } from '@ejo/database';
 import { requireUser, createJobCard, currentUserIsMasterAdmin, requireJobCardApprover, listEligibleManagersForBranch, requireEligibleManager } from './workshop';
 import { writeAuditLog, getWorkshopBranchId, getWorkshopDepartmentForVehicleType, isEligibleSupervisor, getWorkshopOrgContext } from '@/lib/workshop-core';
-import { computeServiceCycle, historyAnchorId, loadServiceTracking, assertServiceNotEscalated, ESCALATION_CLAIM_MS, type WorkshopVisit } from '@/lib/vehicle-service-cycle';
+import { computeServiceCycle, historyAnchorId, jobCardAnchorId, serviceAnchorHref, SERVICE_JOB_CARD_WHERE, loadServiceTracking, assertServiceNotEscalated, ESCALATION_CLAIM_MS, type WorkshopVisit } from '@/lib/vehicle-service-cycle';
 import { custodyReminderState, notDueYetMessage } from '@/lib/custody-reminders';
 import { pluralize } from '@/lib/utils/pluralize';
 import { READY_FOR_COLLECTION_GRACE_WORKING_DAYS } from '@/lib/workshop-constants';
@@ -557,8 +557,8 @@ export async function getVehicleServiceHealth(vehicleId: string): Promise<Vehicl
     primaryServiceDate: t.lastService.date,
     serviceId: t.lastService.id,
     serviceNumber: t.lastService.serviceNumber,
-    /** Where the last service is: EJO's Vehicle Service page, or (a job card from SAP before EJO) the vehicle's workshop page. */
-    serviceHref: t.lastService.source === 'SAP' ? `/workshop/vehicles/${t.vehicleId}/edit#before-ejo` : `/workshop/vehicle-service/${t.lastService.id}`,
+    /** Where the last service is: EJO's Vehicle Service or service Job Card page, or (a job card from SAP before EJO) the vehicle's workshop page. */
+    serviceHref: serviceAnchorHref(t),
     kmRemaining: t.kmRemaining,
     daysRemaining: t.daysRemaining,
     attendedAt: t.attendedAt,
@@ -799,6 +799,17 @@ export async function attendToOverdueVehicle(serviceId: string): Promise<void> {
     if (job.attendedAt) throw new VehicleServiceActionError('This overdue prediction has already been attended to.');
     await prisma.historicalJob.update({ where: { id: job.id }, data: { attendedAt: new Date() } });
     await writeAuditLog({ userId: user.id, action: 'vehicle_service.attended_to', entityType: 'CustomerVehicle', entityId: job.vehicleId, metadata: { serviceNumber: `${job.jobNumber} (SAP, before EJO)` } });
+    return;
+  }
+  // A Job Card opened as a service: attended on the Job Card, after checking it is within reach.
+  const jcId = jobCardAnchorId(serviceId);
+  if (jcId) {
+    await authorizeOnJobCard('workshop.customer.manage', jcId, 'attendToOverdueVehicle');
+    const jc = await prisma.jobCard.findFirst({ where: { id: jcId, ...SERVICE_JOB_CARD_WHERE }, select: { id: true, jobNumber: true, serviceAttendedAt: true } });
+    if (!jc) throw new VehicleServiceActionError('That Job Card is not tracked for service.');
+    if (jc.serviceAttendedAt) throw new VehicleServiceActionError('This overdue prediction has already been attended to.');
+    await prisma.jobCard.update({ where: { id: jc.id }, data: { serviceAttendedAt: new Date() } });
+    await writeAuditLog({ userId: user.id, action: 'vehicle_service.attended_to', entityType: 'JobCard', entityId: jc.id, metadata: { serviceNumber: jc.jobNumber } });
     return;
   }
   // Only on a service within reach (never another branch's or organisation's).
@@ -1450,7 +1461,8 @@ export async function getServiceTracker(branchId: string) {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const [vehicles, remindersLast30Days, isMasterAdmin, managers] = await Promise.all([
     loadServiceTracking({ branchId }),
-    prisma.serviceReminderLog.count({ where: { sentAt: { gte: since }, vehicle: { vehicleServices: { some: { branchId } } } } }),
+    // Vehicles serviced at this branch: on a Vehicle Service or a service Job Card.
+    prisma.serviceReminderLog.count({ where: { sentAt: { gte: since }, vehicle: { OR: [{ vehicleServices: { some: { branchId } } }, { jobCards: { some: { branchId, isService: true } } }] } } }),
     currentUserIsMasterAdmin(),
     listEligibleManagersForBranch(branchId),
   ]);
@@ -1475,10 +1487,12 @@ export async function getServiceTracker(branchId: string) {
  * not to be reminded, or sold the vehicle). A reason is required and audited.
  * Tracking restarts with a fresh cycle at the next completed service.
  */
-/** Marks the current anchor's prediction handled: a Vehicle Service, or a job card from SAP before EJO (P4). */
+/** Marks the current anchor's prediction handled: a Vehicle Service, a service Job Card, or a job card from SAP before EJO (P4). */
 async function markAnchorAttended(serviceId: string, at: Date): Promise<void> {
   const hist = historyAnchorId(serviceId);
+  const jc = jobCardAnchorId(serviceId);
   if (hist) await prisma.historicalJob.update({ where: { id: hist }, data: { attendedAt: at } });
+  else if (jc) await prisma.jobCard.update({ where: { id: jc }, data: { serviceAttendedAt: at } });
   else await prisma.vehicleService.update({ where: { id: serviceId }, data: { attendedAt: at } });
 }
 

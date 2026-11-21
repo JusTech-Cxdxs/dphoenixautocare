@@ -30,3 +30,19 @@ export async function checkJobCardPrefill(p: JobCardPrefill | null): Promise<Che
     mileage: p.mileage ?? null,
   };
 }
+
+/**
+ * "Open a service Job Card" from a vehicle (/workshop/job-cards?service=1&vehicle=<id>):
+ * the vehicle and its owner, checked the same way (inside the person's
+ * organisation, for people who may open Job Cards). Only fills the form.
+ */
+export async function checkServiceVehiclePrefill(vehicleId: string | undefined): Promise<CheckedJobCardPrefill | null> {
+  if (!vehicleId || !/^[a-z0-9]{20,40}$/.test(vehicleId)) return null;
+  if (!(await allows('workshop.job_card.create'))) return null;
+  const vehicle = await prisma.customerVehicle.findFirst({
+    where: { id: vehicleId, customer: await orgWhere() },
+    select: { id: true, customer: { select: { id: true, fullName: true } } },
+  });
+  if (!vehicle) return null;
+  return { customer: { id: vehicle.customer.id, label: vehicle.customer.fullName }, vehicleId: vehicle.id, complaints: ['Routine service'], mileage: null };
+}

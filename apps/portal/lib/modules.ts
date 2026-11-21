@@ -56,6 +56,9 @@ export const EDITION_FEATURES = {
   // The public marketing website (store, offers, refer and earn, news): the
   // website app is the customer portal only in this edition.
   publicWebsite: false,
+  // A separate Vehicle Service flow for new work: services are opened as a
+  // Job Card with Service ticked; old Vehicle Services stay readable.
+  separateVehicleService: false,
 } as const;
 export type EditionFeature = keyof typeof EDITION_FEATURES;
 

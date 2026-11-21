@@ -1,13 +1,14 @@
-import { prisma } from '@ejo/database';
-import { calculateNextServiceDue } from '@/lib/vehicle-service-due';
-import { onOrAfterWorkingDay, addWorkingDays } from '@/lib/utils/working-days';
+import { prisma, type Prisma } from '@ejo/database';
+import { serviceCycleFrom } from '@ejo/utils';
+import { addWorkingDays } from '@/lib/utils/working-days';
 
 /**
- * The next-service clock for Vehicle Services.
+ * The next-service clock for Vehicle Services and service Job Cards.
  *
  * Every completed service starts the count, anchored on the service's
  * odometer reading and completion date. The interval is the vehicle's own
  * (manufacturer) interval when set, otherwise the organisation's default.
+ * A Job Card opened as a service (isService) does the same once checked out.
  *
  * Not a 'use server' file: these functions write data without authorising,
  * so they must never be callable endpoints. Callers (loaders, the status
@@ -25,20 +26,12 @@ type IntervalSource = {
   branch: { businessUnit: { organisation: { primaryServiceIntervalKm: number | null; primaryServiceIntervalDays: number | null } } };
 };
 
-/** The anchor + prediction one completed visit establishes. */
+/** The anchor + prediction one completed visit establishes. The maths is
+ * shared with the customer portal (@ejo/utils), so both show the same due point. */
 export function computeServiceCycle(odometer: number | null, completedAt: Date, source: IntervalSource) {
-  const org = source.branch.businessUnit.organisation;
-  // The vehicle's own interval, when set, overrides the organisation default.
-  const intervalKm = source.vehicle.serviceIntervalKm ?? org.primaryServiceIntervalKm;
-  const intervalDays = source.vehicle.serviceIntervalDays ?? org.primaryServiceIntervalDays;
-  const next = calculateNextServiceDue(odometer, completedAt, intervalKm, intervalDays);
-  return {
-    primaryServiceMileage: odometer,
-    primaryServiceDate: completedAt,
-    nextServiceDueOdometer: next.dueOdometer,
-    // A weekend due date rolls to the Monday.
-    nextServiceDueDate: next.dueDate ? onOrAfterWorkingDay(next.dueDate) : null,
-  };
+  // The vehicle's own interval, when set, overrides the organisation default;
+  // a weekend due date rolls to the Monday.
+  return serviceCycleFrom(odometer, completedAt, { vehicle: source.vehicle, organisation: source.branch.businessUnit.organisation });
 }
 
 /**
@@ -243,7 +236,7 @@ export type TrackedVehicle = {
   customerId?: string;
   customerName: string;
   customerEmail: string | null;
-  /** The completed visit whose prediction is current. From EJO (a Vehicle Service), or a job card from SAP before EJO (P4) — then the id is "hist:<id>". */
+  /** The completed visit whose prediction is current. From EJO (a Vehicle Service, or a service Job Card — then the id is "jc:<id>"), or a job card from SAP before EJO (P4) — then the id is "hist:<id>". */
   lastService: { id: string; serviceNumber: string; date: Date | null; mileage: number | null; source: 'EJO' | 'SAP' };
   nextServiceDueOdometer: number | null;
   nextServiceDueDate: Date | null;
@@ -310,10 +303,99 @@ async function historyAnchors(scope: { branchId?: string; vehicleId?: string }, 
 export const historyAnchorId = (serviceId: string): string | null => (serviceId.startsWith('hist:') ? serviceId.slice(5) : null);
 
 /**
+ * Job Cards that start the next-service count: opened as a service, checked
+ * out (the vehicle left), never an approved cancellation (a hand-back is no
+ * service), never one escalated from a Vehicle Service (that service row
+ * carries the count, from the same checkout).
+ */
+export const SERVICE_JOB_CARD_WHERE = {
+  isService: true,
+  status: { in: ['CHECKED_OUT', 'CLOSED'] },
+  checkedOutAt: { not: null },
+  cancellationRequests: { none: { status: 'APPROVED' } },
+  escalatedFromVehicleService: { is: null },
+} satisfies Prisma.JobCardWhereInput;
+
+/** The id of a service anchor that is a service Job Card: "jc:<id>" → the JobCard id, else null. */
+export const jobCardAnchorId = (serviceId: string): string | null => (serviceId.startsWith('jc:') ? serviceId.slice(3) : null);
+
+/** Where a service anchor is shown: a job card from SAP before EJO on the vehicle's page, a service Job Card on its page, else the Vehicle Service. */
+export function serviceAnchorHref(anchor: { vehicleId: string; lastService: { id: string; source: 'EJO' | 'SAP' } }): string {
+  if (anchor.lastService.source === 'SAP') return `/workshop/vehicles/${anchor.vehicleId}/edit#before-ejo`;
+  const jc = jobCardAnchorId(anchor.lastService.id);
+  return jc ? `/workshop/job-cards/${jc}` : `/workshop/vehicle-service/${anchor.lastService.id}`;
+}
+
+/** The next-service point one service Job Card sets (null when it does not qualify, or no interval is configured). */
+export async function serviceJobCardCycle(jobCardId: string) {
+  const jc = await prisma.jobCard.findFirst({
+    where: { id: jobCardId, ...SERVICE_JOB_CARD_WHERE },
+    select: { mileageAtCheckIn: true, checkedOutAt: true, ...CYCLE_SOURCE_SELECT },
+  });
+  if (!jc?.checkedOutAt) return null;
+  const cycle = computeServiceCycle(jc.mileageAtCheckIn, jc.checkedOutAt, jc);
+  return cycle.nextServiceDueOdometer === null && cycle.nextServiceDueDate === null ? null : cycle;
+}
+
+/**
+ * Job Cards opened as a service (SERVICE_JOB_CARD_WHERE), as service anchors:
+ * the latest checked-out one per vehicle, anchored on its check-in mileage and
+ * checkout date, with the interval rules of computeServiceCycle. Shaped like a
+ * Vehicle Service row so the tracker treats both alike; the id is
+ * "jc:<job card id>" and "attended" is the Job Card's serviceAttendedAt.
+ * Fenced like the service rows (branch, or one vehicle).
+ */
+async function jobCardAnchors(scope: { branchId?: string; vehicleId?: string }) {
+  const cards = await prisma.jobCard.findMany({
+    where: {
+      ...(scope.branchId ? { branchId: scope.branchId } : {}),
+      ...(scope.vehicleId ? { vehicleId: scope.vehicleId } : {}),
+      ...SERVICE_JOB_CARD_WHERE,
+    },
+    orderBy: { checkedOutAt: 'desc' },
+    select: {
+      id: true,
+      vehicleId: true,
+      jobNumber: true,
+      mileageAtCheckIn: true,
+      checkedOutAt: true,
+      serviceAttendedAt: true,
+      customer: { select: { id: true, fullName: true, email: true } },
+      vehicle: { select: { make: true, model: true, year: true, plateNumber: true, mileage: true, vehicleType: true, serviceIntervalKm: true, serviceIntervalDays: true } },
+      branch: CYCLE_SOURCE_SELECT.branch,
+    },
+  });
+  const out = [];
+  const seen = new Set<string>();
+  for (const j of cards) {
+    if (seen.has(j.vehicleId) || !j.checkedOutAt) continue;
+    seen.add(j.vehicleId);
+    const cycle = computeServiceCycle(j.mileageAtCheckIn, j.checkedOutAt, j);
+    if (cycle.nextServiceDueOdometer === null && cycle.nextServiceDueDate === null) continue;
+    const v = j.vehicle;
+    out.push({
+      id: `jc:${j.id}`, vehicleId: j.vehicleId, serviceNumber: j.jobNumber, attendedAt: j.serviceAttendedAt,
+      primaryServiceDate: cycle.primaryServiceDate as Date | null, primaryServiceMileage: cycle.primaryServiceMileage, nextServiceDueOdometer: cycle.nextServiceDueOdometer, nextServiceDueDate: cycle.nextServiceDueDate,
+      customer: j.customer, vehicle: { make: v.make, model: v.model, year: v.year, plateNumber: v.plateNumber, mileage: v.mileage, vehicleType: v.vehicleType }, escalatedToJobCard: null,
+    });
+  }
+  return out;
+}
+
+/** Whether a newer anchor replaces the current one: the later anchor date wins (an undated anchor never replaces a dated one). */
+export function laterAnchor(current: { primaryServiceDate: Date | null } | undefined, candidate: { primaryServiceDate: Date | null }): boolean {
+  if (!current) return true;
+  if (!candidate.primaryServiceDate) return false;
+  if (!current.primaryServiceDate) return true;
+  return new Date(candidate.primaryServiceDate).getTime() > new Date(current.primaryServiceDate).getTime();
+}
+
+/**
  * Every vehicle's CURRENT service prediction (its most recent completed
  * visit), with its live due status, whether it's back in the workshop,
  * and this cycle's reminder history. Starts the count for any older
- * service first, so nothing is missed. Vehicles whose last service was a
+ * service first, so nothing is missed. A service Job Card counts like a
+ * Vehicle Service (the later one wins). Vehicles whose last service was a
  * job card in SAP before EJO are tracked from that job card (P4).
  */
 export async function loadServiceTracking(scope: { branchId?: string; vehicleId?: string } = {}): Promise<TrackedVehicle[]> {
@@ -342,6 +424,8 @@ export async function loadServiceTracking(scope: { branchId?: string; vehicleId?
   // Only the latest prediction per vehicle counts.
   const latest = new Map<string, (typeof services)[number]>();
   for (const s of services) if (!latest.has(s.vehicleId)) latest.set(s.vehicleId, s);
+  // Job Cards opened as a service: the later of the two anchors wins.
+  for (const j of await jobCardAnchors(scope)) if (laterAnchor(latest.get(j.vehicleId), j)) latest.set(j.vehicleId, j);
   // Vehicles EJO has not serviced yet, whose last service was a job card in SAP before EJO (P4): that job card anchors the clock, with the same interval rules.
   const fromSap = await historyAnchors(scope, new Set(latest.keys()));
   for (const h of fromSap) latest.set(h.vehicleId, h);

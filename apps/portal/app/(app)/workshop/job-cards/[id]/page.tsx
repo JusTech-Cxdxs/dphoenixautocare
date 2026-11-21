@@ -47,6 +47,8 @@ import { CustomerLink } from '@/components/CustomerLink';
 import { RefineTextButton } from '@/components/enyo/RefineTextButton';
 import { SapTrail } from '@/components/data-exchange/SapTrail';
 import { featureOn, moduleIsOn } from '@/lib/modules';
+import { serviceJobCardCycle } from '@/lib/vehicle-service-cycle';
+import { ServiceJobCardBadge } from '@/components/ServiceJobCardBadge';
 
 // Switched per edition (the D'Phoenix Autocare edition has no Store, Warranty
 // or outside-purchase approvals): their parts of this page are hidden, the
@@ -393,6 +395,8 @@ export default async function JobCardDetailPage({
     existingExternalProcurementRequests: EPR_ON ? sourcingFound.existingExternalProcurementRequests : [],
   };
   const origin = jobCard.importJobId ? await getImportOrigin(jobCard.importJobId).catch(() => null) : null;
+  // A Job Card opened as a service, once checked out: the next-service point it set.
+  const nextService = jobCard.isService && jobCard.checkedOutAt ? await serviceJobCardCycle(id).catch(() => null) : null;
   // Customer names link to their Customers (CRM) page for those who may open it.
   const canSeeCustomers = await allows('crm.view');
   // Round 2: what needs the branch or the estimate.
@@ -534,6 +538,7 @@ export default async function JobCardDetailPage({
       <div className="ejo-hero relative mt-3 mb-6 flex flex-wrap items-center gap-3 overflow-hidden rounded-[var(--ejo-radius-xl)] border border-[var(--ejo-border)] p-4 sm:p-5">
         <div className="ejo-orb pointer-events-none absolute -right-12 -top-16 h-40 w-40 rounded-full bg-[var(--ejo-primary)]/15 blur-3xl" aria-hidden="true" />
         <PageTitle icon="clipboard" className="relative mr-1">{jobCard.jobNumber}</PageTitle>
+        {jobCard.isService ? <ServiceJobCardBadge className="relative text-xs" /> : null}
         <StatusChip status={jobCard.status} label={STATUS_LABEL[jobCard.status]} />
         <StatusChip tone={jobCard.approvalStatus === 'APPROVED' ? 'success' : jobCard.approvalStatus === 'REJECTED' ? 'error' : 'warning'} className="max-w-full whitespace-normal">
           {jobCard.approvalStatus === 'APPROVED'
@@ -592,6 +597,20 @@ export default async function JobCardDetailPage({
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
+          {nextService ? (
+            <div data-testid="job-card-next-service" className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-info)]/30 bg-[var(--ejo-info)]/5 p-6">
+              <h2 className="text-sm font-semibold text-[var(--ejo-text)]">Next service due</h2>
+              <p className="mt-2 text-sm text-[var(--ejo-text)]">
+                {nextService.nextServiceDueOdometer ? `${nextService.nextServiceDueOdometer.toLocaleString('en-NG')} km` : null}
+                {nextService.nextServiceDueOdometer && nextService.nextServiceDueDate ? ' or ' : null}
+                {nextService.nextServiceDueDate ? formatDateOnly(nextService.nextServiceDueDate) : null}
+                {' — whichever comes first.'}
+              </p>
+              <p className="mt-2 text-xs text-[var(--ejo-text-muted)]">
+                Based on this service{nextService.primaryServiceMileage != null ? ` at ${nextService.primaryServiceMileage.toLocaleString('en-NG')} km` : ''}, checked out on {formatDateOnly(nextService.primaryServiceDate)}. The Service Tracker follows it from here.
+              </p>
+            </div>
+          ) : null}
           <div className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-6">
             <h2 className="text-sm font-semibold text-[var(--ejo-text)]">Customer & vehicle</h2>
             <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">

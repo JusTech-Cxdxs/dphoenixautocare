@@ -146,6 +146,8 @@ export async function createJobCardFormAction(formData: FormData) {
       complaints: formData.getAll('complaints').map((v) => String(v)),
       supervisorId: str(formData, 'supervisorId'),
       mileageAtCheckIn: num(formData, 'mileageAtCheckIn'),
+      // "What is this visit for?" — a routine service starts the next-service count at checkout.
+      isService: str(formData, 'visitType') === 'SERVICE',
     });
     jobCardId = jobCard.id;
   } catch (err) {

@@ -19,7 +19,8 @@ import { LiveSearchInput } from '@/components/LiveSearchInput';
 import { BackLink, PageHeader, StatusChip } from '@/components/ui';
 import { CustomerLink } from '@/components/CustomerLink';
 import { parseJobCardPrefill } from '@/lib/enyo/prefill';
-import { checkJobCardPrefill } from '@/lib/enyo/prefill-server';
+import { checkJobCardPrefill, checkServiceVehiclePrefill } from '@/lib/enyo/prefill-server';
+import { ServiceJobCardBadge } from '@/components/ServiceJobCardBadge';
 import { ExportAction } from '@/components/ExportAction';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -39,14 +40,18 @@ const STATUS_LABEL: Record<string, string> = {
 export default async function WorkshopJobCardsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; type?: string; status?: string; error?: string; outcome?: string; binned?: string; prefill?: string; customerId?: string; vehicleId?: string; complaint?: string | string[]; mileage?: string }>;
+  searchParams: Promise<{ q?: string; type?: string; status?: string; error?: string; outcome?: string; binned?: string; prefill?: string; customerId?: string; vehicleId?: string; complaint?: string | string[]; mileage?: string; service?: string; vehicle?: string }>;
 }) {
   await guardAnyPage(['workshop.view'], '/workshop');
   const sp = await searchParams;
   const { q, type, error, outcome: rawOutcome, binned } = sp;
   // A form prepared by Enyo: validated, checked against this person's
   // organisation and rights, and only ever filled in — never submitted.
-  const prefill = await checkJobCardPrefill(parseJobCardPrefill(sp));
+  const enyoPrefill = await checkJobCardPrefill(parseJobCardPrefill(sp));
+  // "Open a service Job Card" from a vehicle (?service=1&vehicle=<id>): Service
+  // is chosen, and the vehicle and its owner filled in (checked the same way).
+  const forService = sp.service === '1';
+  const prefill = enyoPrefill ?? (forService ? await checkServiceVehiclePrefill(sp.vehicle) : null);
   // Customer names link to their Customers (CRM) page for those who may open it.
   const canSeeCustomers = await allows('crm.view');
   const outcomeFilter = parseOutcomeFilter(rawOutcome);
@@ -121,6 +126,7 @@ export default async function WorkshopJobCardsPage({
                       <LoadingLink href={`/workshop/job-cards/${jc.id}`} className="text-[var(--ejo-primary)] hover:underline">
                         {jc.jobNumber}
                       </LoadingLink>
+                      {jc.isService ? <ServiceJobCardBadge className="mt-1 block" /> : null}
                       {jc.escalatedFromVehicleService ? (
                         <LoadingLink
                           href={`/workshop/vehicle-service/${jc.escalatedFromVehicleService.id}`}
@@ -159,13 +165,27 @@ export default async function WorkshopJobCardsPage({
 
         <div id="open-job-card" className="h-fit rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-5 xl:sticky xl:top-6 scroll-mt-20">
           <h2 className="text-sm font-semibold text-[var(--ejo-text)]">Open Job Card</h2>
-          {prefill ? (
+          {enyoPrefill ? (
             <p role="status" className="mt-3 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-primary)]/30 bg-[var(--ejo-primary)]/5 px-3 py-2 text-xs text-[var(--ejo-text)]">
               Prepared by Enyo. Check the details, choose the supervisor and press &ldquo;Open Job Card&rdquo; — nothing is saved until you do.
             </p>
           ) : null}
           <form action={createJobCardFormAction} className="mt-4 space-y-3">
             <FormPendingOverlay />
+            <fieldset>
+              <legend className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">What is this visit for?</legend>
+              <div className="flex gap-4 text-sm text-[var(--ejo-text)]">
+                <label className="flex items-center gap-2">
+                  <input type="radio" name="visitType" value="REPAIR" defaultChecked={!forService} data-testid="visit-type-repair" />
+                  Repair
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="radio" name="visitType" value="SERVICE" defaultChecked={forService} data-testid="visit-type-service" />
+                  Service
+                </label>
+              </div>
+              <p className="mt-1 text-xs text-[var(--ejo-text-muted)]">A routine service starts the vehicle&rsquo;s next-service count when it is checked out. Enter the mileage so the next service can be worked out by distance too.</p>
+            </fieldset>
             <CustomerVehiclePicker initialCustomer={prefill?.customer} initialVehicleId={prefill?.vehicleId} />
             <div>
               <label htmlFor="job-card-mileage" className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Mileage at check-in (km)</label>

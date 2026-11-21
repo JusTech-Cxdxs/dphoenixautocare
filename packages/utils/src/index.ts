@@ -31,3 +31,5 @@ export function buildDocumentCode(
 export function formatCurrency(amount: number, currency: string = 'NGN'): string {
   return new Intl.NumberFormat('en-NG', { style: 'currency', currency }).format(amount);
 }
+
+export { calculateNextServiceDue, serviceCycleFrom, onOrAfterWorkingDay as onOrAfterLagosWorkingDay, type NextServiceDue, type ServiceIntervalSource } from './service-cycle';
