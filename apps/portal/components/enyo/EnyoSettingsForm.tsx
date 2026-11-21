@@ -159,7 +159,7 @@ export function EnyoSettingsForm({ initial, provider }: { initial: EnyoAdminSett
             <div className="min-w-0"><dt className="text-xs text-[var(--ejo-text-muted)]">Model</dt><dd className="mt-0.5 truncate font-mono text-xs text-[var(--ejo-text)]" title={provider.model}>{provider.model ?? '—'}</dd></div>
           </dl>
         ) : (
-          <p className="mt-2 text-sm text-[var(--ejo-text)]">No model is set up yet. Your IT team adds ENYO_LLM_BASE_URL, ENYO_LLM_MODEL and ENYO_LLM_API_KEY to the server settings; Enyo stays hidden until then.</p>
+          <p className="mt-2 text-sm text-[var(--ejo-text)]">No model is set up yet. Your IT team adds ENYO_LLM_PROVIDER=anthropic and ENYO_LLM_API_KEY (an Anthropic Console API key) to the server settings, or, for another provider, ENYO_LLM_BASE_URL, ENYO_LLM_MODEL and ENYO_LLM_API_KEY; Enyo stays hidden until then.</p>
         )}
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button type="button" onClick={runTest} disabled={testing || !provider.configured} className="min-h-11 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-4 text-sm font-medium text-[var(--ejo-text)] hover:border-[var(--ejo-primary)] disabled:opacity-50">

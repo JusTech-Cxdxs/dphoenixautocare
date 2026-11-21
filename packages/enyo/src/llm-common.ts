@@ -15,6 +15,8 @@ export class LlmError extends Error {
     public readonly detail?: string,
     /** The model server's error code, e.g. "invalid_api_key", "model_not_found", "tool_use_failed". */
     public readonly code?: string,
+    /** Which kind of provider answered ("anthropic"), so the administrator's message names the right settings. */
+    public readonly provider?: 'anthropic',
   ) {
     super(message);
     this.name = 'LlmError';
@@ -88,6 +90,7 @@ export function llmErrorMessage(kind: LlmErrorKind): string {
 
 /** For administrators (the connection test): what is wrong and what to change. Never includes the key. */
 export function llmAdminMessage(err: LlmError): string {
+  if (err.provider === 'anthropic') return anthropicAdminMessage(err);
   const why = err.detail ? ` The model server said: "${err.detail}"` : '';
   const status = err.status ? ` (HTTP ${err.status})` : '';
   switch (err.kind) {
@@ -98,6 +101,27 @@ export function llmAdminMessage(err: LlmError): string {
     case 'unavailable': return `The model server could not be reached or had an error${status}. Check ENYO_LLM_BASE_URL and that the provider is up.${why}`;
     case 'timeout': return 'The model server took too long to answer. Try again; if it keeps happening, choose a faster model or raise ENYO_LLM_TIMEOUT_MS.';
     case 'bad_response': return `The model server answered in an unexpected format. Check that ENYO_LLM_BASE_URL points at an OpenAI-compatible endpoint.${why}`;
+    default: return llmErrorMessage(err.kind);
+  }
+}
+
+/** The same, for Anthropic: the settings to check and where in the Anthropic Console. */
+function anthropicAdminMessage(err: LlmError): string {
+  const why = err.detail ? ` Anthropic said: "${err.detail}"` : '';
+  const status = err.status ? ` (HTTP ${err.status})` : '';
+  switch (err.kind) {
+    case 'auth':
+      if (err.status === 402 || err.code === 'billing_error') return `Anthropic reports a billing problem${status}. Add a payment method or credits in console.anthropic.com → Billing, then test again.${why}`;
+      if (err.status === 403) return `Anthropic says this key may not do that${status}. Check the key's workspace and its access in console.anthropic.com.${why}`;
+      return `Anthropic refused the key${status}. Check ENYO_LLM_API_KEY: an API key from console.anthropic.com → API Keys (it starts with sk-ant-), pasted with no quotes or spaces and not deleted, then redeploy.${why}`;
+    case 'not_found': return `Anthropic does not offer that model to this key${status}. Check ENYO_LLM_MODEL and ENYO_LLM_FAST_MODEL (for example claude-opus-5-5 and claude-haiku-5-5, exactly as written), then redeploy.${why}`;
+    case 'rejected': return `Anthropic rejected the request${status}. Check that ENYO_LLM_MODEL and ENYO_LLM_FAST_MODEL are current Claude models.${why}`;
+    case 'rate_limited':
+      if (err.code === 'enforced_spend_limit_reached') return `The spend limit for this Anthropic account has been reached${status}. Raise it in console.anthropic.com → Limits, or wait for the next month.${why}`;
+      return `Anthropic says too many requests${status}. Wait a minute and test again; the account's rate limits are in console.anthropic.com → Limits.${why}`;
+    case 'unavailable': return `Anthropic could not be reached or is busy${status}. Try again in a few minutes; status.anthropic.com shows any incident.${why}`;
+    case 'timeout': return 'Anthropic took too long to answer. Try again; if it keeps happening, set ENYO_LLM_EFFORT=low or raise ENYO_LLM_TIMEOUT_MS.';
+    case 'bad_response': return `Anthropic answered in an unexpected format. If ENYO_LLM_BASE_URL is set, remove it (it is not needed for Anthropic).${why}`;
     default: return llmErrorMessage(err.kind);
   }
 }

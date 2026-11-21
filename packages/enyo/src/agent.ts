@@ -86,17 +86,23 @@ export async function runAgent<Ctx>(o: AgentOptions<Ctx>): Promise<AgentResult> 
   const outOfTime = () => deadline.aborted && !o.signal?.aborted;
 
   for (let step = 0; step < maxSteps; step += 1) {
-    // The last step offers no tools, so the model must answer with what it has.
+    // The last step allows no tool calls, so the model must answer with what it has. The tools
+    // stay declared (an OpenAI-compatible request leaves them out), so the request matches
+    // the earlier steps of the same answer.
     const lastStep = step === maxSteps - 1 || calls >= maxToolCalls;
     let text = '';
     let toolCalls: ToolCall[] = [];
+    let providerContent: unknown[] | undefined;
+    let refusal: string | undefined;
     try {
-      for await (const piece of stream(config, { messages: convo, tools: lastStep ? undefined : specs, signal }, o.fetchImpl)) {
+      for await (const piece of stream(config, { messages: convo, tools: specs, toolChoice: lastStep ? 'none' : 'auto', signal }, o.fetchImpl)) {
         if (piece.type === 'text') {
           text += piece.text;
           o.emit({ type: 'text', text: piece.text });
         } else {
           toolCalls = piece.completion.toolCalls;
+          providerContent = piece.completion.providerContent;
+          if (piece.completion.finishReason === 'refusal') refusal = piece.completion.content;
           usage.tokensIn += piece.completion.usage.tokensIn;
           usage.tokensOut += piece.completion.usage.tokensOut;
           model = piece.completion.model;
@@ -140,6 +146,13 @@ export async function runAgent<Ctx>(o: AgentOptions<Ctx>): Promise<AgentResult> 
       return { answer: stripCitationMarks(answer + text), transcript, toolRuns, sources, drafts, usage, model, unverified: [], error: { kind, message, ...extra } };
     }
 
+    // Declined: the polite sentence is the answer, not whatever was said before it.
+    if (refusal !== undefined) {
+      answer += refusal;
+      transcript.push({ role: 'assistant', content: refusal });
+      break;
+    }
+
     if (!toolCalls.length) {
       answer += text;
       transcript.push({ role: 'assistant', content: text });
@@ -149,7 +162,8 @@ export async function runAgent<Ctx>(o: AgentOptions<Ctx>): Promise<AgentResult> 
     // Text before a tool call ("Let me check…") stays part of the answer.
     answer += text ? `${text}\n\n` : '';
     if (text) o.emit({ type: 'text', text: '\n\n' });
-    const assistantTurn: ChatMessage = { role: 'assistant', content: text, toolCalls };
+    // The model's own turn goes back to it exactly as it came (providerContent), for the rest of this answer.
+    const assistantTurn: ChatMessage = { role: 'assistant', content: text, toolCalls, ...(providerContent ? { providerContent } : {}) };
     convo.push(assistantTurn);
     transcript.push(assistantTurn);
 
@@ -163,8 +177,13 @@ export async function runAgent<Ctx>(o: AgentOptions<Ctx>): Promise<AgentResult> 
       let result: ToolResult;
       let args: Record<string, unknown> = {};
       const started = Date.now();
+      let invalidInput = false;
       if (!tool) {
         result = { ok: false, message: `There is no tool called "${call.name}".` };
+      } else if (call.invalidInput) {
+        // Cut off or not the shape the tool asks for: not run, and the model sees what it sent.
+        invalidInput = true;
+        result = { ok: false, message: 'Invalid input.' };
       } else if (calls > maxToolCalls) {
         result = { ok: false, message: 'Too many lookups for one question. Answer with what you have.' };
       } else {
@@ -205,8 +224,10 @@ export async function runAgent<Ctx>(o: AgentOptions<Ctx>): Promise<AgentResult> 
       }
       const content = result.ok
         ? clip(JSON.stringify(result.data), maxToolChars)
-        : JSON.stringify({ error: result.message, ...(refused ? { refused: true } : {}) });
-      const toolTurn: ChatMessage = { role: 'tool', toolCallId: call.id, name: call.name, content };
+        : invalidInput
+          ? JSON.stringify({ INVALID_JSON: clip(call.arguments, maxToolChars) })
+          : JSON.stringify({ error: result.message, ...(refused ? { refused: true } : {}) });
+      const toolTurn: ChatMessage = { role: 'tool', toolCallId: call.id, name: call.name, content, ...(result.ok ? {} : { isError: true }) };
       convo.push(toolTurn);
       transcript.push(toolTurn);
     }
