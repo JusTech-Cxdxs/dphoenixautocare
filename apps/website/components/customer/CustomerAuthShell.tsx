@@ -14,7 +14,7 @@ const HIGHLIGHTS: { title: string; text: string; icon: IconName }[] = [
   { title: 'Warranties', text: 'What is covered, for how long, and how to claim.', icon: 'shield' },
   { title: 'Service reminders', text: 'When your next service is due, before it is late.', icon: 'calendarCheck' },
   { title: 'Ask Enyo, any time', text: 'Our assistant answers about your own vehicles, day or night.', icon: 'sparkles' },
-  { title: 'Talk to a person', text: 'Open a request or complaint; our customer care replies by email or phone.', icon: 'chat' },
+  { title: 'Talk to a person', text: 'Open a request or complaint; our customer care replies by WhatsApp, email or phone.', icon: 'chat' },
 ].filter((h) => moduleOn('warranty') || h.title !== 'Warranties');
 
 const STEPS = ['Checked in', 'Estimate approved', 'Work in progress', 'Quality check', 'Ready to collect'];
@@ -31,17 +31,17 @@ export function CustomerAuthShell({ title, subtitle, children, footer }: { title
   return (
     <main className="flex min-h-[100dvh] flex-col bg-[var(--ejo-bg)] lg:flex-row">
       {/* Brand panel — large screens */}
-      <section className="relative hidden w-[46%] flex-col justify-between overflow-hidden bg-[var(--ejo-secondary)] p-12 text-white lg:flex xl:p-16" aria-label={siteConfig.companyShortName}>
+      <section className="relative hidden w-[46%] flex-col justify-between gap-10 overflow-hidden bg-[var(--ejo-secondary)] p-12 text-white lg:flex xl:p-16" aria-label={siteConfig.companyShortName}>
         <div className="ejo-media-placeholder absolute inset-0 opacity-50" aria-hidden="true" />
         <div className="ejo-orb pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-[var(--ejo-brand)]/25 blur-3xl" aria-hidden="true" />
         <div className="ejo-orb-slow pointer-events-none absolute -bottom-32 -left-20 h-80 w-80 rounded-full bg-[var(--ejo-accent)]/15 blur-3xl" aria-hidden="true" />
-        <div className="ejo-rise relative">
+        <div className="ejo-rise relative flex items-center justify-between gap-4">
           <Wordmark name={siteConfig.companyShortName} size="lg" tone="onDark" />
+          <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-medium text-white/70">Customer portal</span>
         </div>
 
         <div className="ejo-rise relative max-w-md" style={{ animationDelay: '80ms' }}>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ejo-accent)]">Customer portal</p>
-          <h2 className="mt-3 text-[2rem] font-bold leading-tight xl:text-4xl">Your vehicle, every step of the way.</h2>
+          <h2 className="text-[2rem] font-bold leading-tight xl:text-4xl">Your vehicle, every step of the way.</h2>
           <p className="mt-3 text-sm leading-relaxed text-white/70">Track your repairs and services, approve estimates, see what you owe and when your car is ready to collect — any time, from any device.</p>
           <ul className="mt-7 grid grid-cols-2 gap-x-5 gap-y-4">
             {HIGHLIGHTS.map((h, i) => (
@@ -70,12 +70,12 @@ export function CustomerAuthShell({ title, subtitle, children, footer }: { title
           </div>
           <p className="mt-6 flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/55">
             <span className="inline-flex items-center gap-1.5"><Icon name="lock" size={12} />Your records are private to you</span>
-            <span className="inline-flex items-center gap-1.5"><Icon name="mail" size={12} />Updates by email too</span>
+            <span className="inline-flex items-center gap-1.5"><Icon name="mail" size={12} />Updates by email and WhatsApp</span>
             {siteConfig.contact?.phone ? <span className="inline-flex items-center gap-1.5"><Icon name="phone" size={12} />{siteConfig.contact.phone}</span> : null}
           </p>
         </div>
 
-        <div className="ejo-rise relative flex items-end justify-between gap-6" style={{ animationDelay: '240ms' }}>
+        <div className="ejo-rise relative flex items-end justify-between gap-6 border-t border-white/10 pt-6" style={{ animationDelay: '240ms' }}>
           <PoweredByEjo tone="onDark" size="lg" />
           <p className="text-xs text-white/40">© {year} {siteConfig.companyShortName}</p>
         </div>
