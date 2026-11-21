@@ -1,0 +1,348 @@
+import { humanizeAction } from '@/lib/humanize-action';
+
+/** Readable audit wording for every Security action. */
+export const SECURITY_ACTION_LABEL: Record<string, string> = {
+  'visit.pre_registered': 'Visit booked',
+  'visit.booking_changed': 'Booking changed',
+  'visit.booking_expired': 'Booking removed — the visitor did not come',
+  'visit.arrived': 'Recorded at the gate — pass issued',
+  'visit.checked_in': 'Checked in at the gate — pass issued',
+  'visit.received': 'Received at reception — host told',
+  'visit.extended': 'Stay extended',
+  'visit.checked_out': 'Checked out',
+  'visit.cancelled': 'Booking cancelled and removed',
+  'visit.overdue': 'Stayed longer than expected',
+  'exit_pass.requested': 'Exit pass requested',
+  'exit_pass.head_authorised': 'Authorised by the Department Head',
+  'exit_pass.manager_approved': 'Approved by the Manager',
+  'exit_pass.declined': 'Declined',
+  'exit_pass.cancelled': 'Cancelled',
+  'exit_pass.gate_out': 'Time out recorded at the gate',
+  'exit_pass.gate_in': 'Time in recorded at the gate',
+  'exit_pass.overdue': 'Not back on time',
+  'exit_pass.extended': 'Return time extended',
+  'security.follow_up': 'Follow-up',
+  'security.email_sent': 'Email sent',
+  'security.email_failed': 'Email could not be sent',
+  'vehicle.gate_exit': 'Vehicle left through the gate',
+  'incident.reported': 'Incident reported',
+  'reminder.created': 'Reminder set',
+  'reminder.changed': 'Reminder changed',
+  'reminder.snoozed': 'Reminder snoozed',
+  'reminder.done': 'Reminder marked done',
+  'reminder.cancelled': 'Reminder cancelled',
+  'reminder.sent': 'Reminder delivered',
+  'reminder.delegate_granted': 'Allowed a colleague to set reminders',
+  'reminder.delegate_withdrawn': 'Withdrew a colleague\'s permission to set reminders',
+  'mailbox.connected': 'Work mailbox connected',
+  'mailbox.reconnected': 'Work mailbox password updated',
+  'mailbox.disconnected': 'Work mailbox disconnected (stored copies deleted)',
+  'mailbox.ai_consent_given': 'Allowed Enyo to sort and summarise email',
+  'mailbox.ai_consent_declined': 'Chose not to let Enyo read email',
+  'mailbox.ai_consent_withdrawn': 'Withdrew Enyo\'s access to email (summaries deleted)',
+  'broadcast.created': 'Broadcast published',
+  'broadcast.stopped': 'Broadcast stopped',
+  'broadcast.reactivated': 'Broadcast reactivated',
+  'broadcast.deleted': 'Broadcast deleted',
+  'broadcast.emailed': 'Broadcast emailed',
+  'contractor.requested': 'Contractor pass requested',
+  'contractor.approved': 'Contractor pass approved by the Manager',
+  'contractor.declined': 'Contractor pass declined',
+  'contractor.cancelled': 'Contractor pass cancelled',
+  'contractor.revoked': 'Contractor pass revoked',
+  'contractor.signed_in': 'Contractors signed in',
+  'contractor.signed_out': 'Contractors signed out',
+  'appointment.visitors_added': 'Visitors added',
+  'appointment.visitors_changed': 'Visitors changed',
+  'appointment.visitors_removed': 'Visitors removed',
+  'incident.linked': 'Incident reported about this record',
+  'incident.assigned': 'Incident assigned',
+  'incident.closed': 'Incident closed',
+  'incident.reopened': 'Incident reopened',
+  'delivery.expected': 'Delivery announced',
+  'delivery.arrived': 'Delivery arrived at the gate',
+  'delivery.received': 'Received by the Store',
+  'delivery.left': 'Delivery vehicle left',
+  'delivery.cancelled': 'Delivery cancelled',
+  'appointment.created': 'Appointment booked',
+  'appointment.changed': 'Appointment changed',
+  'appointment.cancelled': 'Appointment cancelled',
+  'appointment.completed': 'Appointment completed',
+  'appointment.no_show': 'Marked as a no-show',
+  'appointment.reminder_sent': 'Reminder emailed',
+  'road_test.requested': 'Road test requested',
+  'road_test.approved': 'Road test approved by the Manager',
+  'road_test.declined': 'Road test declined',
+  'road_test.cancelled': 'Road test cancelled',
+  'road_test.gate_out': 'Out on road test',
+  'road_test.gate_in': 'Back from road test',
+  'road_test.extended': 'Road test extended',
+  'assist.started': 'Assisted session started',
+  'assist.ended': 'Assisted session ended',
+  'assist.consent_failed': 'Assisted session: wrong password typed',
+  'assist.refused': 'Assisted session refused',
+  // Support centre (v36)
+  'support.ticket_opened': 'New support request',
+  'support.customer_replied': 'Customer replied on a support request',
+  'support.replied': 'Support reply sent',
+  'support.note_added': 'Note added on a support request',
+  'support.assigned': 'Support request assigned',
+  'support.status_changed': 'Support request status changed',
+  'support.priority_changed': 'Support request priority changed',
+  'support.queue_changed': 'Support request moved to another team',
+  'support.ai_answered': 'Enyo answered a support request',
+  'support.sla_warning': 'Support request: first answer due soon',
+  'support.sla_breached': 'Support request: first answer is late',
+  'support.urgent': 'Urgent support request (safety)',
+  'support.auto_resolved': 'Support request resolved (no reply from the customer)',
+  'support.customer_confirmed': 'Customer said the answer solved it',
+  'support.customer_asked_person': 'Customer asked for a person',
+  'support.customer_rated': 'Customer rated the support',
+  'support.help_requested': 'A colleague asked for help',
+  'support.reopened': 'Support request reopened',
+  'support.ai_reviewed': 'Enyo’s support reply checked',
+  'user.signed_in': 'Signed in',
+  'user.sign_in_failed': 'Failed sign-in',
+  'customer.sign_in_failed': 'Customer failed to sign in',
+  'integrity.alert_raised': 'Integrity alert raised',
+  'integrity.alert_reviewed': 'Integrity alert reviewed',
+  'integrity.speak_up': 'Concern raised (Speak up)',
+  'integrity.scan': 'Integrity checks run',
+  // Assembly plant and vehicle labels.
+  'plant.vehicle_registered': 'Vehicle registered in the plant',
+  'plant.pdi_started': 'PDI started',
+  'plant.pdi_defect': 'PDI item Not OK',
+  'plant.pdi_item_reworked': 'PDI item put right',
+  'plant.pdi_fault_codes': 'PDI fault codes recorded',
+  'plant.pdi_to_rework': 'PDI sent to rework',
+  'plant.pdi_submitted': 'PDI sent for approval',
+  'plant.pdi_passed': 'PDI accepted (A)',
+  'plant.pdi_rejected': 'PDI rejected to rework (R)',
+  'plant.pdi_cancelled': 'PDI cancelled',
+  'branch.type_changed': 'Branch kind changed',
+  'branch.plant_records_moved': 'Plant records moved to the assembly plant',
+  'plant.shipment_recorded': 'Shipment of kits recorded',
+  'plant.kits_added': 'Kits added to a shipment',
+  'plant.kit_check_not_ok': 'Kit check Not OK',
+  'plant.kit_cases_differ': 'Kit cases differ from the packing list',
+  'plant.kit_sap_numbers': 'Kit SAP numbers recorded',
+  'plant.kit_issue_raised': 'Kit shortage or damage raised',
+  'plant.kit_issue_claimed': 'Kit issue claimed from the supplier',
+  'plant.kit_issue_resolved': 'Kit issue resolved',
+  'plant.kit_submitted': 'Kit sent for release',
+  'plant.kit_released': 'Kit released to the line (A)',
+  'plant.kit_released_with_shortages': 'Kit released to the line with shortages (A)',
+  'plant.kit_held': 'Kit put on hold',
+  'plant.kit_rejected': 'Kit rejected (R)',
+  'plant.kit_cancelled': 'Kit cancelled',
+  'plant.route_saved': 'Line route saved (new version)',
+  'plant.build_started': 'Build started on the line',
+  'plant.check_failed': 'Station check failed',
+  'plant.station_passed': 'Station passed',
+  'plant.station_failed': 'Station failed (rework)',
+  'plant.defect_raised': 'Defect raised',
+  'plant.defect_reworked': 'Defect reworked',
+  'plant.defect_closed': 'Defect verified and closed',
+  'plant.defect_reopened': 'Defect sent back to rework',
+  'plant.gate_passed': 'Final quality gate passed',
+  'plant.audit_started': 'QA audit started',
+  'plant.audit_passed': 'QA audit passed',
+  'plant.audit_failed': 'QA audit failed (back to the line)',
+  'demo.plant_loaded': 'Plant demo records loaded (replacing the previous demo)',
+  'demo.plant_removed': 'Plant demo records removed',
+  'vehicle.label_printed': 'Vehicle label or paper printed',
+  // Data Exchange exports.
+  'data_exchange.export_created': 'List exported',
+  'data_exchange.exported': 'Export downloaded',
+};
+
+export function securityActionLabel(action: string): string {
+  return SECURITY_ACTION_LABEL[action] ?? humanizeAction(action);
+}
+
+/** One readable line of detail for an entry, or null. */
+export function securityActionDetail(action: string, meta: Record<string, unknown> | null): string | null {
+  if (!meta) return null;
+  const s = (k: string) => (typeof meta[k] === 'string' ? (meta[k] as string) : null);
+  /** Text, numbers and yes/no values, as words (counts and flags). */
+  const v = (k: string) => (typeof meta[k] === 'string' || typeof meta[k] === 'number' || typeof meta[k] === 'boolean' ? String(meta[k]) : null);
+  switch (action) {
+    case 'assist.ended':
+      return s('summary');
+    case 'support.ticket_opened':
+    case 'support.sla_warning':
+    case 'support.sla_breached':
+    case 'support.urgent':
+    case 'support.ai_answered':
+    case 'support.customer_confirmed':
+    case 'support.customer_asked_person':
+      return [s('queue'), s('priority') && s('priority') !== 'NORMAL' ? `${s('priority')!.charAt(0)}${s('priority')!.slice(1).toLowerCase()} priority` : null].filter(Boolean).join(' · ') || null;
+    case 'support.customer_rated':
+      return typeof meta.score === 'number' ? `${meta.score} out of 5` : null;
+    case 'assist.started':
+      return `${s('assistant') ?? 'A Branch Assistant'} is helping ${s('colleague') ?? 'a colleague'}${s('reason') ? ` — ${s('reason')}` : ''}`;
+    case 'assist.consent_failed':
+    case 'assist.refused':
+      return [s('colleague'), s('reason')].filter(Boolean).join(' — ') || null;
+    case 'security.email_sent':
+    case 'security.email_failed':
+      return `To ${s('to') ?? 'recipient'} — ${s('subject') ?? ''}${s('error') ? ` (${s('error')})` : ''}`;
+    case 'visit.checked_in':
+    case 'visit.arrived':
+      return [s('passNumber') ? `Pass ${s('passNumber')}` : null, s('vehicle') ? (s('vehicle') === 'On foot' ? 'on foot' : `vehicle ${s('vehicle')}`) : null].filter(Boolean).join(' · ') || null;
+    case 'exit_pass.extended':
+      return `By ${s('extra') ?? ''}${s('reason') ? ` — ${s('reason')}` : ''}`;
+    case 'road_test.requested':
+      return [s('permitNumber'), s('driver') ? `driver ${s('driver')}` : null].filter(Boolean).join(' · ') || null;
+    case 'road_test.gate_out':
+      return [s('permitNumber'), typeof meta.odometer === 'number' ? `${(meta.odometer as number).toLocaleString('en-NG')} km` : null].filter(Boolean).join(' · ') || null;
+    case 'road_test.gate_in':
+      return [s('permitNumber'), typeof meta.odometer === 'number' ? `${(meta.odometer as number).toLocaleString('en-NG')} km` : null, typeof meta.distance === 'number' ? `${(meta.distance as number).toLocaleString('en-NG')} km driven` : null, s('away'), s('notes')].filter(Boolean).join(' · ') || null;
+    case 'road_test.extended':
+      return `By ${s('extra') ?? ''}${s('reason') ? ` — ${s('reason')}` : ''}`;
+    case 'road_test.approved':
+    case 'road_test.declined':
+    case 'road_test.cancelled':
+      return [s('permitNumber'), s('reason') ? `Reason: ${s('reason')}` : null].filter(Boolean).join(' · ') || null;
+    case 'appointment.created':
+    case 'appointment.changed':
+      return [s('title'), s('onBehalfOf') ? `for ${s('onBehalfOf')}` : null].filter(Boolean).join(' · ') || null;
+    case 'appointment.cancelled':
+      return s('reason') ? `Reason: ${s('reason')}` : null;
+    case 'appointment.completed':
+      return s('by');
+    case 'appointment.reminder_sent':
+      return typeof meta.minutesBefore === 'number' ? `About ${meta.minutesBefore} ${meta.minutesBefore === 1 ? 'minute' : 'minutes'} before` : null;
+    case 'contractor.requested':
+      return [s('passNumber'), s('company'), typeof meta.people === 'number' ? `${meta.people} ${meta.people === 1 ? 'person' : 'people'}` : null, typeof meta.days === 'number' ? `${meta.days} ${meta.days === 1 ? 'day' : 'days'}` : null].filter(Boolean).join(' · ') || null;
+    case 'contractor.signed_in':
+      return typeof meta.people === 'number' ? `${meta.people} of ${meta.of} ${meta.of === 1 ? 'person' : 'people'}` : null;
+    case 'contractor.signed_out':
+      return [typeof meta.people === 'number' ? `${meta.people} ${meta.people === 1 ? 'person' : 'people'}` : null, s('onSite') ? `on site ${s('onSite')}` : null, s('note')].filter(Boolean).join(' · ') || null;
+    case 'contractor.declined':
+    case 'contractor.cancelled':
+    case 'contractor.revoked':
+      return s('reason') ? `Reason: ${s('reason')}` : null;
+    case 'appointment.visitors_added':
+    case 'appointment.visitors_changed':
+    case 'appointment.visitors_removed':
+      return [s('visitNumber'), s('visitors'), s('organisation'), s('reason') ? `Reason: ${s('reason')}` : null].filter(Boolean).join(' · ') || null;
+    case 'broadcast.created':
+      return [s('title'), s('duration'), meta.email ? 'emailed' : null].filter(Boolean).join(' · ') || null;
+    case 'broadcast.reactivated':
+      return [s('duration'), meta.email ? 'emailed again' : null].filter(Boolean).join(' · ') || null;
+    case 'broadcast.emailed':
+      return typeof meta.sent === 'number' ? `${meta.sent} ${meta.sent === 1 ? 'email' : 'emails'} sent${typeof meta.failed === 'number' && meta.failed ? `, ${meta.failed} failed` : ''}` : null;
+    case 'incident.reported':
+    case 'incident.linked':
+      return [s('incidentNumber'), s('type'), s('severity') ? s('severity')!.toLowerCase() : null, s('related') ? `about ${s('related')}` : null].filter(Boolean).join(' · ') || null;
+    case 'incident.assigned':
+      return s('to') ? `To ${s('to')}` : null;
+    case 'incident.closed':
+      return s('resolution') ? `Resolution: ${s('resolution')}` : null;
+    case 'incident.reopened':
+    case 'delivery.cancelled':
+      return s('reason') ? `Reason: ${s('reason')}` : null;
+    case 'delivery.expected':
+      return [s('deliveryNumber'), s('supplier'), s('reference')].filter(Boolean).join(' · ') || null;
+    case 'delivery.arrived':
+      return [s('deliveryNumber'), s('driver') ? `driver ${s('driver')}` : null, s('vehicle')].filter(Boolean).join(' · ') || null;
+    case 'delivery.received':
+      return [s('deliveryNumber'), s('grn') ? `GRN ${s('grn')}` : null, s('note')].filter(Boolean).join(' · ') || null;
+    case 'delivery.left':
+      return [s('deliveryNumber'), meta.received === false ? 'not received' : null, s('reason')].filter(Boolean).join(' · ') || null;
+    case 'security.follow_up':
+      return s('note');
+    case 'visit.extended':
+      return `By ${s('extra') ?? ''} (stay now ${s('newStay') ?? ''})${s('reason') ? ` — ${s('reason')}` : ''}`;
+    case 'visit.checked_out':
+      return s('duration') ? `On premises for ${s('duration')}` : null;
+    case 'visit.overdue':
+    case 'exit_pass.overdue':
+      return s('over') ? `Over by ${s('over')}` : null;
+    case 'visit.cancelled':
+    case 'exit_pass.declined':
+    case 'exit_pass.cancelled':
+      return s('reason') ? `Reason: ${s('reason')}` : null;
+    case 'exit_pass.requested':
+      return Array.isArray(meta.people) ? `For ${(meta.people as string[]).join(', ')} — ${meta.returning ? 'returning' : 'not returning'}` : null;
+    case 'exit_pass.gate_in':
+      return [s('away') ? `Away ${s('away')}` : null, s('late') ? `late by ${s('late')}` : null].filter(Boolean).join(' · ') || null;
+    case 'plant.pdi_started':
+    case 'plant.pdi_to_rework':
+    case 'plant.pdi_submitted':
+    case 'plant.pdi_passed':
+      return [s('number'), s('vin')].filter(Boolean).join(' · ') || null;
+    case 'plant.pdi_rejected':
+    case 'plant.pdi_cancelled':
+      return [s('number'), s('reason')].filter(Boolean).join(' · ') || null;
+    case 'plant.pdi_defect':
+    case 'plant.pdi_item_reworked':
+      return [s('number'), s('item'), s('note')].filter(Boolean).join(' · ') || null;
+    case 'plant.vehicle_registered':
+      return [s('vin'), s('model'), s('from') ? `from ${s('from')}` : null].filter(Boolean).join(' · ') || null;
+    case 'branch.type_changed':
+      return [s('branch'), s('from') && s('to') ? `${s('from')} → ${s('to')}` : null].filter(Boolean).join(' · ') || null;
+    case 'branch.plant_records_moved':
+      return [s('from') && s('to') ? `${s('from')} → ${s('to')}` : null, v('kits') ? `${v('kits')} kits` : null, v('vehicles') ? `${v('vehicles')} vehicles` : null, v('pdis') ? `${v('pdis')} PDIs` : null].filter(Boolean).join(' · ') || null;
+    case 'demo.plant_loaded': {
+      const made = (meta.made ?? {}) as Record<string, unknown>;
+      return [made.vehicles ? `${made.vehicles} vehicles` : null, made.kits ? `${made.kits} kits` : null, made.defects ? `${made.defects} defects` : null].filter(Boolean).join(' · ') || null;
+    }
+    case 'demo.plant_removed':
+      return [v('vehicles') ? `${v('vehicles')} vehicles` : null, v('shipments') ? `${v('shipments')} shipments` : null].filter(Boolean).join(' · ') || null;
+    case 'plant.route_saved':
+      return [s('family'), v('version') ? `version ${v('version')}` : null, v('stations') ? `${v('stations')} stations` : null].filter(Boolean).join(' · ') || null;
+    case 'plant.build_started':
+      return [s('vin'), s('route')].filter(Boolean).join(' · ') || null;
+    case 'plant.check_failed':
+      return [s('vin'), s('station'), s('check'), s('why')].filter(Boolean).join(' · ') || null;
+    case 'plant.station_passed':
+    case 'plant.station_failed':
+      return [s('vin'), s('station'), v('minutes') !== null ? `${v('minutes')} of ${v('standard')} min` : null].filter(Boolean).join(' · ') || null;
+    case 'plant.defect_raised':
+      return [s('number'), s('vin'), s('defect'), s('severity') ? `severity ${s('severity')}` : null].filter(Boolean).join(' · ') || null;
+    case 'plant.defect_reworked':
+      return [s('number'), s('rework')].filter(Boolean).join(' · ') || null;
+    case 'plant.defect_closed':
+    case 'plant.defect_reopened':
+      return [s('number'), s('note') ?? s('why')].filter(Boolean).join(' · ') || null;
+    case 'plant.gate_passed':
+      return [s('vin'), v('minutesOnLine') !== null ? `${v('minutesOnLine')} min on the line` : null, v('defects') !== null ? `${v('defects')} defects` : null].filter(Boolean).join(' · ') || null;
+    case 'plant.audit_started':
+    case 'plant.audit_passed':
+    case 'plant.audit_failed':
+      return [s('number'), s('vin'), v('demerits') !== null ? `${v('demerits')} demerits` : null].filter(Boolean).join(' · ') || null;
+    case 'plant.shipment_recorded':
+      return [s('number'), s('supplier'), v('kits') ? `${v('kits')} kits` : null].filter(Boolean).join(' · ') || null;
+    case 'plant.kits_added':
+      return s('number');
+    case 'plant.kit_submitted':
+    case 'plant.kit_released':
+      return [s('number'), s('vin')].filter(Boolean).join(' · ') || null;
+    case 'plant.kit_released_with_shortages':
+      return [s('number'), s('vin'), s('concession')].filter(Boolean).join(' · ') || null;
+    case 'plant.kit_held':
+    case 'plant.kit_rejected':
+    case 'plant.kit_cancelled':
+      return [s('number'), s('reason')].filter(Boolean).join(' · ') || null;
+    case 'plant.kit_check_not_ok':
+      return [s('number'), s('check'), s('note')].filter(Boolean).join(' · ') || null;
+    case 'plant.kit_cases_differ':
+      return [s('number'), v('received') !== null && v('expected') !== null ? `${v('received')} of ${v('expected')} cases` : null].filter(Boolean).join(' · ') || null;
+    case 'plant.kit_sap_numbers':
+      return [s('number'), s('inspectionLot') ? `inspection lot ${s('inspectionLot')}` : null, s('materialDocument') ? `material document ${s('materialDocument')}` : null].filter(Boolean).join(' · ') || null;
+    case 'plant.kit_issue_raised':
+      return [s('number'), s('partNumber'), s('description'), v('stopsLine') === 'true' ? 'stops the line' : null].filter(Boolean).join(' · ') || null;
+    case 'plant.kit_issue_claimed':
+      return [s('number'), s('part'), s('claim') ? `claim ${s('claim')}` : null].filter(Boolean).join(' · ') || null;
+    case 'plant.kit_issue_resolved':
+      return [s('number'), s('part'), s('resolution')].filter(Boolean).join(' · ') || null;
+    case 'vehicle.label_printed':
+      return [s('what'), s('vin')].filter(Boolean).join(' · ') || null;
+    case 'vehicle.gate_exit':
+      return [s('exitNumber'), s('number'), s('collectedBy') ?? s('driver') ? `collected by ${s('collectedBy') ?? s('driver')}` : null].filter(Boolean).join(' · ') || null;
+    default:
+      return null;
+  }
+}

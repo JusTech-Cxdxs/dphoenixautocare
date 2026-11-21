@@ -1,0 +1,172 @@
+import { portalBaseUrl } from '@/lib/portal-url';
+import { notFound } from 'next/navigation';
+import { getExternalProcurementRequest } from '@/lib/actions/sourcing';
+import { getOrganisation } from '@/lib/actions/organisation';
+import { DocumentHeader, SignatureBlock, DocumentFooter } from '@/components/print/DocumentHeader';
+import { PrintOnLoad } from '@/components/print/PrintOnLoad';
+import { pluralize, pluralizeWord } from '@/lib/utils/pluralize';
+import { formatDateTime } from '@/lib/utils/format-date';
+
+function formatNaira(amount: number): string {
+  return `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** A label above its value. */
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 600, letterSpacing: '0.02em' }}>{label}</div>
+      <div style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A', marginTop: '1px' }}>{value}</div>
+    </div>
+  );
+}
+
+/**
+ * Printed external procurement request, laid out like the parts request
+ * print. Handles older single-line requests and multi-line ones, plus
+ * Finance's supplementary lines. Only available once DISBURSED.
+ */
+export default async function PrintExternalProcurementRequestPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ variant?: string }>;
+}) {
+  const { id } = await params;
+  const { variant } = await searchParams;
+  const isOrgCopy = variant !== 'client';
+
+  const [request, organisation] = await Promise.all([getExternalProcurementRequest(id), getOrganisation()]);
+  if (!request || !organisation) notFound();
+  if (request.status !== 'DISBURSED') notFound();
+
+  const portalUrl = portalBaseUrl();
+  const logoUrl = `${portalUrl}/images/logo/logo.png`;
+  const vehicleSummary = [request.jobCard.vehicle.year, request.jobCard.vehicle.make, request.jobCard.vehicle.model].filter(Boolean).join(' ') || '—';
+
+  // Older single-line requests have no quantity or unit, so none is shown.
+  // Supplementary lines (e.g. transport) are costs without a quantity.
+  const baseLines = request.lines.length > 0
+    ? request.lines.map((l: (typeof request.lines)[number]) => ({
+        description: l.description,
+        amount: Number(l.amount),
+        quantity: Number(l.quantity),
+        unitOfMeasure: l.unitOfMeasure,
+      }))
+    : [{ description: request.description, amount: Number(request.estimatedAmount), quantity: null, unitOfMeasure: null }];
+  const supplementaryLines = request.supplementaryLines.map((l: (typeof request.supplementaryLines)[number]) => ({
+    description: l.description,
+    amount: Number(l.amount),
+    quantity: null,
+    unitOfMeasure: null,
+  }));
+  const allLines = [...baseLines, ...supplementaryLines];
+  const disbursedAmount = request.disbursedAmount !== null ? Number(request.disbursedAmount) : allLines.reduce((sum, l) => sum + l.amount, 0);
+
+  return (
+    <div style={{ maxWidth: '780px', margin: '0 auto', padding: '32px 24px', fontFamily: 'Arial, Helvetica, sans-serif', color: '#0F172A' }}>
+      <PrintOnLoad />
+      <DocumentHeader
+        organisation={organisation}
+        branch={request.jobCard.branch}
+        logoUrl={logoUrl}
+        documentTitle={isOrgCopy ? 'External Procurement Request' : 'Procurement Disbursement Receipt'}
+        referenceNumber={request.referenceNumber}
+        statusLabel="Disbursed"
+        accentColor="#16A34A"
+      />
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px', marginTop: '20px' }}>
+        <Field label="JOB CARD" value={request.jobCard.jobNumber} />
+        <Field label="CUSTOMER" value={request.jobCard.customer.fullName} />
+        <Field label="VEHICLE" value={vehicleSummary} />
+        <Field label="PLATE NO." value={request.jobCard.vehicle.plateNumber ?? '—'} />
+        <Field label="VIN / CHASSIS" value={request.jobCard.vehicle.chassisNumber ?? '—'} />
+        <Field label="DATE OF REQUEST" value={formatDateTime(new Date(request.createdAt))} />
+        {request.jobCard.customer.address ? <Field label="CUSTOMER ADDRESS" value={request.jobCard.customer.address} /> : null}
+        {isOrgCopy ? (
+          <>
+            <Field label="TECHNICIAN IN CHARGE" value={request.jobCard.assignedTechnician?.fullName ?? '—'} />
+            <Field label="WORKSHOP SUPERVISOR" value={request.jobCard.supervisor?.fullName ?? '—'} />
+            <Field label="REQUESTED BY" value={request.requestedBy.fullName} />
+            <Field label="DISBURSED BY" value={request.disbursedBy?.fullName ?? '—'} />
+            {request.paymentMethod ? <Field label="PAYMENT METHOD" value={request.paymentMethod} /> : null}
+            {request.paymentReference ? <Field label="PAYMENT REFERENCE" value={request.paymentReference} /> : null}
+          </>
+        ) : null}
+      </div>
+
+      <table role="presentation" style={{ width: '100%', borderCollapse: 'collapse', marginTop: '24px', fontSize: '12px' }}>
+        <thead>
+          <tr style={{ borderBottom: '1.5px solid #0F172A', textAlign: 'left' }}>
+            <th style={{ padding: '6px 4px' }}>S/N</th>
+            <th style={{ padding: '6px 4px' }}>Description</th>
+            <th style={{ padding: '6px 4px', textAlign: 'right' }}>Quantity</th>
+            <th style={{ padding: '6px 4px', textAlign: 'right' }}>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {allLines.map((line, i) => (
+            // eslint-disable-next-line react/no-array-index-key
+            <tr key={i} style={{ borderBottom: '1px solid #E2E8F0' }}>
+              <td style={{ padding: '6px 4px' }}>{i + 1}</td>
+              <td style={{ padding: '6px 4px' }}>{line.description}</td>
+              <td style={{ padding: '6px 4px', textAlign: 'right' }}>
+                {line.quantity !== null && line.unitOfMeasure ? `${line.quantity} ${pluralizeWord(line.quantity, line.unitOfMeasure)}` : '—'}
+              </td>
+              <td style={{ padding: '6px 4px', textAlign: 'right' }}>{formatNaira(line.amount)}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr style={{ borderTop: '1.5px solid #0F172A', fontWeight: 700 }}>
+            <td style={{ padding: '6px 4px' }} colSpan={3}>
+              {pluralize(allLines.length, 'Item')} total
+            </td>
+            <td style={{ padding: '6px 4px', textAlign: 'right' }}>{formatNaira(disbursedAmount)}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      {isOrgCopy ? (
+        <div style={{ marginTop: '24px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>DOCUMENT TRAIL</div>
+          <table role="presentation" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+            <tbody>
+              <tr>
+                <td style={{ padding: '2px 0', color: '#475569', width: '25%' }}>Requested</td>
+                <td style={{ padding: '2px 0' }}>{request.requestedBy.fullName} — {formatDateTime(new Date(request.createdAt))}</td>
+              </tr>
+              {request.financeReviewedBy ? (
+                <tr>
+                  <td style={{ padding: '2px 0', color: '#475569' }}>Finance Reviewed</td>
+                  <td style={{ padding: '2px 0' }}>{request.financeReviewedBy.fullName} — {request.financeReviewedAt ? formatDateTime(new Date(request.financeReviewedAt)) : ''}</td>
+                </tr>
+              ) : null}
+              {request.managerApprovedBy ? (
+                <tr>
+                  <td style={{ padding: '2px 0', color: '#475569' }}>Manager Approved</td>
+                  <td style={{ padding: '2px 0' }}>{request.managerApprovedBy.fullName} — {request.managerApprovedAt ? formatDateTime(new Date(request.managerApprovedAt)) : ''}</td>
+                </tr>
+              ) : null}
+              <tr>
+                <td style={{ padding: '2px 0', color: '#475569' }}>Disbursed</td>
+                <td style={{ padding: '2px 0' }}>{request.disbursedBy?.fullName ?? '—'} — {request.disbursedAt ? formatDateTime(new Date(request.disbursedAt)) : ''}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      <SignatureBlock
+        issuerLabel="Disbursed By (Finance)"
+        issuerName={request.disbursedBy?.fullName ?? null}
+        collectorLabel="Received By"
+        collectorName={request.requestedBy.fullName}
+      />
+
+      <DocumentFooter organisation={organisation} />
+    </div>
+  );
+}

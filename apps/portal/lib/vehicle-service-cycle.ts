@@ -1,0 +1,454 @@
+import { prisma } from '@ejo/database';
+import { calculateNextServiceDue } from '@/lib/vehicle-service-due';
+import { onOrAfterWorkingDay, addWorkingDays } from '@/lib/utils/working-days';
+
+/**
+ * The next-service clock for Vehicle Services.
+ *
+ * Every completed service starts the count, anchored on the service's
+ * odometer reading and completion date. The interval is the vehicle's own
+ * (manufacturer) interval when set, otherwise the organisation's default.
+ *
+ * Not a 'use server' file: these functions write data without authorising,
+ * so they must never be callable endpoints. Callers (loaders, the status
+ * action, the cron) authorise first.
+ */
+
+/** Statuses that mean the work on a Vehicle Service is done. */
+export const SERVICE_DONE_STATUSES = ['COMPLETED', 'READY_FOR_COLLECTION', 'CLOSED', 'COLLECTED'] as const;
+
+/** Statuses that mean a vehicle is currently booked in for a routine service. */
+export const SERVICE_ACTIVE_STATUSES = ['SCHEDULED', 'CHECKED_IN', 'IN_SERVICE'] as const;
+
+type IntervalSource = {
+  vehicle: { serviceIntervalKm: number | null; serviceIntervalDays: number | null };
+  branch: { businessUnit: { organisation: { primaryServiceIntervalKm: number | null; primaryServiceIntervalDays: number | null } } };
+};
+
+/** The anchor + prediction one completed visit establishes. */
+export function computeServiceCycle(odometer: number | null, completedAt: Date, source: IntervalSource) {
+  const org = source.branch.businessUnit.organisation;
+  // The vehicle's own interval, when set, overrides the organisation default.
+  const intervalKm = source.vehicle.serviceIntervalKm ?? org.primaryServiceIntervalKm;
+  const intervalDays = source.vehicle.serviceIntervalDays ?? org.primaryServiceIntervalDays;
+  const next = calculateNextServiceDue(odometer, completedAt, intervalKm, intervalDays);
+  return {
+    primaryServiceMileage: odometer,
+    primaryServiceDate: completedAt,
+    nextServiceDueOdometer: next.dueOdometer,
+    // A weekend due date rolls to the Monday.
+    nextServiceDueDate: next.dueDate ? onOrAfterWorkingDay(next.dueDate) : null,
+  };
+}
+
+/**
+ * Starts the count for services completed before every completion
+ * anchored the clock (the old oil-change tick). Uses each service's own
+ * completion date and odometer, never "now". Idempotent: only completed,
+ * non-escalated services with no anchor are touched.
+ */
+export async function backfillServiceCycleAnchors(): Promise<number> {
+  await normaliseEscalatedServices();
+  const pending = await prisma.vehicleService.findMany({
+    where: {
+      status: { in: [...SERVICE_DONE_STATUSES] },
+      completedAt: { not: null },
+      primaryServiceDate: null,
+      escalatedToJobCardId: null,
+    },
+    select: {
+      id: true,
+      odometerAtService: true,
+      completedAt: true,
+      vehicle: { select: { serviceIntervalKm: true, serviceIntervalDays: true } },
+      branch: { select: { businessUnit: { select: { organisation: { select: { primaryServiceIntervalKm: true, primaryServiceIntervalDays: true } } } } } },
+    },
+  });
+  for (const s of pending) {
+    await prisma.vehicleService.update({
+      where: { id: s.id },
+      data: computeServiceCycle(s.odometerAtService, s.completedAt as Date, s),
+    });
+  }
+  return pending.length;
+}
+
+/** The open visit a vehicle is currently in the workshop on. */
+export type WorkshopVisit = { kind: 'VEHICLE_SERVICE' | 'JOB_CARD'; id: string; number: string; status: string };
+
+const CYCLE_SOURCE_SELECT = {
+  vehicle: { select: { serviceIntervalKm: true, serviceIntervalDays: true } },
+  branch: { select: { businessUnit: { select: { organisation: { select: { primaryServiceIntervalKm: true, primaryServiceIntervalDays: true } } } } } },
+} as const;
+
+/**
+ * Makes escalated services consistent (idempotent):
+ * 1. Services escalated before the ESCALATED status existed get it.
+ * 2. Services whose Job Card has been checked out (not a cancelled
+ *    hand-back) start their next-service count from that checkout.
+ */
+export async function normaliseEscalatedServices(): Promise<void> {
+  // An "Escalated" service whose Job Card no longer exists (deleted) has
+  // nothing to hand over to — it is cancelled rather than left stuck.
+  await prisma.vehicleService.updateMany({
+    where: { status: 'ESCALATED', escalatedToJobCardId: null },
+    data: { status: 'CANCELLED', cancelledAt: new Date() },
+  });
+  const legacy = await prisma.vehicleService.findMany({
+    where: { escalatedToJobCardId: { not: null }, status: { not: 'ESCALATED' } },
+    select: { id: true, escalatedToJobCard: { select: { createdAt: true } } },
+  });
+  for (const s of legacy) {
+    await prisma.vehicleService.update({ where: { id: s.id }, data: { status: 'ESCALATED', escalatedAt: s.escalatedToJobCard?.createdAt ?? new Date() } });
+  }
+  const unanchored = await prisma.vehicleService.findMany({
+    where: {
+      status: 'ESCALATED',
+      primaryServiceDate: null,
+      escalatedToJobCard: { status: 'CHECKED_OUT', checkedOutAt: { not: null }, cancellationRequests: { none: { status: 'APPROVED' } } },
+    },
+    select: { id: true, escalatedToJobCardId: true },
+  });
+  for (const s of unanchored) {
+    if (s.escalatedToJobCardId) await anchorEscalatedServiceFromJobCard(s.escalatedToJobCardId);
+  }
+}
+
+/**
+ * When a Job Card that came from a Vehicle Service is checked out, the
+ * next-service count starts from the checkout date and the Job Card's
+ * odometer reading. A cancelled Job Card never anchors (no service was
+ * done). No-op without a linked service or if already anchored.
+ */
+export async function anchorEscalatedServiceFromJobCard(jobCardId: string): Promise<void> {
+  const svc = await prisma.vehicleService.findFirst({
+    where: { escalatedToJobCardId: jobCardId, primaryServiceDate: null },
+    select: {
+      id: true,
+      odometerAtService: true,
+      escalatedToJobCard: {
+        select: {
+          status: true,
+          checkedOutAt: true,
+          mileageAtCheckIn: true,
+          // An approved cancellation means no service was done, even though the
+          // vehicle was "checked out" (handed back).
+          cancellationRequests: { where: { status: 'APPROVED' }, select: { id: true }, take: 1 },
+        },
+      },
+      ...CYCLE_SOURCE_SELECT,
+    },
+  });
+  const jc = svc?.escalatedToJobCard;
+  if (!svc || !jc || jc.status !== 'CHECKED_OUT' || !jc.checkedOutAt || jc.cancellationRequests.length > 0) return;
+  await prisma.vehicleService.update({
+    where: { id: svc.id },
+    data: computeServiceCycle(jc.mileageAtCheckIn ?? svc.odometerAtService, jc.checkedOutAt, svc),
+  });
+}
+
+/**
+ * Vehicles currently in the workshop (an open service or repair Job Card),
+ * with the visit. Such vehicles are still tracked and shown, but never sent
+ * a "service due" reminder.
+ */
+export async function workshopVisitsForVehicles(vehicleIds: string[]): Promise<Map<string, WorkshopVisit>> {
+  const out = new Map<string, WorkshopVisit>();
+  if (vehicleIds.length === 0) return out;
+  const [services, jobCards] = await Promise.all([
+    prisma.vehicleService.findMany({
+      where: { vehicleId: { in: vehicleIds }, status: { in: [...SERVICE_ACTIVE_STATUSES] }, escalatedToJobCardId: null },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, vehicleId: true, serviceNumber: true, status: true },
+    }),
+    prisma.jobCard.findMany({
+      where: { vehicleId: { in: vehicleIds }, status: { notIn: ['CLOSED', 'CHECKED_OUT', 'CANCELLED'] } },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, vehicleId: true, jobNumber: true, status: true },
+    }),
+  ]);
+  for (const j of jobCards) if (!out.has(j.vehicleId)) out.set(j.vehicleId, { kind: 'JOB_CARD', id: j.id, number: j.jobNumber, status: j.status });
+  for (const v of services) if (!out.has(v.vehicleId)) out.set(v.vehicleId, { kind: 'VEHICLE_SERVICE', id: v.id, number: v.serviceNumber, status: v.status });
+  return out;
+}
+
+export async function vehiclesCurrentlyInWorkshop(vehicleIds: string[]): Promise<Set<string>> {
+  return new Set((await workshopVisitsForVehicles(vehicleIds)).keys());
+}
+
+// ── One shared due calculation ────────────────────────────────────────
+// Used by the vehicle page, custody, the Service Tracker and the
+// reminder engine alike, so they can never disagree.
+
+export const DUE_SOON_KM = 1000;
+export const DUE_SOON_DAYS = 30;
+
+export type ServiceDueStatus = 'ON_TRACK' | 'DUE_SOON' | 'OVERDUE';
+
+export function serviceDueStatus(nextServiceDueOdometer: number | null, nextServiceDueDate: Date | null, currentMileage: number | null, now: Date = new Date()) {
+  const kmRemaining = nextServiceDueOdometer !== null && currentMileage !== null ? nextServiceDueOdometer - currentMileage : null;
+  const daysRemaining = nextServiceDueDate !== null ? Math.ceil((new Date(nextServiceDueDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
+  const overdue = (kmRemaining !== null && kmRemaining <= 0) || (daysRemaining !== null && daysRemaining <= 0);
+  const dueSoon = (kmRemaining !== null && kmRemaining <= DUE_SOON_KM) || (daysRemaining !== null && daysRemaining <= DUE_SOON_DAYS);
+  const status: ServiceDueStatus = overdue ? 'OVERDUE' : dueSoon ? 'DUE_SOON' : 'ON_TRACK';
+  return { kmRemaining, daysRemaining, status };
+}
+
+/** Working days (Mon–Fri) between one service reminder and the next for
+ * the same prediction. The "due soon" window opens 30 days (about 22
+ * working days) before the due date, so with this spacing the 1st, 2nd
+ * and 3rd reminders all land before the vehicle is actually due. */
+export const REMINDER_SPACING_WORKING_DAYS = 7;
+
+/**
+ * Which reminder is due now for one prediction. Reminders are
+ * semi-automatic: this decides when and which stage; a person clicks Send.
+ *   Due soon: 1st (friendly) when the vehicle becomes due soon, then 2nd
+ *   (follow-up) and 3rd (due), each 7 working days after the last.
+ *   Overdue: the overdue reminder (4) straight away, repeatable every 7
+ *   working days. If none is due yet, returns when the next one is (always
+ *   a working day).
+ */
+export function nextReminderStage(
+  status: ServiceDueStatus,
+  lastStage: number | null,
+  lastSentAt: Date | null,
+  now: Date = new Date(),
+): { stage: 1 | 2 | 3 | 4 | null; dueFrom: Date | null } {
+  if (status === 'ON_TRACK') return { stage: null, dueFrom: null };
+  // Working days (Mon–Fri).
+  const gapPassedAt = lastSentAt ? addWorkingDays(new Date(lastSentAt), REMINDER_SPACING_WORKING_DAYS) : null;
+  const gapPassed = !gapPassedAt || gapPassedAt <= now;
+  if (status === 'OVERDUE') {
+    if (lastStage === null || lastStage < 4) return { stage: 4, dueFrom: null };
+    return gapPassed ? { stage: 4, dueFrom: null } : { stage: null, dueFrom: gapPassedAt };
+  }
+  if (lastStage === null) return { stage: 1, dueFrom: null };
+  if (!gapPassed) return { stage: null, dueFrom: gapPassedAt };
+  return { stage: lastStage === 1 ? 2 : 3, dueFrom: null };
+}
+
+/** Overdue by more than this many days = lapsed: no more reminders.
+ * Tracking restarts when the vehicle next completes a service. */
+export const LAPSED_AFTER_DAYS_OVERDUE = 365;
+
+export type TrackedVehicle = {
+  vehicleId: string;
+  vehicleType: 'PASSENGER' | 'COMMERCIAL' | null;
+  /** Overdue for more than a year — no reminders; listed as Lapsed. */
+  lapsed: boolean;
+  vehicleDescription: string;
+  plateNumber: string | null;
+  currentMileage: number | null;
+  customerId?: string;
+  customerName: string;
+  customerEmail: string | null;
+  /** The completed visit whose prediction is current. From EJO (a Vehicle Service), or a job card from SAP before EJO (P4) — then the id is "hist:<id>". */
+  lastService: { id: string; serviceNumber: string; date: Date | null; mileage: number | null; source: 'EJO' | 'SAP' };
+  nextServiceDueOdometer: number | null;
+  nextServiceDueDate: Date | null;
+  kmRemaining: number | null;
+  daysRemaining: number | null;
+  status: ServiceDueStatus;
+  /** Staff marked this prediction handled (Attend To). */
+  attendedAt: Date | null;
+  /** Currently back in the workshop — tracked, but never reminded. */
+  inWorkshop: WorkshopVisit | null;
+  reminders: { sentThisCycle: number; lastSentAt: Date | null; lastStage: number | null; lastSentByName: string | null };
+  /** The reminder a person can send right now (null = none due), or when
+   * the next one becomes due. Never set while in the workshop or once
+   * attended to. */
+  reminderDue: { stage: 1 | 2 | 3 | 4 } | null;
+  nextReminderFrom: Date | null;
+  /** The last service was carried out on a Job Card (escalated). */
+  viaJobCard: { id: string; jobNumber: string } | null;
+};
+
+/**
+ * Job cards from SAP before EJO whose work was a service (P4), as service
+ * anchors for vehicles EJO has not serviced yet: the latest closed one per
+ * vehicle, with the interval rules of computeServiceCycle. Shaped like a
+ * Vehicle Service row so the tracker treats both alike; the id is
+ * "hist:<job id>" and the number says it came from SAP.
+ */
+async function historyAnchors(scope: { branchId?: string; vehicleId?: string }, skip: Set<string>) {
+  const jobs = await prisma.historicalJob.findMany({
+    where: {
+      ...(scope.branchId ? { branchId: scope.branchId } : {}),
+      ...(scope.vehicleId ? { vehicleId: scope.vehicleId } : { vehicleId: { not: null } }),
+      kind: 'SERVICE', status: 'CLOSED', voidedAt: null,
+    },
+    orderBy: [{ completedAt: 'desc' }, { openedAt: 'desc' }],
+    select: { id: true, vehicleId: true, jobNumber: true, completedAt: true, openedAt: true, mileage: true, attendedAt: true, branchId: true, organisationId: true },
+  });
+  const latest = new Map<string, (typeof jobs)[number]>();
+  for (const j of jobs) if (j.vehicleId && !skip.has(j.vehicleId) && !latest.has(j.vehicleId)) latest.set(j.vehicleId, j);
+  if (!latest.size) return [];
+  const [vehicles, orgs] = await Promise.all([
+    prisma.customerVehicle.findMany({ where: { id: { in: [...latest.keys()] } }, select: { id: true, make: true, model: true, year: true, plateNumber: true, mileage: true, vehicleType: true, serviceIntervalKm: true, serviceIntervalDays: true, customer: { select: { id: true, fullName: true, email: true } } } }),
+    prisma.organisation.findMany({ where: { id: { in: [...new Set([...latest.values()].map((j) => j.organisationId))] } }, select: { id: true, primaryServiceIntervalKm: true, primaryServiceIntervalDays: true } }),
+  ]);
+  const orgOf = new Map(orgs.map((o) => [o.id, o]));
+  const out = [];
+  for (const [vehicleId, j] of latest) {
+    const v = vehicles.find((x) => x.id === vehicleId);
+    const org = orgOf.get(j.organisationId);
+    if (!v || !org) continue;
+    const at = j.completedAt ?? j.openedAt;
+    const cycle = computeServiceCycle(j.mileage, at, { vehicle: v, branch: { businessUnit: { organisation: org } } });
+    if (cycle.nextServiceDueOdometer === null && cycle.nextServiceDueDate === null) continue;
+    out.push({
+      id: `hist:${j.id}`, vehicleId, serviceNumber: `${j.jobNumber} (SAP, before EJO)`, attendedAt: j.attendedAt,
+      primaryServiceDate: cycle.primaryServiceDate, primaryServiceMileage: cycle.primaryServiceMileage, nextServiceDueOdometer: cycle.nextServiceDueOdometer, nextServiceDueDate: cycle.nextServiceDueDate,
+      customer: v.customer, vehicle: { make: v.make, model: v.model, year: v.year, plateNumber: v.plateNumber, mileage: v.mileage, vehicleType: v.vehicleType }, escalatedToJobCard: null,
+    });
+  }
+  return out;
+}
+
+/** The id of a service anchor that is a job card from SAP (P4): "hist:<id>" → the HistoricalJob id, else null. */
+export const historyAnchorId = (serviceId: string): string | null => (serviceId.startsWith('hist:') ? serviceId.slice(5) : null);
+
+/**
+ * Every vehicle's CURRENT service prediction (its most recent completed
+ * visit), with its live due status, whether it's back in the workshop,
+ * and this cycle's reminder history. Starts the count for any older
+ * service first, so nothing is missed. Vehicles whose last service was a
+ * job card in SAP before EJO are tracked from that job card (P4).
+ */
+export async function loadServiceTracking(scope: { branchId?: string; vehicleId?: string } = {}): Promise<TrackedVehicle[]> {
+  await backfillServiceCycleAnchors();
+  const services = await prisma.vehicleService.findMany({
+    where: {
+      ...(scope.branchId ? { branchId: scope.branchId } : {}),
+      ...(scope.vehicleId ? { vehicleId: scope.vehicleId } : {}),
+      OR: [{ nextServiceDueOdometer: { not: null } }, { nextServiceDueDate: { not: null } }],
+    },
+    orderBy: { primaryServiceDate: 'desc' },
+    select: {
+      id: true,
+      vehicleId: true,
+      serviceNumber: true,
+      attendedAt: true,
+      primaryServiceDate: true,
+      primaryServiceMileage: true,
+      nextServiceDueOdometer: true,
+      nextServiceDueDate: true,
+      customer: { select: { id: true, fullName: true, email: true } },
+      vehicle: { select: { make: true, model: true, year: true, plateNumber: true, mileage: true, vehicleType: true } },
+      escalatedToJobCard: { select: { id: true, jobNumber: true } },
+    },
+  });
+  // Only the latest prediction per vehicle counts.
+  const latest = new Map<string, (typeof services)[number]>();
+  for (const s of services) if (!latest.has(s.vehicleId)) latest.set(s.vehicleId, s);
+  // Vehicles EJO has not serviced yet, whose last service was a job card in SAP before EJO (P4): that job card anchors the clock, with the same interval rules.
+  const fromSap = await historyAnchors(scope, new Set(latest.keys()));
+  for (const h of fromSap) latest.set(h.vehicleId, h);
+  const vehicleIds = [...latest.keys()];
+  const [visits, logs, reminderAudits] = await Promise.all([
+    workshopVisitsForVehicles(vehicleIds),
+    vehicleIds.length
+      ? prisma.serviceReminderLog.findMany({
+          where: { vehicleId: { in: vehicleIds } },
+          orderBy: { sentAt: 'desc' },
+          select: { vehicleId: true, sentAt: true, reminderNumber: true },
+        })
+      : Promise.resolve([] as { vehicleId: string; sentAt: Date; reminderNumber: number }[]),
+    // Who sent each reminder — by name, from the audit trail.
+    vehicleIds.length
+      ? prisma.auditLog.findMany({
+          where: { action: 'vehicle.service_reminder_sent', entityType: 'CustomerVehicle', entityId: { in: vehicleIds } },
+          orderBy: { createdAt: 'desc' },
+          select: { entityId: true, userId: true, createdAt: true },
+        })
+      : Promise.resolve([] as { entityId: string | null; userId: string | null; createdAt: Date }[]),
+  ]);
+  const senderIds = [...new Set(reminderAudits.map((a: { userId: string | null }) => a.userId).filter((id: string | null): id is string => Boolean(id)))];
+  const senders = senderIds.length ? await prisma.user.findMany({ where: { id: { in: senderIds } }, select: { id: true, fullName: true } }) : [];
+  const senderName = new Map(senders.map((u: { id: string; fullName: string }) => [u.id, u.fullName]));
+  const now = new Date();
+  return [...latest.values()].map((s) => {
+    const due = serviceDueStatus(s.nextServiceDueOdometer, s.nextServiceDueDate, s.vehicle.mileage, now);
+    // Only reminders for THIS prediction cycle count (same rule as the engine).
+    const cycleLogs = logs.filter((l: { vehicleId: string; sentAt: Date }) => l.vehicleId === s.vehicleId && (!s.primaryServiceDate || l.sentAt >= s.primaryServiceDate));
+    const lapsed = due.status === 'OVERDUE' && due.daysRemaining !== null && due.daysRemaining <= -LAPSED_AFTER_DAYS_OVERDUE;
+    return {
+      vehicleId: s.vehicleId,
+      vehicleType: (s.vehicle.vehicleType as 'PASSENGER' | 'COMMERCIAL' | null) ?? null,
+      lapsed,
+      vehicleDescription: [s.vehicle.year, s.vehicle.make, s.vehicle.model].filter(Boolean).join(' ') || 'Vehicle',
+      plateNumber: s.vehicle.plateNumber,
+      currentMileage: s.vehicle.mileage,
+      customerId: s.customer.id,
+      customerName: s.customer.fullName,
+      customerEmail: s.customer.email,
+      lastService: { id: s.id, serviceNumber: s.serviceNumber, date: s.primaryServiceDate, mileage: s.primaryServiceMileage, source: s.id.startsWith('hist:') ? ('SAP' as const) : ('EJO' as const) },
+      nextServiceDueOdometer: s.nextServiceDueOdometer,
+      nextServiceDueDate: s.nextServiceDueDate,
+      kmRemaining: due.kmRemaining,
+      daysRemaining: due.daysRemaining,
+      status: due.status,
+      attendedAt: s.attendedAt,
+      inWorkshop: visits.get(s.vehicleId) ?? null,
+      reminders: {
+        sentThisCycle: cycleLogs.length,
+        lastSentAt: cycleLogs[0]?.sentAt ?? null,
+        lastStage: cycleLogs[0]?.reminderNumber ?? null,
+        lastSentByName: (() => {
+          const last = cycleLogs[0];
+          if (!last) return null;
+          const audit = reminderAudits.find(
+            (a: { entityId: string | null; createdAt: Date }) => a.entityId === s.vehicleId && Math.abs(new Date(a.createdAt).getTime() - new Date(last.sentAt).getTime()) < 2 * 60 * 1000,
+          );
+          return audit?.userId ? senderName.get(audit.userId) ?? null : null;
+        })(),
+      },
+      ...(() => {
+        const inWorkshop = visits.get(s.vehicleId) ?? null;
+        if (inWorkshop || s.attendedAt || lapsed) return { reminderDue: null, nextReminderFrom: null };
+        const next = nextReminderStage(due.status, cycleLogs[0]?.reminderNumber ?? null, cycleLogs[0]?.sentAt ?? null, now);
+        return { reminderDue: next.stage ? { stage: next.stage } : null, nextReminderFrom: next.dueFrom };
+      })(),
+      viaJobCard: s.escalatedToJobCard ? { id: s.escalatedToJobCard.id, jobNumber: s.escalatedToJobCard.jobNumber } : null,
+    };
+  });
+}
+
+// ── Escalated = read-only ─────────────────────────────────────────────
+
+type EscalationRef = { vehicleServiceId?: string; estimateId?: string; lineItemId?: string; inspectionId?: string };
+
+/**
+ * Refuses any change to a Vehicle Service that has been handed over to a
+ * Job Card (work, payment and checkout continue there). Called at the top
+ * of every mutation not already refused by its status rules, so ESCALATED
+ * is read-only on the server, not just on the page.
+ */
+/** An escalation claim (escalatedAt set, no link yet) younger than ten
+ * minutes: a Job Card is being opened for this service. */
+export const ESCALATION_CLAIM_MS = 10 * 60_000;
+export function escalationInFlight(s: { status: string; escalatedAt: Date | null; escalatedToJobCardId: string | null }): boolean {
+  return s.status !== 'ESCALATED' && !s.escalatedToJobCardId && Boolean(s.escalatedAt) && Date.now() - new Date(s.escalatedAt!).getTime() < ESCALATION_CLAIM_MS;
+}
+
+export async function assertServiceNotEscalated(ref: EscalationRef): Promise<void> {
+  const select = { status: true, escalatedAt: true, escalatedToJobCardId: true, escalatedToJobCard: { select: { jobNumber: true } } } as const;
+  let svc: { status: string; escalatedAt: Date | null; escalatedToJobCardId: string | null; escalatedToJobCard: { jobNumber: string } | null } | null = null;
+  if (ref.vehicleServiceId) {
+    svc = await prisma.vehicleService.findUnique({ where: { id: ref.vehicleServiceId }, select });
+  } else if (ref.estimateId) {
+    svc = (await prisma.serviceEstimate.findUnique({ where: { id: ref.estimateId }, select: { vehicleService: { select } } }))?.vehicleService ?? null;
+  } else if (ref.lineItemId) {
+    svc = (await prisma.serviceEstimateLineItem.findUnique({ where: { id: ref.lineItemId }, select: { estimate: { select: { vehicleService: { select } } } } }))?.estimate.vehicleService ?? null;
+  } else if (ref.inspectionId) {
+    svc = (await prisma.vehicleInspection.findUnique({ where: { id: ref.inspectionId }, select: { vehicleService: { select } } }))?.vehicleService ?? null;
+  }
+  // Being escalated right now (claimed, Job Card still opening): already read-only.
+  if (svc && escalationInFlight(svc)) {
+    throw new Error('This Vehicle Service is being escalated to a Job Card right now — refresh the page in a moment.');
+  }
+  if (svc && (svc.status === 'ESCALATED' || svc.escalatedToJobCardId)) {
+    throw new Error(`This Vehicle Service was escalated to ${svc.escalatedToJobCard?.jobNumber ?? 'a Job Card'} and is now read-only — continue on the Job Card.`);
+  }
+}

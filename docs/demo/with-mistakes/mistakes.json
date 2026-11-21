@@ -1,0 +1,695 @@
+[
+  {
+    "file": "06_SAP_invoice_history_demo.csv",
+    "row": 128,
+    "entity": "invoices",
+    "what": "Customer 0009999999 is not in EJO",
+    "expect": "rejected",
+    "by": "database",
+    "says": "The customer was not found. Import the customers file first, or check the customer number."
+  },
+  {
+    "file": "06_SAP_invoice_history_demo.csv",
+    "row": 129,
+    "entity": "invoices",
+    "what": "Invoice in US dollars",
+    "expect": "rejected",
+    "by": "check",
+    "says": "The amount is in USD. Only naira invoices are loaded: give the amount in the company’s currency (SAP DMBTR) instead."
+  },
+  {
+    "file": "06_SAP_invoice_history_demo.csv",
+    "row": 130,
+    "entity": "invoices",
+    "what": "No invoice number",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Invoice number is required (SAP VBELN or BELNR)."
+  },
+  {
+    "file": "06_SAP_invoice_history_demo.csv",
+    "row": 131,
+    "entity": "invoices",
+    "what": "31 June does not exist",
+    "expect": "rejected",
+    "by": "check",
+    "says": "“31.06.2024” is not a date. Write it as 14.03.2019, 14/03/2019, 2019-03-14 or 20190314."
+  },
+  {
+    "file": "06_SAP_invoice_history_demo.csv",
+    "row": 132,
+    "entity": "invoices",
+    "what": "Invoice 0090001001 a second time in the same file",
+    "expect": "duplicate",
+    "by": "file",
+    "says": "Same invoice number as row 2 of the file; only the first is loaded."
+  },
+  {
+    "file": "14_SAP_job_card_history_demo.csv",
+    "row": 124,
+    "entity": "jobs",
+    "what": "Customer 0009999999 is not in EJO, and no vehicle to find the owner by",
+    "expect": "rejected",
+    "by": "database",
+    "says": "The customer was not found. Import the customers file first (and the vehicles file, when the job names only the vehicle), or check the customer number."
+  },
+  {
+    "file": "14_SAP_job_card_history_demo.csv",
+    "row": 125,
+    "entity": "jobs",
+    "what": "Completed two days before it was opened",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Completed on 2024-05-08 is before it was opened on 2024-05-10."
+  },
+  {
+    "file": "14_SAP_job_card_history_demo.csv",
+    "row": 126,
+    "entity": "jobs",
+    "what": "No job number",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Job number is required (the SAP order number, AUFNR, or the old job card number)."
+  },
+  {
+    "file": "14_SAP_job_card_history_demo.csv",
+    "row": 127,
+    "entity": "jobs",
+    "what": "Job card 480102 a second time in the same file",
+    "expect": "duplicate",
+    "by": "file",
+    "says": "Same job number as row 2 of the file; only the first is loaded."
+  },
+  {
+    "file": "14_SAP_job_card_history_demo.csv",
+    "row": 128,
+    "entity": "jobs",
+    "what": "A job card still open (status REL)",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Status “REL”: a job still open belongs in the open job cards file, not in history."
+  },
+  {
+    "file": "14_SAP_job_card_history_demo.csv",
+    "row": 129,
+    "entity": "jobs",
+    "what": "A job card of another branch in this branch’s file",
+    "expect": "rejected",
+    "by": "database",
+    "says": "This row is for the branch “Afprint Assembly Plant”, but this import loads into Isolo Branch. Import it into its own branch."
+  },
+  {
+    "file": "01_SAP_customers_demo.csv",
+    "row": 32,
+    "entity": "customers",
+    "what": "No name",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Name is required."
+  },
+  {
+    "file": "01_SAP_customers_demo.csv",
+    "row": 33,
+    "entity": "customers",
+    "what": "Email with two @ and no domain",
+    "expect": "warning",
+    "by": "check",
+    "says": "“yetunde.afolabi@@example” is not a valid email, so the customer was kept without one (no portal access until it is corrected)."
+  },
+  {
+    "file": "01_SAP_customers_demo.csv",
+    "row": 34,
+    "entity": "customers",
+    "what": "Customer number 0001000105 a second time (row 6 has it)",
+    "expect": "duplicate",
+    "by": "file",
+    "says": "Same customer number as row 6 of the file; only the first is loaded."
+  },
+  {
+    "file": "02_vehicles_demo.xlsx",
+    "row": 32,
+    "entity": "vehicles",
+    "what": "VIN JAANLR85EL7100003 a second time (row 4 has it)",
+    "expect": "duplicate",
+    "by": "file",
+    "says": "Same chassis number as row 4 of the file; only the first is loaded."
+  },
+  {
+    "file": "02_vehicles_demo.xlsx",
+    "row": 33,
+    "entity": "vehicles",
+    "what": "Neither a VIN nor a plate",
+    "expect": "rejected",
+    "by": "check",
+    "says": "No chassis number (VIN) or plate: one of them is needed to know the vehicle."
+  },
+  {
+    "file": "02_vehicles_demo.xlsx",
+    "row": 34,
+    "entity": "vehicles",
+    "what": "Customer 0009999999 is not in EJO",
+    "expect": "rejected",
+    "by": "database",
+    "says": "The customer was not found. Import the customers file first, or check the customer number, email or phone."
+  },
+  {
+    "file": "05_SAP_suppliers_demo.csv",
+    "row": 12,
+    "entity": "suppliers",
+    "what": "No supplier name",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Name is required."
+  },
+  {
+    "file": "05_SAP_suppliers_demo.csv",
+    "row": 13,
+    "entity": "suppliers",
+    "what": "Supplier number 0000300041 a second time (row 2 has it)",
+    "expect": "duplicate",
+    "by": "file",
+    "says": "Same supplier number as row 2 of the file; only the first is loaded."
+  },
+  {
+    "file": "03a_SAP_parts_200.csv",
+    "row": 202,
+    "entity": "parts",
+    "what": "No part number",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Part number is required."
+  },
+  {
+    "file": "03a_SAP_parts_200.csv",
+    "row": 203,
+    "entity": "parts",
+    "what": "No description",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Description is required."
+  },
+  {
+    "file": "03a_SAP_parts_200.csv",
+    "row": 204,
+    "entity": "parts",
+    "what": "Part number 8-98100000-0 a second time (row 2 has it)",
+    "expect": "duplicate",
+    "by": "file",
+    "says": "Same part number (SAP material number) as row 2 of the file; only the first is loaded."
+  },
+  {
+    "file": "03a_SAP_parts_200.csv",
+    "row": 205,
+    "entity": "parts",
+    "what": "A negative selling price",
+    "expect": "warning",
+    "by": "check",
+    "says": "Selling price “-6500” is not an amount; it was left out."
+  },
+  {
+    "file": "04_SAP_opening_stock_demo.csv",
+    "row": 2002,
+    "entity": "stock",
+    "what": "Negative stock (SAP writes it 3-)",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Negative stock (3-) cannot be an opening balance; correct it in SAP or leave the line out."
+  },
+  {
+    "file": "04_SAP_opening_stock_demo.csv",
+    "row": 2003,
+    "entity": "stock",
+    "what": "Part 9-99999999-9 is not in the catalogue",
+    "expect": "rejected",
+    "by": "database",
+    "says": "Part 9-99999999-9 is not in this branch’s catalogue. Import the parts file first, or check the number."
+  },
+  {
+    "file": "04_SAP_opening_stock_demo.csv",
+    "row": 2004,
+    "entity": "stock",
+    "what": "No value and no unit cost",
+    "expect": "rejected",
+    "by": "check",
+    "says": "No cost: give the stock value or the unit cost (stock is valued at what it cost)."
+  },
+  {
+    "file": "04_SAP_opening_stock_demo.csv",
+    "row": 2005,
+    "entity": "stock",
+    "what": "A batch-managed oil without its batch",
+    "expect": "rejected",
+    "by": "database",
+    "says": "This part is batch-tracked: give the batch number (SAP CHARG)."
+  },
+  {
+    "file": "15_SAP_open_job_cards_demo.csv",
+    "row": 10,
+    "entity": "openJobs",
+    "what": "A job card already closed (CLSD): it belongs in the history file",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Stage “CLSD”: a closed, checked-out or cancelled job card belongs in the job card history file, not here."
+  },
+  {
+    "file": "15_SAP_open_job_cards_demo.csv",
+    "row": 11,
+    "entity": "openJobs",
+    "what": "A stage EJO does not know",
+    "expect": "rejected",
+    "by": "check",
+    "says": "“Somewhere” is not a stage EJO knows: use Checked in, In progress, Awaiting parts, Quality check, Awaiting customer approval, Completed or Ready for collection (or SAP’s CRTD, REL, TECO)."
+  },
+  {
+    "file": "15_SAP_open_job_cards_demo.csv",
+    "row": 12,
+    "entity": "openJobs",
+    "what": "No chassis number or plate",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Which vehicle is it? Give the chassis number (VIN) or the plate: an open job card is on a vehicle that is in EJO."
+  },
+  {
+    "file": "15_SAP_open_job_cards_demo.csv",
+    "row": 13,
+    "entity": "openJobs",
+    "what": "Vehicle JAANLR85EL7100002 a second time (row 3 has it): one open job card per vehicle",
+    "expect": "duplicate",
+    "by": "file",
+    "says": "Same chassis number as row 3 of the file; only the first is loaded."
+  },
+  {
+    "file": "15_SAP_open_job_cards_demo.csv",
+    "row": 14,
+    "entity": "openJobs",
+    "what": "Opened on a date in the future",
+    "expect": "rejected",
+    "by": "check",
+    "says": "The opening date 2027-03-15 is in the future."
+  },
+  {
+    "file": "15_SAP_open_job_cards_demo.csv",
+    "row": 15,
+    "entity": "openJobs",
+    "what": "A vehicle EJO does not have",
+    "expect": "rejected",
+    "by": "database",
+    "says": "The vehicle is not in EJO. Import the vehicles file first (the open job card needs the vehicle it is on), or check the chassis number or plate."
+  },
+  {
+    "file": "19_SAP_staff_demo.csv",
+    "row": 14,
+    "entity": "staff",
+    "what": "No work email",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Work email is required: the person signs in with it and their invitation goes to it."
+  },
+  {
+    "file": "19_SAP_staff_demo.csv",
+    "row": 15,
+    "entity": "staff",
+    "what": "An administrator role in a file",
+    "expect": "rejected",
+    "by": "check",
+    "says": "“Administrator”: the organisation’s administrators are added by hand on the Users page, never by a file."
+  },
+  {
+    "file": "19_SAP_staff_demo.csv",
+    "row": 16,
+    "entity": "staff",
+    "what": "A branch the organisation does not have",
+    "expect": "rejected",
+    "by": "database",
+    "says": "There is no branch “Lekki Branch” in this organisation. Use the branch’s name, code or SAP plant as on the Structure page."
+  },
+  {
+    "file": "19_SAP_staff_demo.csv",
+    "row": 17,
+    "entity": "staff",
+    "what": "emeka.okoro@staff.example.com a second time (row 2 has it)",
+    "expect": "duplicate",
+    "by": "file",
+    "says": "Same email as row 2 of the file; only the first is loaded."
+  },
+  {
+    "file": "19_SAP_staff_demo.csv",
+    "row": 18,
+    "entity": "staff",
+    "what": "An employee ID with spaces and signs",
+    "expect": "rejected",
+    "by": "check",
+    "says": "“EMP 99!” is not an employee ID (letters, digits and dashes)."
+  },
+  {
+    "file": "19_SAP_staff_demo.csv",
+    "row": 19,
+    "entity": "staff",
+    "what": "A role EJO does not have",
+    "expect": "rejected",
+    "by": "database",
+    "says": "There is no role “Chief Cook” in this organisation. Use the role’s name as on the Roles page."
+  },
+  {
+    "file": "18_SAP_open_services_and_bookings_demo.csv",
+    "row": 13,
+    "entity": "openServices",
+    "what": "No booking number",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Booking or service number is required (SAP AUFNR or QMNUM, or the diary’s booking reference)."
+  },
+  {
+    "file": "18_SAP_open_services_and_bookings_demo.csv",
+    "row": 14,
+    "entity": "openServices",
+    "what": "A service already collected: it is history",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Stage “Collected”: a closed, collected or cancelled service is history (load it with the job card history), not an open one."
+  },
+  {
+    "file": "18_SAP_open_services_and_bookings_demo.csv",
+    "row": 15,
+    "entity": "openServices",
+    "what": "A booking without its day",
+    "expect": "rejected",
+    "by": "check",
+    "says": "A booking needs its day (Booked for): when is the customer expected?"
+  },
+  {
+    "file": "18_SAP_open_services_and_bookings_demo.csv",
+    "row": 16,
+    "entity": "openServices",
+    "what": "A vehicle EJO does not have",
+    "expect": "rejected",
+    "by": "database",
+    "says": "The vehicle is not in EJO. Import the vehicles file first (a service or a booking is for a vehicle in EJO), or check the chassis number or plate."
+  },
+  {
+    "file": "18_SAP_open_services_and_bookings_demo.csv",
+    "row": 17,
+    "entity": "openServices",
+    "what": "Vehicle JAANLR85EL7100013 a second time (row 2 has it): one open visit per vehicle",
+    "expect": "duplicate",
+    "by": "file",
+    "says": "Same chassis number as row 2 of the file; only the first is loaded."
+  },
+  {
+    "file": "18_SAP_open_services_and_bookings_demo.csv",
+    "row": 18,
+    "entity": "openServices",
+    "what": "In the workshop since a day in the future",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Checked in on 2027-03-15, which is in the future: a vehicle in the workshop came in already."
+  },
+  {
+    "file": "16_SAP_warranties_demo.csv",
+    "row": 22,
+    "entity": "warranties",
+    "what": "No warranty number",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Warranty number is required (SAP MGANR or the old system’s warranty or certificate number)."
+  },
+  {
+    "file": "16_SAP_warranties_demo.csv",
+    "row": 23,
+    "entity": "warranties",
+    "what": "A warranty that starts in the future",
+    "expect": "rejected",
+    "by": "check",
+    "says": "The start date 2027-03-15 is in the future: a warranty starts on the day the vehicle or part was delivered."
+  },
+  {
+    "file": "16_SAP_warranties_demo.csv",
+    "row": 24,
+    "entity": "warranties",
+    "what": "A policy EJO does not have",
+    "expect": "rejected",
+    "by": "database",
+    "says": "There is no warranty policy “DEMO-XYZ-9Y” in EJO. Create it under Warranty → Policies (its code or name), or give the months and km so it can be found."
+  },
+  {
+    "file": "16_SAP_warranties_demo.csv",
+    "row": 25,
+    "entity": "warranties",
+    "what": "A vehicle EJO does not have",
+    "expect": "rejected",
+    "by": "database",
+    "says": "The vehicle is not in EJO. Import the vehicles file first (a vehicle warranty needs the vehicle it covers), or check the chassis number or plate."
+  },
+  {
+    "file": "16_SAP_warranties_demo.csv",
+    "row": 26,
+    "entity": "warranties",
+    "what": "Warranty W-2021-0402 a second time (row 3 has it)",
+    "expect": "duplicate",
+    "by": "file",
+    "says": "Same warranty number as row 3 of the file; only the first is loaded."
+  },
+  {
+    "file": "16_SAP_warranties_demo.csv",
+    "row": 27,
+    "entity": "warranties",
+    "what": "A status EJO does not know",
+    "expect": "rejected",
+    "by": "check",
+    "says": "“Pending?” is not a warranty status EJO knows: use Active, Suspended, Void or Transferred."
+  },
+  {
+    "file": "17_SAP_open_claims_demo.csv",
+    "row": 10,
+    "entity": "claims",
+    "what": "A settled claim: it is history",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Stage “Settled”: a settled or cancelled claim is history and stays in the old system; bring in the claims still open."
+  },
+  {
+    "file": "17_SAP_open_claims_demo.csv",
+    "row": 11,
+    "entity": "claims",
+    "what": "A warranty EJO does not have",
+    "expect": "rejected",
+    "by": "database",
+    "says": "Warranty W-1999-0001 is not in EJO. Import the warranties file first (the claim is on a warranty), or check the number."
+  },
+  {
+    "file": "17_SAP_open_claims_demo.csv",
+    "row": 12,
+    "entity": "claims",
+    "what": "No complaint",
+    "expect": "rejected",
+    "by": "check",
+    "says": "The complaint is required: what the customer reported."
+  },
+  {
+    "file": "17_SAP_open_claims_demo.csv",
+    "row": 13,
+    "entity": "claims",
+    "what": "Partially accepted with no accepted amount",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Partially accepted: give the amount the provider accepted."
+  },
+  {
+    "file": "17_SAP_open_claims_demo.csv",
+    "row": 14,
+    "entity": "claims",
+    "what": "Claim C-2026-0181 a second time (row 3 has it)",
+    "expect": "duplicate",
+    "by": "file",
+    "says": "Same claim number as row 3 of the file; only the first is loaded."
+  },
+  {
+    "file": "07_PDI_register_demo.xlsx",
+    "row": 62,
+    "entity": "registers",
+    "what": "No VIN",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Chassis number (VIN) is required."
+  },
+  {
+    "file": "07_PDI_register_demo.xlsx",
+    "row": 63,
+    "entity": "registers",
+    "what": "30 February does not exist",
+    "expect": "rejected",
+    "by": "check",
+    "says": "“30/02/2024” is not a date. Write it as 14.03.2019, 14/03/2019, 2019-03-14 or 20190314."
+  },
+  {
+    "file": "08_production_QC_register_demo.csv",
+    "row": 122,
+    "entity": "registers",
+    "what": "No date",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Date is required."
+  },
+  {
+    "file": "08_production_QC_register_demo.csv",
+    "row": 123,
+    "entity": "registers",
+    "what": "Register \"Paint shop\" is not Production, QC or PDI",
+    "expect": "rejected",
+    "by": "check",
+    "says": "“Paint shop” is not Production, QC or PDI."
+  },
+  {
+    "file": "09_kit_packing_list_demo.csv",
+    "row": 14,
+    "entity": "kits",
+    "what": "A part name where the VIN should be",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Line 14: “BRAKE PAD SET” is not a VIN or frame number."
+  },
+  {
+    "file": "09_kit_packing_list_demo.csv",
+    "row": 15,
+    "entity": "kits",
+    "what": "VIN JAANLR85EL7210001 twice",
+    "expect": "duplicate",
+    "by": "file",
+    "says": "Line 15: JAANLR85EL7210001 is already on line 2."
+  },
+  {
+    "file": "09_kit_packing_list_demo.csv",
+    "row": 16,
+    "entity": "kits",
+    "what": "A model the plant does not build (D-MAX)",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Line 16: choose the model (NQR, NPR, QLR, QMR, S07)."
+  },
+  {
+    "file": "09_kit_packing_list_demo.csv",
+    "row": 17,
+    "entity": "kits",
+    "what": "900 cases for one kit",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Line 17: 900 cases is not a likely number for one kit."
+  },
+  {
+    "file": "10_plant_shipments_demo.csv",
+    "row": 9,
+    "entity": "plantShipments",
+    "what": "No supplier",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Say who shipped the kits (the supplier)."
+  },
+  {
+    "file": "10_plant_shipments_demo.csv",
+    "row": 10,
+    "entity": "plantShipments",
+    "what": "Shipment SHP1 twice",
+    "expect": "duplicate",
+    "by": "file",
+    "says": "Same shipment reference as row 2 of the file; only the first is loaded."
+  },
+  {
+    "file": "10_plant_shipments_demo.csv",
+    "row": 11,
+    "entity": "plantShipments",
+    "what": "Arrival in the future (2027)",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Arrived 2027-01-15 is in the future."
+  },
+  {
+    "file": "13_plant_vehicles_demo.csv",
+    "row": 67,
+    "entity": "plantVehicles",
+    "what": "A vehicle already sold",
+    "expect": "rejected",
+    "by": "check",
+    "says": "A sold vehicle is the customer’s: bring it in with the vehicles file (and its warranty), not the plant’s."
+  },
+  {
+    "file": "13_plant_vehicles_demo.csv",
+    "row": 68,
+    "entity": "plantVehicles",
+    "what": "VIN JAANLR85EL7230001 twice",
+    "expect": "duplicate",
+    "by": "file",
+    "says": "Same chassis number as row 2 of the file; only the first is loaded."
+  },
+  {
+    "file": "13_plant_vehicles_demo.csv",
+    "row": 69,
+    "entity": "plantVehicles",
+    "what": "Waiting for PDI with no gate date",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Past the line, the day it passed the final quality gate is required (Gate passed)."
+  },
+  {
+    "file": "13_plant_vehicles_demo.csv",
+    "row": 70,
+    "entity": "plantVehicles",
+    "what": "A model the plant does not build (D-MAX)",
+    "expect": "rejected",
+    "by": "check",
+    "says": "“D-MAX” is not a model the plant builds: NQR, NPR, QLR, QMR or S07."
+  },
+  {
+    "file": "11_plant_kits_demo.csv",
+    "row": 82,
+    "entity": "plantKits",
+    "what": "A cancelled kit",
+    "expect": "rejected",
+    "by": "check",
+    "says": "A cancelled kit never came: leave it out."
+  },
+  {
+    "file": "11_plant_kits_demo.csv",
+    "row": 83,
+    "entity": "plantKits",
+    "what": "VIN JAANLR85EL7230001 twice",
+    "expect": "duplicate",
+    "by": "file",
+    "says": "Same chassis number as row 2 of the file; only the first is loaded."
+  },
+  {
+    "file": "11_plant_kits_demo.csv",
+    "row": 84,
+    "entity": "plantKits",
+    "what": "A shipment that is not in the shipments file (SHP77)",
+    "expect": "rejected",
+    "by": "database",
+    "says": "Shipment “SHP77” is not at this plant in EJO. Import the shipments file first, or give the kit’s SHP number."
+  },
+  {
+    "file": "12_plant_kit_issues_demo.csv",
+    "row": 16,
+    "entity": "plantKitIssues",
+    "what": "A kind EJO does not know (Lost)",
+    "expect": "rejected",
+    "by": "check",
+    "says": "“Lost” is not a kind EJO knows: Shortage, Damage, Wrong part or Excess."
+  },
+  {
+    "file": "12_plant_kit_issues_demo.csv",
+    "row": 17,
+    "entity": "plantKitIssues",
+    "what": "No description",
+    "expect": "rejected",
+    "by": "check",
+    "says": "Say what is wrong (the description is required)."
+  },
+  {
+    "file": "12_plant_kit_issues_demo.csv",
+    "row": 18,
+    "entity": "plantKitIssues",
+    "what": "A kit that is not in EJO",
+    "expect": "rejected",
+    "by": "database",
+    "says": "This VIN has no kit at this plant in EJO. Import the kits file first, or check the VIN."
+  }
+]

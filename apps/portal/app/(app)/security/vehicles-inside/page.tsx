@@ -1,0 +1,49 @@
+import { guardAnyPage } from '@/lib/authz/server';
+import { listVehiclesInside } from '@/lib/actions/security';
+import { LoadingLink } from '@/components/LoadingLink';
+import { SecurityNav } from '@/components/SecurityNav';
+import { SecurityTable } from '@/components/SecurityTable';
+import { VEHICLE_TYPE_LABEL } from '@/lib/security-rules';
+import { formatDateTimeCompact } from '@/lib/utils/format-date';
+import { pluralize } from '@/lib/utils/pluralize';
+import { PageHeader } from '@/components/ui';
+
+const TABS = [['all', 'All'], ['visitor', 'Visitor vehicles'], ['workshop', 'Workshop vehicles'], ['cleared', 'Cleared, not yet out'], ['delivery', 'Deliveries']] as const;
+const STAGE: Record<string, string> = { VISITOR: 'Visitor', WORKSHOP: 'In the workshop', CLEARED: 'Cleared to leave', DELIVERY: 'Delivery' };
+
+export default async function VehiclesInsidePage({ searchParams }: { searchParams: Promise<{ type?: string }> }) {
+  await guardAnyPage(['security.view'], '/security/vehicles-inside');
+  const { type } = await searchParams;
+  const all = await listVehiclesInside();
+  const t = TABS.some(([k]) => k === type) ? type! : 'all';
+  const rows = all.filter((r) => t === 'all' || r.stage === t.toUpperCase());
+  return (
+    <div className="p-4 sm:p-8">
+      <PageHeader
+        icon="garage"
+        title="Vehicles in the compound"
+        description={<>{pluralize(all.length, 'vehicle')} inside right now.</>}
+      />
+      <SecurityNav active="/security" />
+      <div className="mb-4 flex flex-wrap gap-2">
+        {TABS.map(([k, l]) => {
+          const n = k === 'all' ? all.length : all.filter((r) => r.stage === k.toUpperCase()).length;
+          return <LoadingLink key={k} href={`/security/vehicles-inside?type=${k}`} className={`rounded-full px-3 py-1 text-xs font-medium ${t === k ? 'bg-[var(--ejo-primary)] text-white' : 'border border-[var(--ejo-border)] text-[var(--ejo-text)]'}`}>{l} ({n})</LoadingLink>;
+        })}
+      </div>
+      <SecurityTable headers={['Status', 'Record', 'Vehicle', 'Plate', 'Customer / visitor', 'Since', '']} widths={['14%', '14%', '18%', '12%', '20%', '14%', '8%']} empty={rows.length ? null : 'No vehicles here.'}>
+        {rows.map((r) => (
+          <tr key={`${r.kind}-${r.id}`}>
+            <td className="text-xs font-medium">{STAGE[r.stage]}</td>
+            <td className="font-medium">{r.number}</td>
+            <td>{r.kind === 'VISITOR' || r.kind === 'DELIVERY' ? VEHICLE_TYPE_LABEL[r.description] ?? 'Vehicle' : r.description}</td>
+            <td className="font-medium">{r.plate ?? '—'}</td>
+            <td>{r.who}</td>
+            <td className="text-xs">{r.since ? formatDateTimeCompact(r.since) : '—'}</td>
+            <td>{r.href ? <LoadingLink href={r.href} className="text-xs text-[var(--ejo-primary)] hover:underline">{r.stage === 'CLEARED' ? 'Release' : 'Open'}</LoadingLink> : <span className="text-xs text-[var(--ejo-text-muted)]">In the workshop</span>}</td>
+          </tr>
+        ))}
+      </SecurityTable>
+    </div>
+  );
+}

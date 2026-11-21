@@ -1,0 +1,222 @@
+'use server';
+
+import { friendlyError } from '@/lib/errors';
+
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import {
+  createServiceEstimate,
+  cancelServiceEstimate,
+  addServiceEstimateLineItem,
+  removeServiceEstimateLineItem,
+  updateServiceEstimateLineItem,
+  matchServiceEstimateStorePartLine,
+  serviceEstimateHasUnmatchedStoreParts,
+  submitServiceEstimate,
+  approveServiceEstimate,
+  approveServiceEstimateAsManager,
+  notifyCustomerOfApprovedServiceEstimate,
+  notifySupervisorAboutServiceEstimate,
+  notifyTechnicianAboutServiceEstimate,
+  requestServiceEstimateStoreMatching,
+} from './vehicle-service-estimate';
+
+function str(formData: FormData, key: string): string {
+  const value = formData.get(key);
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function num(formData: FormData, key: string): number | undefined {
+  const value = formData.get(key);
+  if (typeof value !== 'string' || value.trim() === '') return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+export async function createServiceEstimateFormAction(formData: FormData) {
+  const vehicleServiceId = str(formData, 'vehicleServiceId');
+  try {
+    await createServiceEstimate(vehicleServiceId);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not start this estimate.', 'vehicle-service-estimate-form-handlers');
+    redirect(`/workshop/vehicle-service/${vehicleServiceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${vehicleServiceId}`);
+  redirect(`/workshop/vehicle-service/${vehicleServiceId}?status=estimate_started`);
+}
+
+export async function cancelServiceEstimateFormAction(formData: FormData) {
+  const vehicleServiceId = str(formData, 'vehicleServiceId');
+  try {
+    await cancelServiceEstimate(vehicleServiceId);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not cancel this estimate.', 'vehicle-service-estimate-form-handlers');
+    redirect(`/workshop/vehicle-service/${vehicleServiceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${vehicleServiceId}`);
+  redirect(`/workshop/vehicle-service/${vehicleServiceId}?status=estimate_cancelled`);
+}
+
+export async function addServiceEstimateLineItemFormAction(formData: FormData) {
+  const estimateId = str(formData, 'estimateId');
+  const vehicleServiceId = str(formData, 'vehicleServiceId');
+  const typeRaw = str(formData, 'type');
+  const validTypes = ['STORE_PART', 'INTERNAL_JOB', 'LABOUR', 'SUNDRY'] as const;
+  const type = (validTypes as readonly string[]).includes(typeRaw) ? (typeRaw as (typeof validTypes)[number]) : 'INTERNAL_JOB';
+  try {
+    await addServiceEstimateLineItem(estimateId, {
+      type,
+      description: str(formData, 'description'),
+      quantity: num(formData, 'quantity') ?? 0,
+      unitPrice: num(formData, 'unitPrice'),
+      partTypeId: str(formData, 'partTypeId') || undefined,
+      unitOfMeasure: str(formData, 'unitOfMeasure') || undefined,
+    });
+  } catch (err) {
+    const message = friendlyError(err, 'Could not add this line item.', 'vehicle-service-estimate-form-handlers');
+    redirect(`/workshop/vehicle-service/${vehicleServiceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${vehicleServiceId}`);
+  redirect(`/workshop/vehicle-service/${vehicleServiceId}?status=line_added`);
+}
+
+export async function matchServiceEstimateStorePartLineFormAction(formData: FormData) {
+  const lineItemId = str(formData, 'lineItemId');
+  const vehicleServiceId = str(formData, 'vehicleServiceId');
+  try {
+    const partId = str(formData, 'partId');
+    if (!partId) {
+      throw new Error('Pick a Part to match this line to.');
+    }
+    await matchServiceEstimateStorePartLine(lineItemId, partId);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not match this line.', 'vehicle-service-estimate-form-handlers');
+    redirect(`/inventory/service-estimate-matching/${vehicleServiceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath('/inventory/estimate-matching');
+  if (vehicleServiceId) revalidatePath(`/workshop/vehicle-service/${vehicleServiceId}`);
+  // Stay on this service's matching page until its last line is matched
+  // (when the "matching complete" email goes out).
+  const stillHasUnmatched = vehicleServiceId ? await serviceEstimateHasUnmatchedStoreParts(vehicleServiceId) : false;
+  redirect(stillHasUnmatched ? `/inventory/service-estimate-matching/${vehicleServiceId}?status=line_matched` : '/inventory/estimate-matching?status=line_matched');
+}
+
+export async function removeServiceEstimateLineItemFormAction(formData: FormData) {
+  const lineItemId = str(formData, 'lineItemId');
+  const vehicleServiceId = str(formData, 'vehicleServiceId');
+  try {
+    await removeServiceEstimateLineItem(lineItemId);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not remove this line item.', 'vehicle-service-estimate-form-handlers');
+    redirect(`/workshop/vehicle-service/${vehicleServiceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${vehicleServiceId}`);
+  redirect(`/workshop/vehicle-service/${vehicleServiceId}?status=line_removed`);
+}
+
+export async function updateServiceEstimateLineItemFormAction(formData: FormData) {
+  const vehicleServiceId = str(formData, 'vehicleServiceId');
+  try {
+    await updateServiceEstimateLineItem(str(formData, 'lineItemId'), {
+      description: str(formData, 'description'),
+      quantity: num(formData, 'quantity') ?? NaN,
+      unitPrice: num(formData, 'unitPrice'),
+      unitOfMeasure: str(formData, 'unitOfMeasure') || undefined,
+    });
+  } catch (err) {
+    const message = friendlyError(err, 'Could not update this line item.', 'vehicle-service-estimate-form-handlers');
+    redirect(`/workshop/vehicle-service/${vehicleServiceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${vehicleServiceId}`);
+  // Redirect to the plain URL to clear ?editLineId=; revalidatePath alone
+  // would keep the row in edit mode.
+  redirect(`/workshop/vehicle-service/${vehicleServiceId}?status=line_updated`);
+}
+
+export async function submitServiceEstimateFormAction(formData: FormData) {
+  const estimateId = str(formData, 'estimateId');
+  const vehicleServiceId = str(formData, 'vehicleServiceId');
+  try {
+    await submitServiceEstimate(estimateId);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not submit this estimate.', 'vehicle-service-estimate-form-handlers');
+    redirect(`/workshop/vehicle-service/${vehicleServiceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${vehicleServiceId}`);
+  redirect(`/workshop/vehicle-service/${vehicleServiceId}?status=estimate_submitted`);
+}
+
+export async function approveServiceEstimateFormAction(formData: FormData) {
+  const estimateId = str(formData, 'estimateId');
+  const vehicleServiceId = str(formData, 'vehicleServiceId');
+  try {
+    await approveServiceEstimate(estimateId);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not approve this estimate.', 'vehicle-service-estimate-form-handlers');
+    redirect(`/workshop/vehicle-service/${vehicleServiceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${vehicleServiceId}`);
+  redirect(`/workshop/vehicle-service/${vehicleServiceId}?status=estimate_approved`);
+}
+
+export async function approveServiceEstimateAsManagerFormAction(formData: FormData) {
+  const estimateId = str(formData, 'estimateId');
+  const vehicleServiceId = str(formData, 'vehicleServiceId');
+  try {
+    await approveServiceEstimateAsManager(estimateId);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not approve estimate as manager.', 'vehicle-service-estimate-form-handlers');
+    redirect(`/workshop/vehicle-service/${vehicleServiceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${vehicleServiceId}`);
+  redirect(`/workshop/vehicle-service/${vehicleServiceId}?status=estimate_manager_approved`);
+}
+
+export async function notifyCustomerOfApprovedServiceEstimateFormAction(formData: FormData) {
+  const estimateId = str(formData, 'estimateId');
+  const vehicleServiceId = str(formData, 'vehicleServiceId');
+  try {
+    await notifyCustomerOfApprovedServiceEstimate(estimateId);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not notify the customer.', 'vehicle-service-estimate-form-handlers');
+    redirect(`/workshop/vehicle-service/${vehicleServiceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${vehicleServiceId}`);
+  redirect(`/workshop/vehicle-service/${vehicleServiceId}?status=customer_notified`);
+}
+
+export async function notifySupervisorAboutServiceEstimateFormAction(formData: FormData) {
+  const vehicleServiceId = str(formData, 'vehicleServiceId');
+  try {
+    await notifySupervisorAboutServiceEstimate(vehicleServiceId, str(formData, 'note') || undefined);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not notify supervisor.', 'vehicle-service-estimate-form-handlers');
+    redirect(`/workshop/vehicle-service/${vehicleServiceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${vehicleServiceId}`);
+  redirect(`/workshop/vehicle-service/${vehicleServiceId}?status=supervisor_notified`);
+}
+
+export async function notifyTechnicianAboutServiceEstimateFormAction(formData: FormData) {
+  const vehicleServiceId = str(formData, 'vehicleServiceId');
+  try {
+    await notifyTechnicianAboutServiceEstimate(vehicleServiceId, str(formData, 'note') || undefined);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not notify technician.', 'vehicle-service-estimate-form-handlers');
+    redirect(`/workshop/vehicle-service/${vehicleServiceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${vehicleServiceId}`);
+  redirect(`/workshop/vehicle-service/${vehicleServiceId}?status=technician_notified`);
+}
+
+export async function requestServiceEstimateStoreMatchingFormAction(formData: FormData) {
+  const vehicleServiceId = str(formData, 'vehicleServiceId');
+  try {
+    await requestServiceEstimateStoreMatching(vehicleServiceId, str(formData, 'note') || undefined);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not request Store matching.', 'vehicle-service-estimate-form-handlers');
+    redirect(`/workshop/vehicle-service/${vehicleServiceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${vehicleServiceId}`);
+  redirect(`/workshop/vehicle-service/${vehicleServiceId}?status=matching_requested`);
+}

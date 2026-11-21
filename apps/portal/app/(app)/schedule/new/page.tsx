@@ -1,0 +1,32 @@
+import { guardAnyPage } from '@/lib/authz/server';
+import { getSchedulingAccess, listRooms } from '@/lib/actions/scheduling';
+import { searchStaffOptions, loadStaffOptions } from '@/lib/actions/security';
+import { createAppointmentFormAction } from '@/lib/actions/scheduling-form-handlers';
+import { ScheduleNav } from '@/components/ScheduleNav';
+import { AppointmentForm } from '@/components/AppointmentForm';
+import { FormFeedbackBanner } from '@/components/FormFeedbackBanner';
+import { PageHeader } from '@/components/ui';
+
+export default async function NewAppointmentPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  // Calendars are for people who keep one (an appointment itself stays open to the people in it).
+  await guardAnyPage(['schedule.view', 'schedule.manage'], '/schedule');
+  const { error } = await searchParams;
+  const [access, rooms] = await Promise.all([getSchedulingAccess(), listRooms()]);
+  return (
+    <div className="p-4 sm:p-8">
+      <PageHeader
+        icon="calendar"
+        title="New appointment"
+      />
+      <ScheduleNav active="/schedule/new" />
+      {error ? <div className="mb-6 max-w-2xl"><FormFeedbackBanner kind="error" message={error} /></div> : null}
+      {!access.canUse ? (
+        <p className="text-sm text-[var(--ejo-text-muted)]">You do not have a calendar to book on yet.</p>
+      ) : (
+        <div className="max-w-2xl rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-4 sm:p-6">
+          <AppointmentForm owners={access.owners} rooms={rooms} action={createAppointmentFormAction} search={searchStaffOptions} loadDefaultOptions={loadStaffOptions} />
+        </div>
+      )}
+    </div>
+  );
+}

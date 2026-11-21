@@ -1,0 +1,329 @@
+import { requireUser } from '@/lib/actions/workshop';
+import { guardAnyPage, allows } from '@/lib/authz/server';
+import type { ReactNode } from 'react';
+import { humanizeAction } from '@/lib/humanize-action';
+import { listWarrantyClaims } from '@/lib/actions/warranty-claims';
+import { CLAIM_STATUS_LABEL } from '@/lib/warranty-claim-status';
+import { notFound } from 'next/navigation';
+import { getWarranty, getWarrantyAuditTrail, getWarrantyRoles, getWarrantyEmailState } from '@/lib/actions/warranty';
+import { EXPIRY_REMINDER_STAGES } from '@/lib/warranty-reminders';
+import { verifyWarrantyFormAction, setWarrantyStatusFormAction, sendWarrantyCertificateEmailFormAction, sendWarrantyExpiryReminderFormAction } from '@/lib/actions/warranty-form-handlers';
+import { LoadingLink } from '@/components/LoadingLink';
+import { PrintMenu } from '@/components/print/PrintMenu';
+import { AuditTrail } from '@/components/AuditTrail';
+import { FormFeedbackBanner } from '@/components/FormFeedbackBanner';
+import { FormPendingOverlay } from '@/components/FormPendingOverlay';
+import { SubmitButton } from '@/components/SubmitButton';
+import { warrantyCoverage, WARRANTY_STATE_LABEL, splitLines } from '@/lib/warranty-state';
+import { formatDateOnly, formatDateTime } from '@/lib/utils/format-date';
+import { BackLink, PageTitle, StatusChip } from '@/components/ui';
+import { CustomerLink } from '@/components/CustomerLink';
+import { RefineTextButton } from '@/components/enyo/RefineTextButton';
+import { getImportOrigin } from '@/lib/actions/data-exchange';
+
+const ACTION_LABEL: Record<string, string> = {
+  'warranty.covers_job_card_line': 'Covers a Job Card line',
+  'warranty.registered': 'Warranty registered',
+  'warranty.verified': 'Warranty verified — now active',
+  'warranty.suspended': 'Warranty suspended',
+  'warranty.void': 'Warranty voided',
+  'warranty.transferred': 'Warranty transferred',
+  'warranty.reinstated': 'Warranty reinstated',
+  'warranty.certificate_emailed': 'Certificate emailed to the customer',
+  'warranty.expiry_reminder_sent': 'Expiry reminder emailed to the customer',
+  'warranty.claim_opened': 'Claim opened',
+};
+
+const STATUS_BANNER: Record<string, string> = {
+  registered: 'Warranty registered — it now needs verifying by a second person before it covers anything.',
+  verified: 'Warranty verified — it is now active.',
+  status_changed: 'Warranty status updated.',
+  certificate_emailed: 'Certificate emailed to the customer.',
+  reminder_sent: 'Expiry reminder emailed to the customer.',
+};
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <dt className="text-xs text-[var(--ejo-text-muted)]">{label}</dt>
+      <dd className="mt-0.5 text-sm text-[var(--ejo-text)]">{children}</dd>
+    </div>
+  );
+}
+
+export default async function WarrantyDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ status?: string; error?: string }> }) {
+  await guardAnyPage(['warranty.view'], '/warranty');
+  const { id } = await params;
+  const { status, error } = await searchParams;
+  const [w, trail, claims, roles, emails] = await Promise.all([getWarranty(id), getWarrantyAuditTrail(id), listWarrantyClaims({ warrantyId: id }), getWarrantyRoles(), getWarrantyEmailState(id)]);
+  if (!w) notFound();
+  // Customer names link to their Customers (CRM) page for those who may open it.
+  const canSeeCustomers = await allows('crm.view');
+  const origin = w.importJobId ? await getImportOrigin(w.importJobId).catch(() => null) : null;
+  const cov = warrantyCoverage(w, w.vehicle?.mileage ?? null);
+  const distanceEnd = w.startReading !== null && w.distanceLimit !== null ? w.startReading + w.distanceLimit : null;
+  const canChange = w.status !== 'VOID' && w.status !== 'TRANSFERRED';
+  // Same rule as verifyWarranty: an approver who did not register it (E2E-05).
+  const viewer = await requireUser();
+  const canVerify = roles.canApprove && (roles.isMaster || w.issuedById !== viewer.id);
+
+  return (
+    <div className="p-8">
+      <BackLink href="/warranty" label="Back to Warranty" className="mb-4" />
+      {status && STATUS_BANNER[status] ? <div className="mb-6 max-w-2xl"><FormFeedbackBanner kind="success" message={STATUS_BANNER[status]} /></div> : null}
+      {error ? <div className="mb-6 max-w-2xl"><FormFeedbackBanner kind="error" message={error} /></div> : null}
+
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <PageTitle icon="shield-check">{w.warrantyNumber}</PageTitle>
+          <p className="mt-1 text-sm text-[var(--ejo-text-muted)]">
+            {w.kind === 'ASSET' ? 'Vehicle warranty' : 'Part warranty'} — {w.subjectDescription}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <StatusChip status={cov.state} label={WARRANTY_STATE_LABEL[cov.state]} className="px-3 py-1 text-sm" />
+          <PrintMenu orgHref={`/print/warranty/${w.id}`} clientHref={`/print/warranty/${w.id}?variant=client`} clientLabel="Customer Copy" />
+        </div>
+      </div>
+
+      {w.externalId ? (
+        <div className="mb-6 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-info)]/40 bg-[var(--ejo-info)]/10 px-4 py-3 text-sm text-[var(--ejo-text)]" role="note" data-testid="warranty-origin">
+          <span className="font-semibold">Brought in from {w.externalSource === 'LEGACY' ? 'the old system' : 'SAP'} as warranty {w.externalId}.</span>{' '}
+          It started on {formatDateOnly(w.startsAt)}{origin ? <>; brought into EJO by import {origin.mayOpen ? <LoadingLink href={`/data-exchange/imports/${w.importJobId}`} className="font-medium text-[var(--ejo-primary)] hover:underline">{origin.number}</LoadingLink> : origin.number}{origin.loadedAt ? ` on ${formatDateOnly(origin.loadedAt)}` : ''}</> : null}.
+          {' '}Registered by the person who ran the import and verified by the one who approved it.
+        </div>
+      ) : null}
+
+      <div className={`mb-6 rounded-[var(--ejo-radius-lg)] border p-4 text-sm ${cov.state === 'COVERED' ? 'border-[var(--ejo-success)]/40 bg-[var(--ejo-success)]/5' : cov.state === 'EXPIRING_SOON' ? 'border-[var(--ejo-warning)]/40 bg-[var(--ejo-warning)]/5' : 'border-[var(--ejo-border)] bg-[var(--ejo-surface)]'}`}>
+        <p className="font-medium text-[var(--ejo-text)]">{cov.reason}</p>
+        {cov.daysLeft !== null && cov.daysLeft > 0 ? (
+          <p className="mt-1 text-xs text-[var(--ejo-text-muted)]">
+            {cov.daysLeft.toLocaleString('en-NG')} {cov.daysLeft === 1 ? 'day' : 'days'} left
+            {cov.distanceLeft !== null ? ` · ${cov.distanceLeft.toLocaleString('en-NG')} km left (last known odometer)` : ''}
+          </p>
+        ) : null}
+        {w.policy.isSample ? <p className="mt-1 text-xs font-medium text-[var(--ejo-warning)]">Sample terms — replace with the provider&apos;s real warranty terms before relying on this.</p> : null}
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="space-y-6">
+          <div className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-6">
+            <h2 className="mb-3 text-sm font-semibold text-[var(--ejo-text)]">Coverage</h2>
+            <dl className="grid gap-4 sm:grid-cols-2">
+              <Field label="Starts">{formatDateOnly(w.startsAt)}{w.startReading !== null ? ` at ${w.startReading.toLocaleString('en-NG')} km` : ''}</Field>
+              <Field label="Ends (whichever comes first)">{formatDateOnly(w.endsAt)}{distanceEnd !== null ? ` or ${distanceEnd.toLocaleString('en-NG')} km` : ''}</Field>
+              <Field label="Policy">{w.policy.name} ({w.policy.code})</Field>
+              <Field label="Provider">{w.provider.name}</Field>
+            </dl>
+            <div className="mt-4 space-y-3 text-sm">
+              {([['What is covered', w.coverageSnapshot], ['Not covered', w.exclusionsSnapshot], ['Conditions', w.conditionsSnapshot]] as const).map(([title, text]) =>
+                splitLines(text).length > 0 ? (
+                  <div key={title}>
+                    <p className="text-xs text-[var(--ejo-text-muted)]">{title}</p>
+                    <ol className="list-decimal pl-5 text-[var(--ejo-text)]">
+                      {splitLines(text).map((it, i) => <li key={i}>{it}</li>)}
+                    </ol>
+                  </div>
+                ) : null,
+              )}
+              <p className="text-[11px] text-[var(--ejo-text-muted)]">Terms as they were when this warranty was issued — later changes to the policy never alter them.</p>
+            </div>
+          </div>
+
+          <div className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-6">
+            <h2 className="mb-3 text-sm font-semibold text-[var(--ejo-text)]">Traceability</h2>
+            <dl className="grid gap-4 sm:grid-cols-2">
+              <Field label="Customer">
+                <CustomerLink id={w.customerId} name={w.customer.fullName} canView={canSeeCustomers} />
+                <span className="block text-xs text-[var(--ejo-text-muted)]">{[w.customer.email, w.customer.phone].filter(Boolean).join(' · ')}</span>
+              </Field>
+              {w.vehicle ? (
+                <Field label="Vehicle">
+                  <LoadingLink href={`/workshop/vehicles/${w.vehicle.id}/edit`} className="text-[var(--ejo-primary)] hover:underline">
+                    {[w.vehicle.year, w.vehicle.make, w.vehicle.model].filter(Boolean).join(' ') || 'Vehicle'}
+                  </LoadingLink>
+                  <span className="block text-xs text-[var(--ejo-text-muted)]">
+                    {[w.vehicle.plateNumber, w.vehicle.chassisNumber ? `VIN ${w.vehicle.chassisNumber}` : null, w.vehicle.mileage !== null ? `${w.vehicle.mileage.toLocaleString('en-NG')} km last recorded` : null].filter(Boolean).join(' · ')}
+                  </span>
+                </Field>
+              ) : null}
+              {w.part ? (
+                <Field label="Part">
+                  <LoadingLink href={`/inventory/parts/${w.part.id}`} className="text-[var(--ejo-primary)] hover:underline">
+                    {w.part.name}{w.part.partNumber ? ` (${w.part.partNumber})` : ''}
+                  </LoadingLink>
+                  {w.quantity !== null && w.kind === 'PART' ? <span className="block text-xs text-[var(--ejo-text-muted)]">Quantity: {Number(w.quantity).toLocaleString('en-NG')}</span> : null}
+                </Field>
+              ) : null}
+              {w.partSerial ? (
+                <Field label="Serial number">
+                  {w.partSerial.serialNumber}
+                  {w.partSerial.goodsReceiptLine ? (
+                    <span className="block text-xs">
+                      Received on{' '}
+                      <LoadingLink href={`/inventory/goods-receipts/${w.partSerial.goodsReceiptLine.goodsReceipt.id}`} className="text-[var(--ejo-primary)] hover:underline">
+                        {w.partSerial.goodsReceiptLine.goodsReceipt.referenceNumber}
+                      </LoadingLink>
+                    </span>
+                  ) : null}
+                </Field>
+              ) : null}
+              {w.jobCard ? (
+                <Field label="Job Card">
+                  <LoadingLink href={`/workshop/job-cards/${w.jobCard.id}`} className="text-[var(--ejo-primary)] hover:underline">{w.jobCard.jobNumber}</LoadingLink>
+                </Field>
+              ) : null}
+              {w.vehicleService ? (
+                <Field label="Vehicle Service">
+                  <LoadingLink href={`/workshop/vehicle-service/${w.vehicleService.id}`} className="text-[var(--ejo-primary)] hover:underline">{w.vehicleService.serviceNumber}</LoadingLink>
+                </Field>
+              ) : null}
+              {w.slipLine ? (
+                <Field label="Issued with">
+                  <LoadingLink href={`/workshop/parts-requests/${w.slipLine.slip.id}`} className="text-[var(--ejo-primary)] hover:underline">{w.slipLine.slip.referenceNumber}</LoadingLink>
+                </Field>
+              ) : null}
+              <Field label="Origin">{w.origin === 'AUTO' ? 'Issued automatically with a part release' : w.origin === 'IMPORT' ? `Brought in at the cut-over (${w.externalSource === 'LEGACY' ? 'old system' : 'SAP'} ${w.externalId ?? ''})`.replace(' )', ')') : 'Registered by staff'}</Field>
+              <Field label="Issued">
+                {formatDateTime(w.issuedAt)}{w.issuedBy ? ` by ${w.issuedBy.fullName}` : ''}
+              </Field>
+              {w.verifiedAt ? <Field label="Verified">{formatDateTime(w.verifiedAt)}{w.verifiedBy ? ` by ${w.verifiedBy.fullName}` : ''}</Field> : null}
+              {w.evidenceNote ? <Field label="Evidence">{w.evidenceNote}</Field> : null}
+            </dl>
+          </div>
+
+          <div className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-6">
+            <h2 className="text-sm font-semibold text-[var(--ejo-text)]">Audit trail</h2>
+            {trail.length === 0 ? (
+              <p className="mt-2 text-xs text-[var(--ejo-text-muted)]">Issued automatically — see the linked record for the release.</p>
+            ) : (
+              <AuditTrail
+                entries={trail.map((e: (typeof trail)[number]) => {
+                  const meta = (e.metadata ?? {}) as Record<string, unknown>;
+                  return {
+                    id: e.id,
+                    actionLabel: ACTION_LABEL[e.action] ?? humanizeAction(e.action),
+                    userName: e.userName,
+                    detail:
+                      e.action === 'warranty.covers_job_card_line'
+                        ? `${String(meta.jobNumber ?? '')} — ${String(meta.line ?? '')}${typeof meta.amount === 'number' ? ` (₦${meta.amount.toLocaleString('en-NG')})` : ''}`
+                        : typeof meta.reason === 'string' ? `Reason: ${meta.reason}` : typeof meta.evidence === 'string' ? `Evidence: ${meta.evidence}` : null,
+                    dateLabel: formatDateTime(e.createdAt),
+                  };
+                })}
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-5">
+            <h2 className="text-sm font-semibold text-[var(--ejo-text)]">Claims ({claims.length})</h2>
+            {claims.length === 0 ? <p className="mt-1 text-xs text-[var(--ejo-text-muted)]">No claims against this warranty.</p> : (
+              <ul className="mt-2 space-y-1.5 text-xs">
+                {claims.map((cl: (typeof claims)[number]) => (
+                  <li key={cl.id} className="flex items-center justify-between gap-2">
+                    <LoadingLink href={`/warranty/claims/${cl.id}`} className="text-[var(--ejo-primary)] hover:underline">{cl.claimNumber} — {cl.causalPart}</LoadingLink>
+                    <StatusChip status={cl.status} label={CLAIM_STATUS_LABEL[cl.status]} />
+                  </li>
+                ))}
+              </ul>
+            )}
+            {roles.isStaff && w.status === 'ACTIVE' ? (
+              <LoadingLink href={`/warranty/claims/new?warrantyId=${w.id}`} className="mt-3 block rounded-[var(--ejo-radius-md)] bg-[var(--ejo-primary)] px-4 py-2 text-center text-sm font-medium text-white hover:opacity-90">
+                Start a claim
+              </LoadingLink>
+            ) : w.status !== 'ACTIVE' ? (
+              <p className="mt-2 text-[11px] text-[var(--ejo-text-muted)]">Claims can be started once the warranty is active.</p>
+            ) : null}
+          </div>
+          <div id="customer-emails" className="scroll-mt-24 rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-5">
+            <h2 className="text-sm font-semibold text-[var(--ejo-text)]">Customer emails</h2>
+            {!emails.hasEmail ? (
+              <p className="mt-1 text-xs text-[var(--ejo-warning)]">The customer has no email address on file.</p>
+            ) : (
+              <div className="mt-2 space-y-3 text-xs">
+                {roles.isStaff && w.status === 'ACTIVE' ? (
+                  <form action={sendWarrantyCertificateEmailFormAction}>
+                    <FormPendingOverlay />
+                    <input type="hidden" name="warrantyId" value={w.id} />
+                    <SubmitButton label={emails.certificates.length ? `Re-send certificate (${emails.certificates.length} sent)` : 'Email certificate to customer'} pendingLabel="Sending…" className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] px-4 py-2 text-sm font-medium text-[var(--ejo-text)] hover:bg-[var(--ejo-bg)]" />
+                  </form>
+                ) : null}
+                <div>
+                  <p className="font-medium text-[var(--ejo-text)]">Expiry reminders</p>
+                  <ol className="mt-1 space-y-0.5">
+                    {EXPIRY_REMINDER_STAGES.map((st) => {
+                      const sent = emails.reminders.find((r) => r.stage === st.stage);
+                      return (
+                        <li key={st.stage} className={sent ? 'text-[var(--ejo-success)]' : emails.schedule.dueStage === st.stage ? 'text-[var(--ejo-warning)]' : 'text-[var(--ejo-text-muted)]'}>
+                          {sent ? '✓' : emails.schedule.dueStage === st.stage ? '●' : '○'} {st.label}
+                          {sent ? ` — sent ${formatDateOnly(sent.at)}${sent.by ? ` by ${sent.by}` : ''}` : emails.schedule.dueStage === st.stage ? ' — due now' : ''}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                  {emails.schedule.dueStage && roles.isStaff ? (
+                    <form action={sendWarrantyExpiryReminderFormAction} className="mt-2">
+                      <FormPendingOverlay />
+                      <input type="hidden" name="warrantyId" value={w.id} />
+                      <SubmitButton label="Send the reminder that is due" pendingLabel="Sending…" className="w-full rounded-[var(--ejo-radius-md)] bg-[var(--ejo-warning)] px-4 py-2 text-sm font-medium text-white hover:opacity-90" />
+                    </form>
+                  ) : emails.schedule.nextDueFrom ? (
+                    <p className="mt-1 text-[var(--ejo-text-muted)]">Next reminder can be sent from {formatDateOnly(emails.schedule.nextDueFrom)} (working days only).</p>
+                  ) : !emails.covering ? (
+                    <p className="mt-1 text-[var(--ejo-text-muted)]">No reminders — this warranty is not currently covering anything.</p>
+                  ) : null}
+                </div>
+                {emails.certificates.length ? (
+                  <p className="text-[var(--ejo-text-muted)]">Certificate last emailed {formatDateTime(emails.certificates[emails.certificates.length - 1]!.at)}{emails.certificates[emails.certificates.length - 1]!.by ? ` by ${emails.certificates[emails.certificates.length - 1]!.by}` : ''}.</p>
+                ) : null}
+                <p className="text-[11px] text-[var(--ejo-text-muted)]">Customer emails never show staff names — who sent each one is recorded here and on the audit trail.</p>
+              </div>
+            )}
+          </div>
+          {w.status === 'PENDING_VERIFICATION' ? (
+            <div className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-info)]/40 bg-[var(--ejo-info)]/5 p-5">
+              <h2 className="text-sm font-semibold text-[var(--ejo-text)]">Verify this warranty</h2>
+              <p className="mt-1 text-xs text-[var(--ejo-text-muted)]">
+                The Warranty HOD or Branch Manager (not the person who registered it) checks the evidence and verifies it. Until then it covers nothing.
+              </p>
+              {canVerify ? (
+                <form action={verifyWarrantyFormAction} className="mt-3">
+                  <FormPendingOverlay />
+                  <input type="hidden" name="warrantyId" value={w.id} />
+                  <SubmitButton label="Evidence checked — verify" pendingLabel="Verifying…" className="w-full rounded-[var(--ejo-radius-md)] bg-[var(--ejo-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90" />
+                </form>
+              ) : (
+                <p className="mt-3 rounded-[var(--ejo-radius-md)] bg-[var(--ejo-bg)] px-3 py-2 text-xs text-[var(--ejo-text-muted)]">
+                  {roles.canApprove ? 'You registered this warranty, so someone else must verify it.' : 'Waiting for the Warranty HOD or Branch Manager to verify it.'}
+                </p>
+              )}
+            </div>
+          ) : null}
+          {canChange ? (
+            <details className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-5">
+              <summary className="cursor-pointer text-sm font-medium text-[var(--ejo-text-muted)]">Change status (Warranty HOD / Manager)</summary>
+              <form action={setWarrantyStatusFormAction} className="mt-3 space-y-2">
+                <FormPendingOverlay />
+                <input type="hidden" name="warrantyId" value={w.id} />
+                <select name="status" required className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]">
+                  {w.status === 'SUSPENDED' ? <option value="ACTIVE">Reinstate</option> : null}
+                  {w.status !== 'SUSPENDED' && w.status !== 'PENDING_VERIFICATION' ? <option value="SUSPENDED">Suspend</option> : null}
+                  <option value="VOID">Void</option>
+                  {w.kind === 'ASSET' ? <option value="TRANSFERRED">Transferred (ownership changed)</option> : null}
+                </select>
+                <textarea id="warranty-reason" name="reason" required rows={2} placeholder="Reason (required, recorded on the audit trail)" className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]" />
+                <RefineTextButton targetId="warranty-reason" />
+                <SubmitButton label="Update status" pendingLabel="Saving…" className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] px-4 py-2 text-sm font-medium text-[var(--ejo-text)] hover:bg-[var(--ejo-bg)]" />
+              </form>
+            </details>
+          ) : null}
+          {w.statusReason && w.status !== 'ACTIVE' ? (
+            <p className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-4 text-xs text-[var(--ejo-text-muted)]">Status reason: {w.statusReason}</p>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}

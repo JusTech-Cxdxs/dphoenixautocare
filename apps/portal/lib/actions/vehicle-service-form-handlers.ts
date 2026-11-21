@@ -1,0 +1,342 @@
+'use server';
+
+import { friendlyError } from '@/lib/errors';
+
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import {
+  createVehicleService,
+  updateVehicleServiceStatus,
+  requestVehicleServiceClose,
+  approveVehicleServiceCloseRequest,
+  declineVehicleServiceCloseRequest,
+  escalateVehicleServiceToJobCard,
+  approveVehicleService,
+  rejectVehicleService,
+  assignTechnicianToVehicleService,
+  acceptVehicleServiceTechnicianAssignment,
+  rejectVehicleServiceTechnicianAssignment,
+  updatePrimaryServiceInterval,
+  attendToOverdueVehicle,
+  sendVehicleServiceCollectionReminder,
+  stopTrackingVehicle,
+  requestVehicleServiceCancellation,
+  approveVehicleServiceCancellationRequest,
+  declineVehicleServiceCancellationRequest,
+  handBackCancelledVehicleService,
+  sendVehicleServiceCancelledCollectionNotice,
+} from './vehicle-service';
+import { sendManualServiceReminder, runServiceRemindersNow } from './vehicle-service-reminders';
+
+function str(formData: FormData, key: string): string {
+  const value = formData.get(key);
+  return typeof value === 'string' ? value.trim() : '';
+}
+function num(formData: FormData, key: string): number | undefined {
+  const value = str(formData, key);
+  if (!value) return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+export async function createVehicleServiceFormAction(formData: FormData) {
+  const customerId = str(formData, 'customerId');
+  const vehicleId = str(formData, 'vehicleId');
+  const supervisorId = str(formData, 'supervisorId');
+  let serviceId = '';
+  try {
+    const customerComplaints = formData.getAll('customerComplaints').filter((v): v is string => typeof v === 'string');
+    const result = await createVehicleService({
+      customerId,
+      vehicleId,
+      supervisorId,
+      customerComplaints,
+      mileageAtCheckIn: num(formData, 'mileageAtCheckIn'),
+    });
+    serviceId = result.id;
+  } catch (err) {
+    const message = friendlyError(err, 'Could not open this Vehicle Service.', 'vehicle-service-form-handlers');
+    redirect(`/workshop/vehicle-service?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath('/workshop/vehicle-service');
+  redirect(`/workshop/vehicle-service/${serviceId}`);
+}
+
+export async function approveVehicleServiceFormAction(formData: FormData) {
+  const id = str(formData, 'serviceId');
+  try {
+    await approveVehicleService(id, str(formData, 'notes') || undefined);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not approve this Vehicle Service.', 'vehicle-service-form-handlers');
+    redirect(`/workshop/vehicle-service/${id}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${id}`);
+}
+
+export async function rejectVehicleServiceFormAction(formData: FormData) {
+  const id = str(formData, 'serviceId');
+  try {
+    await rejectVehicleService(id, str(formData, 'reason'), str(formData, 'notes') || undefined);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not reject this Vehicle Service.', 'vehicle-service-form-handlers');
+    redirect(`/workshop/vehicle-service/${id}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${id}`);
+}
+
+export async function assignTechnicianToVehicleServiceFormAction(formData: FormData) {
+  const serviceId = str(formData, 'serviceId');
+  const technicianId = str(formData, 'technicianId');
+  if (!technicianId) return; // "Unassigned" placeholder selected — nothing to do
+  try {
+    await assignTechnicianToVehicleService(serviceId, technicianId);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not assign the technician.', 'vehicle-service-form-handlers');
+    redirect(`/workshop/vehicle-service/${serviceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${serviceId}`);
+  revalidatePath('/workshop/vehicle-service');
+}
+
+export async function acceptVehicleServiceTechnicianAssignmentFormAction(formData: FormData) {
+  const serviceId = str(formData, 'serviceId');
+  try {
+    await acceptVehicleServiceTechnicianAssignment(serviceId);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not accept assignment.', 'vehicle-service-form-handlers');
+    redirect(`/workshop/vehicle-service/${serviceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${serviceId}`);
+  redirect(`/workshop/vehicle-service/${serviceId}?status=assignment_accepted`);
+}
+
+export async function rejectVehicleServiceTechnicianAssignmentFormAction(formData: FormData) {
+  const serviceId = str(formData, 'serviceId');
+  try {
+    await rejectVehicleServiceTechnicianAssignment(serviceId, str(formData, 'reason'));
+  } catch (err) {
+    const message = friendlyError(err, 'Could not reject assignment.', 'vehicle-service-form-handlers');
+    redirect(`/workshop/vehicle-service/${serviceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${serviceId}`);
+  redirect(`/workshop/vehicle-service/${serviceId}?status=assignment_rejected`);
+}
+
+export async function updateVehicleServiceStatusFormAction(formData: FormData) {
+  const serviceId = str(formData, 'serviceId');
+  const newStatus = str(formData, 'newStatus') as 'CHECKED_IN' | 'IN_SERVICE' | 'COMPLETED' | 'READY_FOR_COLLECTION' | 'CLOSED' | 'COLLECTED' | 'CANCELLED';
+  try {
+    await updateVehicleServiceStatus(serviceId, newStatus, {
+      odometerAtService: num(formData, 'odometerAtService'),
+      technicianNotes: str(formData, 'technicianNotes') || undefined,
+      collectedByName: str(formData, 'collectedByName') || undefined,
+    });
+  } catch (err) {
+    const message = friendlyError(err, 'Could not update this Vehicle Service.', 'vehicle-service-form-handlers');
+    redirect(`/workshop/vehicle-service/${serviceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${serviceId}`);
+  revalidatePath('/workshop/vehicle-service-custody');
+  redirect(`/workshop/vehicle-service/${serviceId}?status=${newStatus === 'COLLECTED' ? 'checked_out' : 'updated'}`);
+}
+
+export async function requestVehicleServiceCloseFormAction(formData: FormData) {
+  const serviceId = str(formData, 'serviceId');
+  try {
+    await requestVehicleServiceClose(serviceId);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not request a close for this Vehicle Service.', 'vehicle-service-form-handlers');
+    redirect(`/workshop/vehicle-service/${serviceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${serviceId}`);
+  redirect(`/workshop/vehicle-service/${serviceId}?status=close_requested`);
+}
+
+export async function approveVehicleServiceCloseRequestFormAction(formData: FormData) {
+  const serviceId = str(formData, 'serviceId');
+  const requestId = str(formData, 'requestId');
+  try {
+    await approveVehicleServiceCloseRequest(requestId, str(formData, 'decisionNotes') || undefined);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not approve this close request.', 'vehicle-service-form-handlers');
+    redirect(`/workshop/vehicle-service/${serviceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${serviceId}`);
+  redirect(`/workshop/vehicle-service/${serviceId}?status=close_approved`);
+}
+
+export async function declineVehicleServiceCloseRequestFormAction(formData: FormData) {
+  const serviceId = str(formData, 'serviceId');
+  const requestId = str(formData, 'requestId');
+  try {
+    await declineVehicleServiceCloseRequest(requestId, str(formData, 'decisionNotes') || undefined);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not decline this close request.', 'vehicle-service-form-handlers');
+    redirect(`/workshop/vehicle-service/${serviceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${serviceId}`);
+  redirect(`/workshop/vehicle-service/${serviceId}?status=close_declined`);
+}
+
+export async function escalateVehicleServiceFormAction(formData: FormData) {
+  const serviceId = str(formData, 'serviceId');
+  const supervisorId = str(formData, 'supervisorId');
+  let jobCardId = '';
+  try {
+    const result = await escalateVehicleServiceToJobCard(serviceId, supervisorId, str(formData, 'additionalComplaint') || undefined);
+    jobCardId = result.jobCardId;
+  } catch (err) {
+    const message = friendlyError(err, 'Could not escalate this Vehicle Service.', 'vehicle-service-form-handlers');
+    redirect(`/workshop/vehicle-service/${serviceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${serviceId}`);
+  redirect(`/workshop/job-cards/${jobCardId}`);
+}
+
+export async function updatePrimaryServiceIntervalFormAction(formData: FormData) {
+  const organisationId = str(formData, 'organisationId');
+  try {
+    await updatePrimaryServiceInterval(organisationId, num(formData, 'primaryServiceIntervalKm'), num(formData, 'primaryServiceIntervalDays'));
+  } catch (err) {
+    const message = friendlyError(err, 'Could not update the Primary Service interval.', 'vehicle-service-form-handlers');
+    redirect(`/workshop/vehicle-service?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath('/workshop/vehicle-service');
+  redirect('/workshop/vehicle-service?status=interval_updated');
+}
+
+export async function attendToOverdueVehicleFormAction(formData: FormData) {
+  const serviceId = str(formData, 'serviceId');
+  try {
+    await attendToOverdueVehicle(serviceId);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not attend to this vehicle.', 'vehicle-service-form-handlers');
+    redirect(`${safeWorkshopPath(str(formData, 'returnTo'), '/workshop/vehicle-service-custody')}?error=${encodeURIComponent(message)}`);
+  }
+  const returnTo = safeWorkshopPath(str(formData, 'returnTo'), '/workshop/vehicle-service-custody');
+  revalidatePath('/workshop/vehicle-service-custody');
+  revalidatePath('/workshop/service-tracker');
+  redirect(returnTo === '/workshop/vehicle-service-custody' ? '/workshop/vehicle-service-custody?filter=overdue&status=attended' : `${returnTo}?status=attended`);
+}
+
+export async function sendVehicleServiceCollectionReminderFormAction(formData: FormData) {
+  const serviceId = str(formData, 'serviceId');
+  try {
+    await sendVehicleServiceCollectionReminder(serviceId);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not send the collection reminder.', 'vehicle-service-form-handlers');
+    redirect(`/workshop/vehicle-service-custody?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath('/workshop/vehicle-service-custody');
+  redirect('/workshop/vehicle-service-custody?status=collection_reminder_sent');
+}
+
+/** Only ever returns somewhere inside the workshop — never an
+ * arbitrary URL taken from the form (no open redirect). */
+function safeWorkshopPath(raw: string, fallback: string): string {
+  return raw.startsWith('/workshop/') && !raw.startsWith('//') && !raw.includes('://') ? (raw.split('?')[0] ?? fallback) : fallback;
+}
+
+export async function sendManualServiceReminderFormAction(formData: FormData) {
+  const vehicleId = str(formData, 'vehicleId');
+  const returnTo = safeWorkshopPath(str(formData, 'returnTo'), '/workshop/service-tracker');
+  try {
+    await sendManualServiceReminder(vehicleId);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not send the reminder.', 'vehicle-service-form-handlers');
+    redirect(`${returnTo}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(returnTo);
+  revalidatePath('/workshop/service-tracker');
+  redirect(`${returnTo}?status=reminder_sent`);
+}
+
+export async function runServiceRemindersNowFormAction() {
+  let result = { evaluated: 0, sent: 0, failed: 0 };
+  try {
+    result = await runServiceRemindersNow();
+  } catch (err) {
+    const message = friendlyError(err, 'Could not run reminders.', 'vehicle-service-form-handlers');
+    redirect(`/workshop/service-tracker?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath('/workshop/service-tracker');
+  redirect(`/workshop/service-tracker?status=reminders_run&sent=${result.sent}&evaluated=${result.evaluated}&failed=${result.failed}`);
+}
+
+export async function stopTrackingVehicleFormAction(formData: FormData) {
+  const vehicleId = str(formData, 'vehicleId');
+  const returnTo = safeWorkshopPath(str(formData, 'returnTo'), '/workshop/service-tracker');
+  try {
+    await stopTrackingVehicle(vehicleId, str(formData, 'reason'));
+  } catch (err) {
+    const message = friendlyError(err, 'Could not stop tracking this vehicle.', 'vehicle-service-form-handlers');
+    redirect(`${returnTo}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath('/workshop/service-tracker');
+  revalidatePath(returnTo);
+  redirect(`${returnTo}?status=tracking_stopped`);
+}
+
+export async function requestVehicleServiceCancellationFormAction(formData: FormData) {
+  const serviceId = str(formData, 'serviceId');
+  try {
+    await requestVehicleServiceCancellation(serviceId, str(formData, 'reason'));
+  } catch (err) {
+    const message = friendlyError(err, 'Could not request a cancellation.', 'vehicle-service-form-handlers');
+    redirect(`/workshop/vehicle-service/${serviceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${serviceId}`);
+  revalidatePath('/workshop/vehicle-service-custody');
+  redirect(`/workshop/vehicle-service/${serviceId}?status=cancellation_requested`);
+}
+
+export async function approveVehicleServiceCancellationFormAction(formData: FormData) {
+  const serviceId = str(formData, 'serviceId');
+  try {
+    await approveVehicleServiceCancellationRequest(str(formData, 'requestId'), str(formData, 'decisionNotes') || undefined);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not approve this cancellation.', 'vehicle-service-form-handlers');
+    redirect(`/workshop/vehicle-service/${serviceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${serviceId}`);
+  revalidatePath('/workshop/vehicle-service-custody');
+  redirect(`/workshop/vehicle-service/${serviceId}?status=cancellation_approved`);
+}
+
+export async function declineVehicleServiceCancellationFormAction(formData: FormData) {
+  const serviceId = str(formData, 'serviceId');
+  try {
+    await declineVehicleServiceCancellationRequest(str(formData, 'requestId'), str(formData, 'decisionNotes') || undefined);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not decline this cancellation.', 'vehicle-service-form-handlers');
+    redirect(`/workshop/vehicle-service/${serviceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${serviceId}`);
+  revalidatePath('/workshop/vehicle-service-custody');
+  redirect(`/workshop/vehicle-service/${serviceId}?status=cancellation_declined`);
+}
+
+export async function handBackCancelledVehicleServiceFormAction(formData: FormData) {
+  const serviceId = str(formData, 'serviceId');
+  try {
+    await handBackCancelledVehicleService(serviceId, str(formData, 'collectedByName'));
+  } catch (err) {
+    const message = friendlyError(err, 'Could not hand the vehicle back.', 'vehicle-service-form-handlers');
+    redirect(`/workshop/vehicle-service/${serviceId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/workshop/vehicle-service/${serviceId}`);
+  revalidatePath('/workshop/vehicle-service-custody');
+  redirect(`/workshop/vehicle-service/${serviceId}?status=handed_back`);
+}
+
+export async function sendVehicleServiceCancelledCollectionNoticeFormAction(formData: FormData) {
+  const serviceId = str(formData, 'serviceId');
+  try {
+    await sendVehicleServiceCancelledCollectionNotice(serviceId, str(formData, 'notes') || undefined);
+  } catch (err) {
+    const message = friendlyError(err, 'Could not send the collection notice.', 'vehicle-service-form-handlers');
+    redirect(`/workshop/vehicle-service-custody?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath('/workshop/vehicle-service-custody');
+  redirect('/workshop/vehicle-service-custody?status=cancelled_notice_sent');
+}

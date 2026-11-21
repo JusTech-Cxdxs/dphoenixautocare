@@ -1,0 +1,79 @@
+import { portalBaseUrl } from '@/lib/portal-url';
+import { orMasterAdmins } from '@/lib/master-fallback';
+import { logFailure } from '@/lib/log';
+import { prisma } from '@ejo/database';
+import { sendEmail } from '@/lib/email';
+import { renderWarrantyStaffNoticeEmail } from '@/lib/email-templates/warranty-staff-notice';
+import { splitLines, durationLabel } from '@/lib/warranty-state';
+import { PLATFORM } from '@/lib/brand';
+
+/**
+ * Tells the warranty department (Warranty HOD + Warranty Officers at the
+ * branch) whenever a part's warranty is set, changed or removed — with the
+ * full detail of the part and the policy. Server-only helper, never a
+ * callable action. Never throws: a notice failing must not undo the change.
+ */
+export async function notifyWarrantyDepartmentOfPartWarranty(opts: { partId: string; previousPolicyId: string | null; actorId: string; context: 'CREATED' | 'CHANGED' }) {
+  try {
+    const part = await prisma.part.findUnique({
+      where: { id: opts.partId },
+      select: {
+        id: true, name: true, partNumber: true, category: true, trackingType: true, baseUnitOfMeasure: true, branchId: true,
+        warrantyPolicy: { select: { code: true, name: true, durationMonths: true, durationUnit: true, distanceLimit: true, coversParts: true, coversLabour: true, coversLogistics: true, defaultRemedy: true, coverageSummary: true, isSample: true, provider: { select: { name: true } } } },
+      },
+    });
+    if (!part) return;
+    // Only the warranty staff of the organisation that owns this part.
+    const owner = await prisma.branch.findUnique({ where: { id: part.branchId }, select: { name: true, businessUnit: { select: { organisationId: true, organisation: { select: { name: true } } } } } });
+    const [previous, actor, staff] = await Promise.all([
+      opts.previousPolicyId ? prisma.warrantyPolicy.findUnique({ where: { id: opts.previousPolicyId }, select: { code: true, name: true } }) : Promise.resolve(null),
+      prisma.user.findUnique({ where: { id: opts.actorId }, select: { fullName: true } }),
+      prisma.user.findMany({
+        where: { isActive: true, organisationId: owner?.businessUnit.organisationId ?? '__none__', roles: { some: { role: { slug: { in: ['warranty-hod', 'warranty-officer'] } } } } },
+        select: { fullName: true, email: true },
+      }),
+    ]);
+    // No warranty staff yet: the master administrator is told (lib/master-fallback.ts).
+    const recipients = await orMasterAdmins(staff, owner?.businessUnit.organisationId ?? null);
+    if (recipients.length === 0) return;
+    const org = owner?.businessUnit.organisation ?? null;
+    const branch = owner ? { name: owner.name } : null;
+    const p = part.warrantyPolicy;
+    const pays = p ? [p.coversParts ? 'parts' : null, p.coversLabour ? 'labour' : null, p.coversLogistics ? 'logistics' : null].filter(Boolean).join(', ') : '';
+    const remedy = p ? { REIMBURSEMENT: 'reimbursement (payment or credit)', REPLACEMENT: 'replacement part', REPAIR: 'repair by the provider' }[p.defaultRemedy] : '';
+    const heading = !p ? 'A part no longer carries a warranty' : opts.context === 'CREATED' ? 'A new part was added with a warranty' : 'A part’s warranty was changed';
+    const lines = [
+      `Part: ${part.name}${part.partNumber ? ` (${part.partNumber})` : ''}${part.category ? ` — ${part.category}` : ''}`,
+      `Tracking: ${part.trackingType.toLowerCase()} · unit: ${part.baseUnitOfMeasure}`,
+      ...(previous ? [`Previous warranty: ${previous.name} (${previous.code})`] : opts.context === 'CHANGED' ? ['Previous warranty: none'] : []),
+      ...(p
+        ? [
+            `Warranty: ${p.name} (${p.code})${p.isSample ? ' — sample terms' : ''}`,
+            `Term: ${durationLabel(p)}${p.distanceLimit ? ` or ${p.distanceLimit.toLocaleString('en-NG')} km, whichever comes first` : ''}`,
+            `Provider: ${p.provider.name} · pays for: ${pays} · usual remedy: ${remedy}`,
+            `Covers: ${splitLines(p.coverageSummary).join('; ')}`,
+            'Every unit released to a customer from now on gets its own warranty number automatically.',
+          ]
+        : ['Units released from now on will not get a warranty number. Warranties already issued are unchanged.']),
+      `Changed by: ${actor?.fullName ?? 'a staff member'}`,
+    ];
+    const portalUrl = portalBaseUrl();
+    for (const r of recipients) {
+      await sendEmail(
+        r.email,
+        `${heading} — ${part.name}`,
+        renderWarrantyStaffNoticeEmail({
+          recipientName: r.fullName,
+          heading,
+          lines,
+          actionUrl: `${portalUrl}/inventory/parts/${part.id}#warranty`,
+          logoUrl: `${portalUrl}/images/logo/email-logo.png`,
+          companyName: org?.name ?? PLATFORM.name,
+          branchName: branch?.name ?? '',
+        }),
+      );
+    }
+  } catch (err) {
+    logFailure('Failed to notify the warranty department', err);
+  }
+}
