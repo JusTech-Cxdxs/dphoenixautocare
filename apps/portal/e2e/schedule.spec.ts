@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { who } from './people';
 import { as, open, expectNoUrlError, latestMail, uniq, visitHealthy, waitOutcome } from './helpers';
 import { jcForm, pickSearchable, reveal } from './workflows';
+import { db } from './db';
 
 /**
  * Scheduling: the scheduling admin sets up a meeting room → a calendar user
@@ -29,6 +30,8 @@ test('the scheduling admin adds a meeting room', async ({ page }) => {
 });
 
 test('a calendar user books the room with a colleague, who is emailed', async ({ page, request }) => {
+  // Fixture: an earlier run on the same database that stopped before cancelling left its meeting at the same hour; the host would rightly be refused as busy.
+  await db().appointment.updateMany({ where: { title: { startsWith: 'Supplier review ' }, status: 'SCHEDULED', createdBy: { email: who('calendar-user').email } }, data: { status: 'CANCELLED' } });
   await as(page, 'calendar-user');
   await page.goto('/schedule/new');
   const form = jcForm(page, 'Book appointment');
