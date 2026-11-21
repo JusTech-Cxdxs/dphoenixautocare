@@ -10,10 +10,10 @@ export default function NotFound() {
         The page you&apos;re looking for doesn&apos;t exist or has moved.
       </p>
       <Link
-        href="/"
+        href="/customer-portal"
         className="mt-2 rounded-[var(--ejo-radius-md)] bg-[var(--ejo-primary)] px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90"
       >
-        Back to Home
+        Go to the customer portal
       </Link>
     </main>
   );

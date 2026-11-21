@@ -12,7 +12,7 @@ test('a briefing request is the whole picture, not one record or a how-to', () =
     'Give me the business analytics',
     'Catch me up',
     'How are we doing?',
-    'Brief me on the Isolo branch',
+    'Brief me on the Ajah branch',
     "What's happening today?",
     'what is going on',
     'A quick briefing please',
@@ -58,7 +58,7 @@ const pack: BriefingPack = {
     { key: 'business', title: 'The business this month', data: {
       period: 'October 2026', scope: 'Whole organisation',
       money: { sales: 12_450_000, salesChangePercent: 8.4, grossProfit: 3_900_000.5, grossMarginPercent: 31.3, takings: 11_200_000, jobsFinished: 48, averageJob: 259_375, madeOf: { labour: 4_000_000, parts: 7_000_000, outsideWork: 1_000_000, sundry: 450_000 }, owedOnFinishedJobs: 1_250_000, monthProjection: 19_000_000, biggestCustomers: [{ name: 'Dangote Cement', value: 2_100_000 }], whatToDo: ['Chase the 4 overdue estimates'] },
-      branches: [{ name: 'Isolo Branch', health: 'Healthy', why: ['Collections up'], jobsOpened: 30, jobsFinished: 28, collectedNaira: 9_000_000, inWorkshopNow: 11 }],
+      branches: [{ name: 'Ajah Branch', health: 'Healthy', why: ['Collections up'], jobsOpened: 30, jobsFinished: 28, collectedNaira: 9_000_000, inWorkshopNow: 11 }],
       workshopNow: { jobCardsIn: 9, vehicleServicesIn: 2, readyToCollect: 4, waitingForParts: 1, waitingForCustomer: 2 },
       decisionsWaiting: [{ what: 'Estimates', count: 4, oldestHours: 30 }],
       team: { peopleWhoHandledWork: 14, withinStandardPercent: 82, needsAttention: [{ name: 'T. Okoro' }] },
@@ -79,7 +79,7 @@ test('the hand-written briefing carries the figures, links and the profit verdic
   assert.match(text, /\[PRS-2026-000003\]\(\/store\/requests\/x\)/);
   assert.match(text, /sales ₦12,450,000 \(\+8% on last month\)/);
   assert.match(text, /gross profit ₦3,900,001 \(31% margin\) — in profit on the work done/);
-  assert.match(text, /Isolo Branch — Healthy/);
+  assert.match(text, /Ajah Branch — Healthy/);
   assert.match(text, /Workshop now:\*\* 9 job cards/);
   assert.match(text, /Decisions waiting:\*\* Estimates 4 \(oldest 30 h\)/);
   assert.match(text, /Do first:\*\* Chase the 4 overdue estimates/);
@@ -108,7 +108,7 @@ test('the pack for the model drops coaching keys and stays within its budget', (
 });
 
 test('the briefing prompt is small and names the person, role and branch', () => {
-  const p = briefingSystemPrompt({ assistantName: 'Enyo', organisationName: 'Kewalram Nigeria', personName: 'Sudeep', roleDescription: 'Executive', now: 'Monday', branch: 'Isolo Branch' });
+  const p = briefingSystemPrompt({ assistantName: 'Enyo', organisationName: 'Phoenix Nigeria', personName: 'Sudeep', roleDescription: 'Executive', now: 'Monday', branch: 'Ajah Branch' });
   assert.ok(p.length < 2_000);
   assert.match(p, /briefing Sudeep \(Executive\)/);
   assert.match(p, /lead with that branch/);

@@ -45,7 +45,7 @@ test('SLA state', () => {
 });
 
 test('mail-loop protection: robots, lists, bounces and our own mail never get an automatic reply', () => {
-  const own = ['support@kcg.ng'];
+  const own = ['support@fleet.ng'];
   assert.deepEqual(loopGuard({ headers: {}, from: 'ada@gmail.com', ownAddresses: own }), { autoReply: true, keep: true, reason: null });
   assert.equal(loopGuard({ headers: { 'auto-submitted': 'auto-replied' }, from: 'ada@gmail.com', ownAddresses: own }).autoReply, false);
   assert.equal(loopGuard({ headers: { 'auto-submitted': 'no' }, from: 'ada@gmail.com', ownAddresses: own }).autoReply, true);
@@ -53,7 +53,7 @@ test('mail-loop protection: robots, lists, bounces and our own mail never get an
   assert.equal(loopGuard({ headers: { 'list-id': '<x.list>' }, from: 'a@b.com', ownAddresses: own }).autoReply, false);
   assert.equal(loopGuard({ headers: {}, from: 'no-reply@bank.com', ownAddresses: own }).autoReply, false);
   assert.equal(loopGuard({ headers: {}, from: 'MAILER-DAEMON@mx.google.com', ownAddresses: own }).keep, false);
-  assert.equal(loopGuard({ headers: {}, from: 'Support@KCG.ng', ownAddresses: own }).keep, false);
+  assert.equal(loopGuard({ headers: {}, from: 'Support@FLEET.ng', ownAddresses: own }).keep, false);
   assert.equal(autoReplyHeaders('<a@b>')['Auto-Submitted'], 'auto-replied');
   assert.equal(senderAuthenticated({ 'authentication-results': 'mx.google.com; dkim=pass; spf=pass; dmarc=pass' }), true);
   assert.equal(senderAuthenticated({ 'authentication-results': 'spf=softfail; dkim=none; dmarc=fail' }), false);
@@ -65,15 +65,15 @@ test('threading: the ticket tag and Message-ID references', () => {
   assert.equal(ticketNumberIn('Brakes', 'Ref SUP-2026-000007 thanks'), 'SUP-2026-000007');
   assert.equal(ticketNumberIn('Hello'), null);
   assert.deepEqual(referencedIds('<b@x>', '<a@x> <b@x>'), ['<b@x>', '<a@x>']);
-  const route = recipientMailbox({ 'delivered-to': 'warranty+abc@kcg.ng' }, ['someone@else.com'], [], [{ id: 'w', address: 'warranty@kcg.ng' }, { id: 's', address: 'support@kcg.ng' }]);
+  const route = recipientMailbox({ 'delivered-to': 'warranty+abc@fleet.ng' }, ['someone@else.com'], [], [{ id: 'w', address: 'warranty@fleet.ng' }, { id: 's', address: 'support@fleet.ng' }]);
   assert.equal(route, 'w');
-  assert.equal(recipientMailbox({}, ['Support@kcg.ng'], [], [{ id: 's', address: 'support@kcg.ng' }]), 's');
+  assert.equal(recipientMailbox({}, ['Support@fleet.ng'], [], [{ id: 's', address: 'support@fleet.ng' }]), 's');
 });
 
 test('only the new words of a reply are kept', () => {
-  assert.equal(newText('Thanks, that worked.\n\nOn Mon, 12 Oct 2026 at 10:00, KCG Support <support@kcg.ng> wrote:\n> Please try…'), 'Thanks, that worked.');
+  assert.equal(newText('Thanks, that worked.\n\nOn Mon, 12 Oct 2026 at 10:00, Fleet Support <support@fleet.ng> wrote:\n> Please try…'), 'Thanks, that worked.');
   assert.equal(newText('Yes please\n\n-----Original Message-----\nFrom: x'), 'Yes please');
-  assert.equal(newText('Ok\nFrom: KCG <s@k.ng>\nSent: Monday\nTo: me'), 'Ok');
+  assert.equal(newText('Ok\nFrom: Fleet <s@k.ng>\nSent: Monday\nTo: me'), 'Ok');
   assert.equal(newText('Fine\n\nSent from my iPhone'), 'Fine');
   assert.equal(newText('Line one\n> quoted\nLine two'), 'Line one\n> quoted\nLine two');
 });
@@ -164,7 +164,7 @@ test('Enyo’s triage and answers are parsed safely', () => {
 });
 
 test('support emails: reference in the subject, reply marker, AI labelled with Solved / Person, everything escaped', () => {
-  const common = { companyName: 'KCG Motors', logoUrl: 'https://x/logo.png', queueName: 'Warranty', number: 'SUP-2026-000001', subject: 'Brakes <b>', customerName: 'Ada', responseUrl: 'https://site/support/request/tok' };
+  const common = { companyName: 'Fleet Motors', logoUrl: 'https://x/logo.png', queueName: 'Warranty', number: 'SUP-2026-000001', subject: 'Brakes <b>', customerName: 'Ada', responseUrl: 'https://site/support/request/tok' };
   const ack = renderSupportAcknowledgement({ ...common, promise: 'by 9:30 am tomorrow', open: false });
   assert.match(ack.subject, /^\[#SUP-2026-000001\]/);
   assert.match(ack.html, /Please reply above this line/);
@@ -208,8 +208,8 @@ test('wiring: intake, automations and the customer side keep the rules', () => {
 
 import { unknownContacts } from '../lib/support/core';
 test('an AI reply naming a link, phone or email not in our details is never sent by itself', () => {
-  const facts = 'Contact: phones 0803 555 0101; email care@kcg.ng; website https://kcg.ng';
-  assert.deepEqual(unknownContacts('Call us on +234 803 555 0101 or write to care@kcg.ng, or see kcg.ng/support.', facts), []);
+  const facts = 'Contact: phones 0803 555 0101; email care@fleet.ng; website https://fleet.ng';
+  assert.deepEqual(unknownContacts('Call us on +234 803 555 0101 or write to care@fleet.ng, or see fleet.ng/support.', facts), []);
   assert.deepEqual(unknownContacts('Pay at evil-pay.com or call 0901 234 5678, email x@evil.io', facts).sort(), ['0901 234 5678', 'evil-pay.com', 'x@evil.io'].sort());
   assert.deepEqual(unknownContacts('We open at 8.30 am on weekdays.', facts), []);
 });

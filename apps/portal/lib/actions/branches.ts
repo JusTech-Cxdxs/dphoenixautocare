@@ -244,8 +244,8 @@ export async function movePlantRecords(fromBranchId: string, toBranchId: string)
 
 /**
  * Opens the organisation's assembly plant in one step, for an organisation
- * that has none yet: a branch of kind Assembly plant (Afprint Assembly Plant,
- * code KWL-AP, SAP plant 1100 — rename or recode it under Branches) in the
+ * that has none yet: a branch of kind Assembly plant (Assembly Plant, code
+ * AP, SAP plant 1100 — rename or recode it under Branches) in the
  * same business unit and city as its first workshop, with the plant's
  * departments; then the plant records and plant-only staff move onto it.
  * Audited. Refused when the organisation already has an assembly plant.
@@ -258,10 +258,10 @@ export async function openAssemblyPlant(): Promise<{ ok: true; id: string; name:
   if (existing) return { ok: false, error: `${existing.name} is already the assembly plant.` };
   const anchor = await prisma.branch.findFirst({ where: { ...where, type: { in: AREA_BRANCH_TYPES.workshop } }, orderBy: { createdAt: 'asc' }, select: { id: true, businessUnitId: true, cityId: true, name: true, businessUnit: { select: { organisationId: true } } } });
   if (!anchor) return { ok: false, error: 'Open a workshop branch first: the plant joins its business unit.' };
-  const name = 'Afprint Assembly Plant';
+  const name = 'Assembly Plant';
   if (await prisma.branch.findFirst({ where: { ...where, name: { equals: name, mode: 'insensitive' } }, select: { id: true } })) return { ok: false, error: `A branch named ${name} exists but is not of kind Assembly plant: set its kind under Branches.` };
   const out = await prisma.$transaction(async (tx) => {
-    const plant = await tx.branch.create({ data: { businessUnitId: anchor.businessUnitId, cityId: anchor.cityId, name, code: 'KWL-AP', type: 'ASSEMBLY_PLANT', sapPlant: '1100' }, select: { id: true, name: true, sapPlant: true } });
+    const plant = await tx.branch.create({ data: { businessUnitId: anchor.businessUnitId, cityId: anchor.cityId, name, code: 'AP', type: 'ASSEMBLY_PLANT', sapPlant: '1100' }, select: { id: true, name: true, sapPlant: true } });
     await tx.department.createMany({ data: departmentsFor('ASSEMBLY_PLANT').map((d) => ({ branchId: plant.id, name: d.name, slug: d.slug })), skipDuplicates: true });
     const w = { branch: { businessUnit: { organisationId: anchor.businessUnit.organisationId } }, branchId: { not: plant.id } };
     const [kits, shipments, vehicles, pdis] = await Promise.all([

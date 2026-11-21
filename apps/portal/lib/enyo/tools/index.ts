@@ -37,7 +37,6 @@ import { integrityTools } from './integrity';
 import { organisationTools } from './organisation';
 import { leadershipTools } from './leadership';
 import { peopleTools } from './people';
-import { websiteTools } from './website';
 
 export function staffTools(): StaffTool[] {
   const all: StaffTool[] = [
@@ -58,7 +57,6 @@ export function staffTools(): StaffTool[] {
     ...organisationTools,
     ...leadershipTools,
     ...peopleTools,
-    ...websiteTools,
     ...(webLookupEnabled() ? [webLookupTool<StaffCtx>()] : []),
   ];
   // Only the modules switched on in this edition, in this edition's words.

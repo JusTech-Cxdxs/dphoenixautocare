@@ -5,6 +5,7 @@ import { listMyExportSchedules } from '@/lib/actions/export-schedules';
 import { ScheduleList } from '@/components/data-exchange/ExportSchedules';
 import { EmptyState, PageHeader, SectionCard, StatusChip } from '@/components/ui';
 import { ExportButton } from '@/components/ExportButton';
+import { moduleIsOn } from '@/lib/modules';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,7 +38,7 @@ export default async function ExportsPage() {
       ) : null}
       <SectionCard icon="history" title={everyone ? 'All exports' : 'Your exports'} flush>
         {rows.length === 0 ? (
-          <div className="p-4"><EmptyState compact icon="download" title="No exports yet.">Every list has an Export button: customers, vehicles, parts, stock, suppliers, Job Cards, Vehicle Services, warranties and more.</EmptyState></div>
+          <div className="p-4"><EmptyState compact icon="download" title="No exports yet.">Every list has an Export button: {['customers', 'vehicles', ...(moduleIsOn('inventory') ? ['parts', 'stock', 'suppliers'] : []), 'Job Cards', 'invoices', ...(moduleIsOn('warranty') ? ['warranties'] : [])].join(', ')} and more.</EmptyState></div>
         ) : (
           <ol className="divide-y divide-[var(--ejo-border)]">
             {rows.map((r) => (

@@ -1,14 +1,8 @@
-'use client';
-
 import Link from 'next/link';
-import { useState, type FormEvent } from 'react';
-import { useI18n, type TranslationKey } from '@/lib/i18n';
 import { siteConfig } from '@/lib/site-config';
 import { SiteWordmark } from './SiteWordmark';
-import { FooterBadge } from './FooterBadge';
 import { PoweredByBadge } from './PoweredByBadge';
 import { FacebookIcon, LinkedInIcon, XIcon, YouTubeIcon, InstagramIcon } from './icons';
-import { PUBLIC_WEBSITE } from '@/lib/edition';
 import { DPHOENIX } from '@/lib/content/dphoenix';
 
 // Social links come from lib/site-config.ts; only the ones that are set show.
@@ -20,179 +14,63 @@ const SOCIALS = [
   { label: 'Instagram', icon: InstagramIcon, href: siteConfig.social.instagram },
 ].filter((s) => s.href);
 
-// Upload up to three files to public/images/footer-badges/ with these exact
-// names; the trimmed copies in /trim (no transparent margins) are what is shown.
-const BADGES = [
-  { src: '/images/footer-badges/trim/footer-badge-1.png', alt: 'ISO certified' },
-  { src: '/images/footer-badges/trim/footer-badge-2.png', alt: 'Five-star rated' },
-  { src: '/images/footer-badges/trim/footer-badge-3.png', alt: 'Award of excellence' },
-];
-
-const QUICK_LINKS: [TranslationKey, string][] = [
-  ['nav.about', '/about'],
-  ['nav.businesses', '/businesses'],
-  ['nav.store', '/store'],
-  ['nav.investors', '/investors'],
-  ['nav.sustainability', '/sustainability'],
-  ['nav.careers', '/careers'],
-  ['nav.news', '/news'],
-  ['nav.contact', '/contact'],
-];
-
-const BUSINESS_LINKS: [TranslationKey, string][] = [
-  ['business.automotive', '/businesses/automotive'],
-  ['business.agriculture', '/businesses/agriculture'],
-  ['business.manufacturing', '/businesses/manufacturing'],
-  ['business.food', '/businesses/food'],
-  ['business.logistics', '/businesses/logistics'],
-  ['business.healthcare', '/businesses/healthcare'],
-];
-
+/**
+ * The footer of the pages outside the customer portal: the organisation, how
+ * to reach it (the deployment's own contact settings, or D'Phoenix
+ * Autocare's published contacts when none are set) and the legal links.
+ */
 export function Footer() {
-  const { t } = useI18n();
   const contact = siteConfig.contact;
-  const [email, setEmail] = useState('');
-  const [subscribed, setSubscribed] = useState(false);
-
-  function handleSubscribe(e: FormEvent) {
-    e.preventDefault();
-    // There is no newsletter service yet; this only acknowledges the sign-up.
-    setSubscribed(true);
-    setEmail('');
-  }
-
+  const own = Boolean(contact.address || contact.phone || contact.email);
   return (
     <footer className="relative bg-[var(--ejo-secondary)] text-white">
-      <div className="mx-auto grid max-w-[1480px] grid-cols-2 gap-x-6 gap-y-10 px-4 py-14 sm:px-6 lg:px-10 md:grid-cols-6 md:py-16">
-        {/* Column 1 — logo, name, description, badge row, social icons */}
-        <div className="col-span-2">
+      <div className="mx-auto grid max-w-[1480px] gap-10 px-4 py-14 sm:grid-cols-2 sm:px-6 lg:px-10">
+        <div>
           <SiteWordmark tone="light" size="footer" />
-          {/* Without the public website (lib/edition.ts) the footer, shown on the legal and support pages only,
-              carries D'Phoenix Autocare's own line, and no group badges, page links or newsletter. */}
-          <p className="mt-3 max-w-xs text-sm text-white/60">{PUBLIC_WEBSITE ? t('footer.companyDescription') : `${DPHOENIX.tagline}. ${DPHOENIX.summary}`}</p>
-
-          {/* Three badges in one row, small and never stretched: each box is a fixed
-              height, the picture keeps its proportions inside it. */}
-          {PUBLIC_WEBSITE ? (
-          <div className="mt-5 flex flex-nowrap items-center gap-3" aria-label="Certifications and awards">
-            {BADGES.map((badge) => (
-              <FooterBadge key={badge.src} src={badge.src} alt={badge.alt} />
-            ))}
-          </div>
-          ) : null}
-
+          <p className="mt-3 max-w-sm text-sm text-white/60">{DPHOENIX.tagline}. {DPHOENIX.summary}</p>
           {SOCIALS.length > 0 ? (
-          <div className="mt-5 flex gap-3">
-            {SOCIALS.map(({ label, icon: Icon, href }) => (
-              <a
-                key={label}
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={label}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-[var(--ejo-primary)]"
-              >
-                <Icon />
-              </a>
-            ))}
-          </div>
+            <div className="mt-5 flex gap-3">
+              {SOCIALS.map(({ label, icon: Icon, href }) => (
+                <a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-[var(--ejo-primary)]">
+                  <Icon />
+                </a>
+              ))}
+            </div>
           ) : null}
         </div>
 
-        {PUBLIC_WEBSITE ? <FooterColumn title={t('footer.quickLinks')} links={QUICK_LINKS} /> : null}
-        {PUBLIC_WEBSITE ? <FooterColumn title={t('footer.ourBusinesses')} links={BUSINESS_LINKS} /> : null}
-
-        <div className="col-span-2 sm:col-span-1">
-          <p className="text-sm font-semibold text-white">{t('footer.contactUs')}</p>
+        <div>
+          <p className="text-sm font-semibold text-white">Contact us</p>
           <address className="mt-3 space-y-2 text-sm not-italic text-white/60">
-            <p>{t('footer.headOffice')}</p>
-            {contact.address ? <p>{contact.address}</p> : null}
-            {contact.phone ? <p><a href={`tel:${contact.phone.replace(/[^\d+]/g, '')}`} className="hover:text-white">{contact.phone}</a></p> : null}
-            {contact.email ? <p><a href={`mailto:${contact.email}`} className="hover:text-white">{contact.email}</a></p> : null}
-            {!PUBLIC_WEBSITE && !contact.address && !contact.phone && !contact.email ? (
+            {own ? (
+              <>
+                {contact.address ? <p>{contact.address}</p> : null}
+                {contact.phone ? <p><a href={`tel:${contact.phone.replace(/[^\d+]/g, '')}`} className="hover:text-white">{contact.phone}</a></p> : null}
+                {contact.email ? <p><a href={`mailto:${contact.email}`} className="hover:text-white">{contact.email}</a></p> : null}
+              </>
+            ) : (
               <>
                 <p>{DPHOENIX.address}</p>
                 {DPHOENIX.phones.map((p) => <p key={p}><a href={`tel:${p.replace(/[^\d+]/g, '')}`} className="hover:text-white">{p}</a></p>)}
                 <p><a href={`mailto:${DPHOENIX.email}`} className="hover:text-white">{DPHOENIX.email}</a></p>
                 <p>{DPHOENIX.hours}</p>
               </>
-            ) : null}
+            )}
           </address>
         </div>
-
-        {PUBLIC_WEBSITE ? (
-        <div className="col-span-2 sm:col-span-1">
-          <p className="text-sm font-semibold text-white">{t('footer.newsletter')}</p>
-          <p className="mt-3 text-sm text-white/60">{t('footer.newsletterText')}</p>
-          {subscribed ? (
-            <p className="mt-4 text-sm text-[var(--ejo-accent)]">{t('footer.newsletterSuccess')}</p>
-          ) : (
-            <form onSubmit={handleSubscribe} className="mt-4 flex gap-2">
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={t('footer.newsletterPlaceholder')}
-                className="min-h-11 w-full min-w-0 rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm text-white placeholder-white/40 outline-none focus:border-[var(--ejo-primary)]"
-              />
-              <button
-                type="submit"
-                aria-label="Subscribe"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--ejo-primary)] hover:opacity-90"
-              >
-                →
-              </button>
-            </form>
-          )}
-        </div>
-        ) : null}
       </div>
 
       <div className="border-t border-white/10 px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto flex max-w-[1480px] flex-wrap items-center justify-between gap-4">
-          <p className="text-xs text-white/50">
-            © {new Date().getFullYear()} {siteConfig.legalName}. {t('footer.rights')}
-          </p>
+          <p className="text-xs text-white/50">© {new Date().getFullYear()} {siteConfig.legalName}. All rights reserved.</p>
           <div className="flex flex-wrap items-center gap-5 text-xs text-white/50">
-            <Link href="/privacy" className="hover:text-white">{t('footer.privacy')}</Link>
-            <Link href="/terms" className="hover:text-white">{t('footer.terms')}</Link>
+            <Link href="/support" className="hover:text-white">Customer support</Link>
+            <Link href="/privacy" className="hover:text-white">Privacy</Link>
+            <Link href="/terms" className="hover:text-white">Terms of use</Link>
             <PoweredByBadge />
           </div>
         </div>
       </div>
-
-      <BackToTop />
     </footer>
-  );
-}
-
-function FooterColumn({ title, links }: { title: string; links: [TranslationKey, string][] }) {
-  const { t } = useI18n();
-  return (
-    <div>
-      <p className="text-sm font-semibold text-white">{title}</p>
-      <ul className="mt-3 space-y-1">
-        {links.map(([key, href]) => (
-          <li key={href}>
-            <Link href={href} className="inline-block py-1 text-sm text-white/60 hover:text-[var(--ejo-accent)]">
-              {t(key)}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function BackToTop() {
-  return (
-    <button
-      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-      aria-label="Back to top"
-      className="absolute -top-6 right-6 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--ejo-primary)] text-white shadow-lg transition-transform hover:-translate-y-1"
-    >
-      ↑
-    </button>
   );
 }

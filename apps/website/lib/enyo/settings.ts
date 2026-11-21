@@ -1,12 +1,11 @@
 /**
  * Server-only: whether Enyo may answer on the website right now, and which
- * organisation the public website belongs to. Mirrors the staff portal's
+ * organisation this website belongs to. Mirrors the staff portal's
  * apps/portal/lib/enyo/settings.ts (the two apps never import each other).
  */
 import { prisma } from '@ejo/database';
 import { readLlmConfig, type LlmConfig } from '@ejo/enyo';
 import { siteConfig } from '@/lib/site-config';
-import { PUBLIC_WEBSITE } from '@/lib/edition';
 
 export type WebsiteEnyoFeature = 'customerAssistant' | 'publicAssistant';
 
@@ -44,7 +43,7 @@ export async function websiteEnyoReady(organisationId: string | null | undefined
 
 /** Calm words for each "not now". Never technical. */
 export function notReadyMessage(reason: 'not_configured' | 'switched_off', mode: 'CUSTOMER' | 'PUBLIC'): string {
-  const reach = mode === 'CUSTOMER' ? 'call or email your branch — their details are under Help & support' : `call or email us — our details are on the ${PUBLIC_WEBSITE ? 'Contact' : 'Customer support'} page`;
+  const reach = mode === 'CUSTOMER' ? 'call or email your branch — their details are under Help & support' : 'call or email us — our details are on the Customer support page';
   return reason === 'not_configured'
     ? `The chat assistant is not switched on yet. Please ${reach}.`
     : `The chat assistant is switched off at the moment. Please ${reach}.`;
@@ -58,8 +57,8 @@ let memo: { at: number; value: SiteOrganisation | null } | null = null;
 const MEMO_MS = 5 * 60_000;
 
 /**
- * The organisation this public website belongs to (each installation is one
- * company's site). In order: WEBSITE_ORGANISATION_SLUG (server setting, read
+ * The organisation this website belongs to (each installation is one
+ * company's customer portal). In order: WEBSITE_ORGANISATION_SLUG (server setting, read
  * at run time), NEXT_PUBLIC_ACTIVE_ORGANISATION_SLUG, an organisation whose
  * name or legal name is the site's configured name, or the only active
  * organisation. None found → null, and the public assistant stays off.

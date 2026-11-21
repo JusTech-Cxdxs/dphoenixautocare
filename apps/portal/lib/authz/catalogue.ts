@@ -27,7 +27,7 @@ export const PERMISSIONS = {
   'audit.view': { module: 'Administration', label: 'View the full audit trail' },
   'admin.recycle_bin.manage': { module: 'Administration', label: 'Open the Recycle bin, restore records deleted by mistake, and delete such records' },
   'enyo.manage': { module: 'Administration', label: 'Manage Enyo (AI): switch features on or off, see what it is learning and how accurate it is' },
-  'dataexchange.import.run': { module: 'Data Exchange', label: 'Bring records in from SAP or spreadsheets: upload a file, match its columns and check it (loading it needs a second person’s approval)' },
+  'dataexchange.import.run': { module: 'Data Exchange', label: 'Bring records in from Excel or CSV files (Zoho, an old system, spreadsheets): upload a file, match its columns and check it (loading it needs a second person’s approval)' },
   'dataexchange.import.approve': { module: 'Data Exchange', label: 'Approve an import someone else prepared, load it, send it back, and undo a finished import' },
   'dataexchange.export.run': { module: 'Data Exchange', label: 'Export the lists they can open to Excel or CSV (what they see, with their filters; every export is recorded)' },
   'dataexchange.export.sensitive': { module: 'Data Exchange', label: 'Export files with customers’ contact details or payments' },

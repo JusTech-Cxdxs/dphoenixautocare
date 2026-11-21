@@ -57,12 +57,12 @@ export function checkInvoiceRow(cells: unknown[], mapping: Mapping, today = lago
 
   // SAP pads document numbers with zeros (0090001234): kept as written, compared without them.
   const invoiceNumber = get(cells, mapping, 'invoiceNumber').replace(/^0+(?=\d)/, '');
-  if (!invoiceNumber) fail('invoiceNumber', 'Invoice number is required (SAP VBELN or BELNR).');
+  if (!invoiceNumber) fail('invoiceNumber', 'Invoice number is required.');
   else if (invoiceNumber.length > 40) fail('invoiceNumber', 'The invoice number is longer than 40 characters.');
 
   const dateRaw = get(cells, mapping, 'invoiceDate');
   const invoiceDate = parseDay(dateRaw);
-  if (!dateRaw) fail('invoiceDate', 'Invoice date is required (SAP FKDAT or BUDAT).');
+  if (!dateRaw) fail('invoiceDate', 'Invoice date is required.');
   else if (!invoiceDate) fail('invoiceDate', `“${dateRaw}” is not a date. Write it as 14.03.2019, 14/03/2019, 2019-03-14 or 20190314.`);
   else if (invoiceDate > today) fail('invoiceDate', `The invoice date ${invoiceDate} is in the future.`);
 
@@ -70,7 +70,7 @@ export function checkInvoiceRow(cells: unknown[], mapping: Mapping, today = lago
   const net = parseAmount(amountRaw);
   const taxRaw = get(cells, mapping, 'tax');
   const tax = taxRaw ? parseAmount(taxRaw) : 0;
-  if (!amountRaw) fail('amount', 'Amount is required (SAP NETWR, WRBTR or DMBTR).');
+  if (!amountRaw) fail('amount', 'Amount is required.');
   else if (net === null) fail('amount', `“${amountRaw}” is not an amount.`);
   if (taxRaw && tax === null) warn('tax', `Tax “${taxRaw}” is not an amount, so it was left out.`);
   const amount = Math.round(((net ?? 0) + (tax ?? 0)) * 100) / 100;
@@ -79,12 +79,12 @@ export function checkInvoiceRow(cells: unknown[], mapping: Mapping, today = lago
   if (net !== null && amount === 0) warn('amount', 'An invoice for ₦0: kept, but it adds nothing to the totals.');
 
   const currency = get(cells, mapping, 'currency').toUpperCase();
-  if (currency && !['NGN', 'N', '₦', 'NAIRA'].includes(currency)) fail('currency', `The amount is in ${currency}. Only naira invoices are loaded: give the amount in the company’s currency (SAP DMBTR) instead.`);
+  if (currency && !['NGN', 'N', '₦', 'NAIRA'].includes(currency)) fail('currency', `The amount is in ${currency}. Only naira invoices are loaded: give the amount in naira instead.`);
 
   const custExt = get(cells, mapping, 'customerExternalId').replace(/^0+(?=\d)/, '') || null;
   const custPhone = phoneKey(get(cells, mapping, 'customerPhone'));
   const custName = get(cells, mapping, 'customerName').slice(0, 160) || null;
-  if (!custExt && !custPhone && !custName) fail('customer', 'Whose invoice is it? Give the customer number (Zoho Customer ID, SAP KUNAG / KUNRG), the customer’s phone or their name.');
+  if (!custExt && !custPhone && !custName) fail('customer', 'Whose invoice is it? Give the customer number (Zoho Customer ID), the customer’s phone or their name.');
 
   // Zoho's status: a void or draft invoice was never owed, so it is not loaded.
   const status = get(cells, mapping, 'invoiceStatus');
@@ -196,12 +196,12 @@ export function checkJobRow(cells: unknown[], mapping: Mapping, today = lagosTod
 
   // SAP pads order numbers with zeros (000004000123456): kept as written, compared without them.
   const jobNumber = get(cells, mapping, 'jobNumber').replace(/^0+(?=\d)/, '');
-  if (!jobNumber) fail('jobNumber', 'Job number is required (the SAP order number, AUFNR, or the old job card number).');
+  if (!jobNumber) fail('jobNumber', 'Job number is required (the old job card number).');
   else if (jobNumber.length > 40) fail('jobNumber', 'The job number is longer than 40 characters.');
 
   const openedRaw = get(cells, mapping, 'openedAt');
   const openedAt = parseDay(openedRaw);
-  if (!openedRaw) fail('openedAt', 'Opened on is required (SAP ERDAT or GSTRP).');
+  if (!openedRaw) fail('openedAt', 'Opened on is required.');
   else if (!openedAt) fail('openedAt', `“${openedRaw}” is not a date. Write it as 14.03.2019, 14/03/2019, 2019-03-14 or 20190314.`);
   else if (openedAt > today) fail('openedAt', `The opening date ${openedAt} is in the future.`);
 
@@ -221,7 +221,7 @@ export function checkJobRow(cells: unknown[], mapping: Mapping, today = lagosTod
   const goodVin = vk && vk.length >= 6 && vk.length <= 25 ? vk : null;
   const plateRaw = get(cells, mapping, 'plateNumber');
   const plateKey = plateRaw ? plateRaw.toUpperCase().replace(/[\s-]/g, '') : null;
-  if (!custExt && !custPhone && !custEmail && !goodVin && !plateKey) fail('customer', 'Whose job is it? Give the SAP customer number (KUNUM), the customer’s phone or email, or the vehicle’s chassis number or plate.');
+  if (!custExt && !custPhone && !custEmail && !goodVin && !plateKey) fail('customer', 'Whose job is it? Give the customer number, the customer’s phone or email, or the vehicle’s chassis number or plate.');
   if (!goodVin && !plateKey) warn('vin', 'No chassis number or plate: the job is kept on the customer only, and cannot start a vehicle’s service clock.');
 
   const orderType = get(cells, mapping, 'orderType').slice(0, 20) || null;

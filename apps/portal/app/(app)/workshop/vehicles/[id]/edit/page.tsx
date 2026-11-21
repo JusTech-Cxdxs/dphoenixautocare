@@ -13,7 +13,7 @@ import { VehiclePartsFitted } from '@/components/VehiclePartsFitted';
 import { humanizeAction } from '@/lib/humanize-action';
 import { listWarrantiesFor } from '@/lib/actions/warranty';
 import { WarrantyList } from '@/components/WarrantyList';
-import { moduleIsOn } from '@/lib/modules';
+import { featureOn, moduleIsOn } from '@/lib/modules';
 import { bookServiceHref, separateVehicleServiceOn, OPEN_SERVICE_JOB_CARD } from '@/lib/service-entry';
 import { getVehicle, getLastEditInfo, getVehicleAuditTrail } from '@/lib/actions/workshop';
 import { getRecycleBinOffer } from '@/lib/actions/recycle-bin';
@@ -767,13 +767,13 @@ const RESULT_TONE: Record<string, string> = { PASS: 'text-[var(--ejo-success)]',
 const RESULT_WORD: Record<string, string> = { PASS: 'Pass', FAIL: 'Fail', REWORK: 'Rework', OPEN: 'Open' };
 const dayText = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' });
 
-/** Before EJO 100: the plant registers (production, QC, PDI) and SAP invoices for this vehicle — read-only history. */
+/** Before EJO 100: the plant registers (production, QC, PDI), past job cards and invoices for this vehicle — read-only history. */
 function BeforeEjo({ data }: { data: Awaited<ReturnType<typeof getVehicleHistoryBeforeEjo>> }) {
   const sapTotal = data.invoices.reduce((s, i) => s + i.amount, 0);
   return (
     <div id="before-ejo" className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-5">
       <h2 className="text-sm font-semibold text-[var(--ejo-text)]">Before EJO 100</h2>
-      <p className="mt-0.5 text-xs text-[var(--ejo-text-muted)]">Brought in from the plant registers, SAP service orders and SAP invoices. Read-only history.</p>
+      <p className="mt-0.5 text-xs text-[var(--ejo-text-muted)]">{featureOn('sap') ? 'Brought in from the plant registers, SAP service orders and SAP invoices.' : `Brought in from ${moduleIsOn('plant') ? 'the plant registers and ' : ''}the old system’s job cards and invoices.`} Read-only history.</p>
       {data.checks.length ? (
         <>
           <h3 className="mt-4 text-xs font-semibold uppercase tracking-wide text-[var(--ejo-text-muted)]">Production, QC and PDI</h3>
@@ -808,7 +808,7 @@ function BeforeEjo({ data }: { data: Awaited<ReturnType<typeof getVehicleHistory
       ) : null}
       {data.invoices.length ? (
         <>
-          <h3 className="mt-4 text-xs font-semibold uppercase tracking-wide text-[var(--ejo-text-muted)]">Invoices from SAP ({nairaText(sapTotal)})</h3>
+          <h3 className="mt-4 text-xs font-semibold uppercase tracking-wide text-[var(--ejo-text-muted)]">{featureOn('sap') ? 'Invoices from SAP' : 'Invoices before EJO'} ({nairaText(sapTotal)})</h3>
           <ul className="mt-2 divide-y divide-[var(--ejo-border)] text-sm">
             {data.invoices.map((i) => (
               <li key={i.id} className="flex items-start justify-between gap-3 py-2">

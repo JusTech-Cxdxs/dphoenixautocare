@@ -53,9 +53,6 @@ export const EDITION_FEATURES = {
   news: false,
   speakUp: false,
   dataRequests: false,
-  // The public marketing website (store, offers, refer and earn, news): the
-  // website app is the customer portal only in this edition.
-  publicWebsite: false,
   // A separate Vehicle Service flow for new work: services are opened as a
   // Job Card with Service ticked; old Vehicle Services stay readable.
   separateVehicleService: false,
@@ -64,4 +61,13 @@ export type EditionFeature = keyof typeof EDITION_FEATURES;
 
 export function featureOn(feature: EditionFeature): boolean {
   return EDITION_FEATURES[feature];
+}
+
+/**
+ * The system a record was brought in from, in words: "SAP" for a record from
+ * SAP while this edition links with SAP, otherwise "the old system" (Zoho, a
+ * spreadsheet or whatever was used before EJO).
+ */
+export function oldSystemName(externalSource?: string | null, sap: boolean = featureOn('sap')): string {
+  return sap && !String(externalSource ?? 'SAP').toUpperCase().startsWith('LEGACY') ? 'SAP' : 'the old system';
 }

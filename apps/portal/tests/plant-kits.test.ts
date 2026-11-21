@@ -132,15 +132,3 @@ test('wired in: second person, compare-and-set, refused during assisted sessions
   for (const m of a.matchAll(/prisma\.plant(Kit|Shipment)\.find(First|Many)\(\{ where: \{([^}]*)/g)) assert.match(m[3]!, /organisationId|shipmentId|id: \{ in|vinKey|\.\.\.where|\.\.\.base/, m[0]);
 });
 
-test('docs/demo packing list: correct/ gives 12 kits and no problem; with-mistakes/ gives exactly the planted problems, in EJO’s words', () => {
-  const demo = (dir: string) => readFileSync(join(__dirname, '..', '..', '..', '..', 'docs', 'demo', dir, '09_kit_packing_list_demo.csv'), 'utf8');
-  const good = parseKitLines(demo('correct'));
-  assert.deepEqual(good.problems, []);
-  assert.equal(good.kits.length, 12);
-  assert.deepEqual([...new Set(good.kits.map((k) => `${k.modelCode} ${k.kitType}`))], ['NQR CKD', 'NPR CKD', 'QMR CKD', 'QLR CKD', 'S07 SKD']);
-  const planted = (JSON.parse(readFileSync(join(__dirname, '..', '..', '..', '..', 'docs', 'demo', 'with-mistakes', 'mistakes.json'), 'utf8')) as { file: string; says: string }[]).filter((p) => p.file === '09_kit_packing_list_demo.csv');
-  assert.equal(planted.length, 4);
-  const bad = parseKitLines(demo('with-mistakes'));
-  assert.deepEqual(bad.problems, planted.map((p) => p.says));
-  assert.deepEqual(bad.kits.map((k) => k.vin), good.kits.map((k) => k.vin), 'the good lines still read the same');
-});

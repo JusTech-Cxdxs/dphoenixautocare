@@ -7,6 +7,7 @@
  */
 import { prisma } from '@ejo/database';
 import { allows } from '@/lib/authz/server';
+import { featureOn } from '@/lib/modules';
 
 export type Provenance = {
   /** ejo: made in EJO 100; sap / legacy: brought in from SAP or an old spreadsheet. */
@@ -42,7 +43,8 @@ export async function provenanceOf(input: {
     : null;
   const src = (input.externalSource ?? job?.sourceSystem ?? '').toUpperCase();
   const source: Provenance['source'] = job || input.externalSource ? (src.startsWith('LEGACY') ? 'legacy' : 'sap') : 'ejo';
-  const sys = source === 'legacy' ? 'Old system' : 'SAP';
+  // Without the SAP link (lib/modules.ts) every other system is "the old system".
+  const sys = source === 'sap' && featureOn('sap') ? 'SAP' : 'Old system';
   const canOpen = job ? (await allows('dataexchange.import.run')) || (await allows('dataexchange.import.approve')) : false;
   return {
     source,

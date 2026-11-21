@@ -3,22 +3,28 @@
  * vehicles, parts, suppliers). Pure: parsed from the page's address, applied
  * in the database by the list's own action.
  *
- *  • Source: created in EJO 100 / imported from SAP / imported from a
- *    spreadsheet (an old system) — by the import that created the record.
+ *  • Source: created in EJO 100 / imported from a spreadsheet (Zoho or an
+ *    old system) / imported from SAP (only while the SAP link is on) — by
+ *    the import that created the record.
  *  • Import: one import, by its number (IMP-2026-000012).
  *  • Date entered EJO: when the record was created or imported.
  *  • Original date: when it began in the other system (a customer's
- *    "customer since", from SAP's ERDAT) — on lists that have one.
+ *    "customer since") — on lists that have one.
  * Dates are Lagos calendar days, both ends included.
  */
 
+import { featureOn } from './modules';
+
 export type SourceKey = 'all' | 'ejo' | 'sap' | 'legacy';
-export const SOURCE_OPTIONS: { key: SourceKey; label: string }[] = [
+/** Every source in words (an export made while the SAP link was on still describes itself). */
+export const SOURCE_WORDS: { key: SourceKey; label: string }[] = [
   { key: 'all', label: 'Any source' },
   { key: 'ejo', label: 'Created in EJO' },
   { key: 'sap', label: 'Imported from SAP' },
   { key: 'legacy', label: 'Imported from a spreadsheet' },
 ];
+/** The choices on a list's filter: "Imported from SAP" only while this edition links with SAP (lib/modules.ts). */
+export const SOURCE_OPTIONS = SOURCE_WORDS.filter((o) => o.key !== 'sap' || featureOn('sap'));
 
 export type SourceFilter = {
   source: SourceKey;

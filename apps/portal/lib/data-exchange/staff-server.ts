@@ -71,7 +71,7 @@ function resolve(v: StaffValues, L: Lookups): Resolved {
   const errors: string[] = [];
   const notes: string[] = [];
   const branch = pickBranch(v.branch, L.branches);
-  if (!branch) errors.push(`There is no branch “${v.branch}” in this organisation. Use the branch’s name, code or SAP plant as on the Structure page.`);
+  if (!branch) errors.push(`There is no branch “${v.branch}” in this organisation. Use the branch’s name or code as on the Structure page.`);
   let departmentId: string | null = null;
   if (branch && v.department) {
     const k = norm(v.department);

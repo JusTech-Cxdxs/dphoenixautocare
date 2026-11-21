@@ -103,8 +103,8 @@ export const SAMPLE_WEBSITE = 'https://www.example.com';
 
 export function emailSamples(opts: { hostile?: boolean } = {}): EmailSample[] {
   const x = (s: string) => (opts.hostile ? `${s} <script>alert("x")</script> & <b>bold</b>` : s);
-  const org = x('Kewalram Chanrai Group');
-  const branch = x('Isolo Branch');
+  const org = x('Lagos Fleet Services');
+  const branch = x('Ajah Branch');
   const dept = x('Workshop');
   const portalLogo = `${SAMPLE_PORTAL}/images/logo/email-logo.png`;
   const siteLogo = `${SAMPLE_WEBSITE}/images/logo/email-logo.png`;
@@ -121,7 +121,7 @@ export function emailSamples(opts: { hostile?: boolean } = {}): EmailSample[] {
   const vsUrl = `${SAMPLE_PORTAL}/workshop/vehicle-service/clv456`;
   const jobDash = `${SAMPLE_WEBSITE}/customer-portal/dashboard/services/jc/clx123`;
   const vsDash = `${SAMPLE_WEBSITE}/customer-portal/dashboard/services/vs/clv456`;
-  const contact = { address: x('12 Oshodi-Apapa Expressway, Isolo, Lagos'), phones: ['0201 234 5678', '0802 345 6789'], email: 'isolo@example.com' };
+  const contact = { address: x('12 Oshodi-Apapa Expressway, Ajah, Lagos'), phones: ['0201 234 5678', '0802 345 6789'], email: 'ajah@example.com' };
   const staffBase = { logoUrl: portalLogo, companyName: org, branchName: branch };
   const staffDept = { ...staffBase, departmentName: dept };
   const custBase = { logoUrl: siteLogo, companyName: org, branchName: branch };
@@ -147,7 +147,7 @@ export function emailSamples(opts: { hostile?: boolean } = {}): EmailSample[] {
     // Accounts and security
     s('staff-password-reset', 'renderPasswordResetEmail', 'staff', undefined, () => renderPasswordResetEmail({ fullName: staff, email: 'tunde.bakare@example.com', url: `${SAMPLE_PORTAL}/reset-password?token=abc123`, companyName: org, logoUrl: portalLogo })),
     s('staff-welcome', 'renderStaffAccessEmail', 'staff', undefined, () => renderStaffAccessEmail({
-      kind: 'welcome', fullName: staff, email: 'tunde.bakare@example.com', employeeId: 'KCG-00042', companyName: org, branchName: branch, departmentName: dept,
+      kind: 'welcome', fullName: staff, email: 'tunde.bakare@example.com', employeeId: 'LFS-00042', companyName: org, branchName: branch, departmentName: dept,
       roles: ['Technician'], isPlatformTeam: false,
       access: [
         { module: 'Workshop', lines: [{ key: 'workshop.jobcard.view' as never, label: x('See Job Cards'), where: 'on work assigned to you', added: false }, { key: 'workshop.estimate.edit' as never, label: 'Prepare estimates', where: 'on work assigned to you', added: false }] },
@@ -156,15 +156,15 @@ export function emailSamples(opts: { hostile?: boolean } = {}): EmailSample[] {
       setPasswordUrl: `${SAMPLE_PORTAL}/reset-password?token=welcome1`, setPasswordHours: 72, signInUrl: `${SAMPLE_PORTAL}/login`, logoUrl: portalLogo,
     })),
     s('staff-access-changed', 'renderStaffAccessEmail', 'staff', undefined, () => renderStaffAccessEmail({
-      kind: 'updated', fullName: staff, email: 'tunde.bakare@example.com', employeeId: 'KCG-00042', companyName: org, branchName: branch, departmentName: null,
+      kind: 'updated', fullName: staff, email: 'tunde.bakare@example.com', employeeId: 'LFS-00042', companyName: org, branchName: branch, departmentName: null,
       roles: ['Technician', 'Store Officer'], isPlatformTeam: false,
       access: [{ module: 'Inventory', lines: [{ key: 'store.view' as never, label: 'See parts and stock', where: 'in your branch', added: false }] }],
       signInUrl: `${SAMPLE_PORTAL}/login`, logoUrl: portalLogo, changeNote: x('You were given the role Store Officer.'),
     })),
     s('customer-welcome', 'renderCustomerWelcomeEmail', 'customer', undefined, () => renderCustomerWelcomeEmail({ kind: 'welcome', customerName: customer, email: 'adaeze@example.com', setPasswordUrl: `${SAMPLE_WEBSITE}/customer-portal/reset-password?token=t0k3n`, setPasswordHours: 72, signInUrl: `${SAMPLE_WEBSITE}/customer-portal`, ...custBase, branchContact: contact })),
     s('customer-access-link', 'renderCustomerWelcomeEmail', 'customer', undefined, () => renderCustomerWelcomeEmail({ kind: 'access', customerName: customer, email: 'adaeze@example.com', setPasswordUrl: `${SAMPLE_WEBSITE}/customer-portal/reset-password?token=t0k3n`, setPasswordHours: 72, signInUrl: `${SAMPLE_WEBSITE}/customer-portal`, ...custBase, branchContact: contact })),
-    s('staff-notice', 'renderWarrantyStaffNoticeEmail', 'staff', `Bank details changed for ${branch}`, () => renderWarrantyStaffNoticeEmail({ recipientName: manager, heading: x('Bank details changed for Isolo Branch'), lines: [x('Tunde Bakare changed the bank account customers are asked to pay into.'), 'Old account: Example Bank Plc, 0123456789', 'New account: Example Bank Plc, 9876543210', 'If you did not expect this change, check it straight away.'], actionUrl: `${SAMPLE_PORTAL}/settings/branches`, ...staffBase, statusLabel: 'Security', statusTone: 'warning' })),
-    s('customer-broadcast', 'renderCustomerBroadcastEmail', 'customer', undefined, () => renderCustomerBroadcastEmail({ customerName: customer, title: x('Extended opening hours in December'), message: x('From 1 December our Isolo workshop opens from 7:30 am to 7:00 pm, Monday to Saturday.\nBook early to secure a slot before the holidays.'), categoryLabel: 'Announcement', portalUrl: `${SAMPLE_WEBSITE}/customer-portal`, logoUrl: siteLogo, companyName: org, preferencesUrl: `${SAMPLE_WEBSITE}/customer-portal/dashboard/profile` })),
+    s('staff-notice', 'renderWarrantyStaffNoticeEmail', 'staff', `Bank details changed for ${branch}`, () => renderWarrantyStaffNoticeEmail({ recipientName: manager, heading: x('Bank details changed for Ajah Branch'), lines: [x('Tunde Bakare changed the bank account customers are asked to pay into.'), 'Old account: Example Bank Plc, 0123456789', 'New account: Example Bank Plc, 9876543210', 'If you did not expect this change, check it straight away.'], actionUrl: `${SAMPLE_PORTAL}/settings/branches`, ...staffBase, statusLabel: 'Security', statusTone: 'warning' })),
+    s('customer-broadcast', 'renderCustomerBroadcastEmail', 'customer', undefined, () => renderCustomerBroadcastEmail({ customerName: customer, title: x('Extended opening hours in December'), message: x('From 1 December our Ajah workshop opens from 7:30 am to 7:00 pm, Monday to Saturday.\nBook early to secure a slot before the holidays.'), categoryLabel: 'Announcement', portalUrl: `${SAMPLE_WEBSITE}/customer-portal`, logoUrl: siteLogo, companyName: org, preferencesUrl: `${SAMPLE_WEBSITE}/customer-portal/dashboard/profile` })),
     s('customer-support-reply', 'renderCustomerSupportReplyEmail', 'customer', 'Reply to your request SUP-2026-000014', () => renderCustomerSupportReplyEmail({ customerName: customer, ticketNumber: 'SUP-2026-000014', subject: x('When will my car be ready?'), reply: x('Thank you for waiting.\nThe part arrived this morning and your vehicle will be ready by Friday afternoon.'), statusLabel: 'Waiting for your reply', portalUrl: `${SAMPLE_WEBSITE}/customer-portal/dashboard/support`, logoUrl: siteLogo, companyName: org, branchName: branch })),
 
     // Customer: Job Card journey

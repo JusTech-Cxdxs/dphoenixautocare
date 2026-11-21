@@ -1,6 +1,6 @@
 /**
  * People tools: the staff directory ("who is Bhushan?", "who is the Manager at
- * Isolo?") from the organisation's own records — name, role, branch,
+ * Victoria Island?") from the organisation's own records — name, role, branch,
  * department and work email; nothing personal — and "what am I waiting on",
  * the person's own requests still with someone else. Both are fenced to the
  * signed-in person's organisation.

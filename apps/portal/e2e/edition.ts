@@ -49,15 +49,6 @@ export const SEPARATE_VEHICLE_SERVICE = process.env.E2E_SEPARATE_VEHICLE_SERVICE
 export const SEPARATE_VEHICLE_SERVICE_OFF = "New Vehicle Services are off in the D'Phoenix edition (a service is opened as a Job Card with Service chosen)";
 
 /**
- * The D'Phoenix edition has no public marketing website: apps/website is the
- * customer portal only (its root redirects to /customer-portal, the business
- * has its own website), so there are no marketing pages and no public Enyo
- * "Chat with …" widget to test.
- */
-export const PUBLIC_WEBSITE = false;
-export const NO_PUBLIC_WEBSITE = "No public website in the D'Phoenix edition (apps/website is the customer portal only)";
-
-/**
  * The demo people and records (lib/demo, docs/DPHOENIX_DEMO.md) live in their
  * own organisation, dphoenix-demo, made only when the platform owner asks
  * (DEMO_STAFF_PASSWORD, `npm run demo:reset`). The demo specs need it loaded

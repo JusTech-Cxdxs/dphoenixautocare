@@ -1,6 +1,6 @@
 /**
- * The cut-over checklist (P9): for one branch, every file it needs from SAP
- * or the old registers, in the order they load, and where each stands —
+ * The cut-over checklist (P9): for one branch, every file it needs from the
+ * old system (Zoho, spreadsheets, SAP or the old registers), in the order they load, and where each stands —
  * worked out from the imports themselves, never typed in by hand. Pure (no
  * database), unit-tested in tests/data-exchange-cutover.test.ts; the server
  * part is lib/actions/data-exchange-cutover.ts.

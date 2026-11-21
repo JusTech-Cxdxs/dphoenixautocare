@@ -81,15 +81,15 @@ type P = Parameters<typeof pickPolicy>[1][number];
 const pol = (o: Partial<P>): P => ({ id: o.code ?? 'p', code: 'P', name: 'Policy', kind: 'ASSET', providerId: 'pr', providerName: 'Isuzu Motors Ltd (demo)', durationMonths: 36, durationUnit: 'MONTHS', distanceLimit: 100000, coverageSummary: 'All', exclusions: null, conditions: null, isActive: true, archivedAt: null, ...o });
 
 test('the policy: by code, then by name; or the one with the same months, km and provider; none or several are refused', () => {
-  const policies = [pol({ code: 'DEMO-ISZ-3Y', name: 'Isuzu 3 years' }), pol({ code: 'DEMO-SEM-5Y', name: 'Soueast 5 years', providerName: 'Soueast Motor Co., Ltd (demo)', durationMonths: 60, distanceLimit: 150000 }), pol({ code: 'OLD-ISZ', name: 'Old Isuzu', archivedAt: new Date('2025-01-01') })];
+  const policies = [pol({ code: 'DEMO-ISZ-3Y', name: 'Isuzu 3 years' }), pol({ code: 'DEMO-TYT-5Y', name: 'Toyota 5 years', providerName: 'Toyota Motor (demo)', durationMonths: 60, distanceLimit: 150000 }), pol({ code: 'OLD-ISZ', name: 'Old Isuzu', archivedAt: new Date('2025-01-01') })];
   const base = { policy: null, provider: null, months: null, distanceLimit: null, kind: 'ASSET' as const };
   assert.equal(pickPolicy({ ...base, policy: 'demo-isz-3y' }, policies).policy?.code, 'DEMO-ISZ-3Y');
-  assert.equal(pickPolicy({ ...base, policy: 'Soueast 5 Years' }, policies).policy?.code, 'DEMO-SEM-5Y');
+  assert.equal(pickPolicy({ ...base, policy: 'Toyota 5 Years' }, policies).policy?.code, 'DEMO-TYT-5Y');
   assert.equal(pickPolicy({ ...base, policy: 'OLD-ISZ' }, policies).policy?.code, 'OLD-ISZ', 'an archived policy named outright is kept, for its history');
   assert.match(pickPolicy({ ...base, policy: 'NOPE' }, policies).error!, /There is no warranty policy “NOPE” in EJO/);
   const found = pickPolicy({ ...base, months: 60, distanceLimit: 150000 }, policies);
-  assert.equal(found.policy?.code, 'DEMO-SEM-5Y');
-  assert.match(found.note!, /No policy named: DEMO-SEM-5Y/);
+  assert.equal(found.policy?.code, 'DEMO-TYT-5Y');
+  assert.match(found.note!, /No policy named: DEMO-TYT-5Y/);
   assert.equal(pickPolicy({ ...base, months: 36 }, policies).policy?.code, 'DEMO-ISZ-3Y', 'archived policies are never found from the terms');
   assert.match(pickPolicy({ ...base, months: 24 }, policies).error!, /No vehicle warranty policy in EJO has 24 months/);
   assert.match(pickPolicy({ ...base, months: 36 }, [...policies, pol({ code: 'DEMO-ISZ-3Y-B' })]).error!, /2 vehicle policies have 36 months .*name the policy/);

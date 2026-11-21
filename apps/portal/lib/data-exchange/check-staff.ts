@@ -56,7 +56,7 @@ export function checkStaffRow(cells: unknown[], mapping: Mapping): Checked<Staff
   if (employeeId && !/^[A-Z0-9][A-Z0-9\-_/.]*$/.test(employeeId)) fail('employeeId', `“${employeeId}” is not an employee ID (letters, digits and dashes).`);
   const personnelNumber = get(cells, mapping, 'personnelNumber').replace(/^0+(?=\d)/, '').slice(0, 40) || null;
   const branch = get(cells, mapping, 'branch').trim().slice(0, 80);
-  if (!branch) fail('branch', 'Branch is required: the branch they work at (its name, code or SAP plant).');
+  if (!branch) fail('branch', 'Branch is required: the branch they work at (its name or code).');
   const department = get(cells, mapping, 'department').trim().slice(0, 80) || null;
   const roles = splitRoles(get(cells, mapping, 'roles'));
   for (const r of roles) if (ROLES_NEVER_IMPORTED.includes(r.toLowerCase().replace(/\s+/g, '-')) || /^(organisation |branch )?administrator$/i.test(r)) fail('roles', `“${r}”: the organisation’s administrators are added by hand on the Users page, never by a file.`);

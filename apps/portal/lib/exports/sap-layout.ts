@@ -22,6 +22,7 @@
  * Every SAP name here is one EJO's own import recognises, so a file in this
  * layout comes straight back into Data Exchange.
  */
+import { featureOn } from '../modules';
 import type { ColumnType, ExportColumn } from './format';
 
 export const LAYOUTS = ['ejo', 'sap'] as const;
@@ -30,7 +31,7 @@ export type Layout = (typeof LAYOUTS)[number];
 /** For each list that has an SAP layout: EJO's column header → SAP's field name. Order follows the list's own columns. */
 export const SAP_FIELDS: Record<string, Record<string, string>> = {
   customers: {
-    'Customer number (SAP or old system)': 'KUNNR',
+    'Customer number': 'KUNNR',
     Name: 'NAME1',
     Type: 'KTOKD',
     Email: 'SMTP_ADDR',
@@ -42,8 +43,8 @@ export const SAP_FIELDS: Record<string, Record<string, string>> = {
     'EJO record': 'ZZ_EJO_ID',
   },
   vehicles: {
-    'Customer number (SAP or old system)': 'KUNNR',
-    'Vehicle number (SAP or old system)': 'EQUNR',
+    'Customer number': 'KUNNR',
+    'Vehicle number': 'EQUNR',
     'Chassis number (VIN)': 'VHVIN',
     Plate: 'LICENSE_NUM',
     'Engine number': 'ENGINE_NO',
@@ -90,7 +91,7 @@ export const SAP_FIELDS: Record<string, Record<string, string>> = {
     'Company code': 'BUKRS',
     'Document type': 'FKART',
     'Invoice date': 'FKDAT',
-    'Customer number (SAP)': 'KUNAG',
+    'Customer number': 'KUNAG',
     'Chassis number (VIN)': 'VHVIN',
     'Amount (incl. tax)': 'DMBTR',
     Currency: 'WAERS',
@@ -109,6 +110,8 @@ export function alpha(field: string, v: unknown): unknown {
 }
 
 export const hasSapLayout = (kind: string): boolean => kind in SAP_FIELDS;
+/** Offered on the Export menu, and honoured when a file is built, only while this edition links with SAP (lib/modules.ts). */
+export const sapLayoutOffered = (kind: string, sap: boolean = featureOn('sap')): boolean => sap && hasSapLayout(kind);
 export const isLayout = (x: unknown): x is Layout => (LAYOUTS as readonly string[]).includes(String(x));
 
 /** A value as SAP flat files write it: days YYYYMMDD, flags X / empty; everything else unchanged. */

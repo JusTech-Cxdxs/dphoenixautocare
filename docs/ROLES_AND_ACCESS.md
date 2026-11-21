@@ -33,9 +33,9 @@ Three things hold for everyone:
 Every branch is one kind of place (`apps/portal/lib/branch-types.ts`):
 **Workshop** (job cards, vehicle services and the parts store), **Assembly
 plant** (kits, the line, quality, PDI, the yard), **Vehicle sales**, **Head
-office** or **Warehouse**. Kewalram's set-up is a workshop (*Isolo Branch*)
-beside the plant (*Afprint Assembly Plant*, SAP plant 1100), both in Isolo. A
-company with a workshop inside its plant opens two branches.
+office** or **Warehouse**. D'Phoenix Autocare's set-up is one workshop (the
+*Victoria Island Workshop*); the assembly plant is switched off in this
+edition. A company with a workshop inside its plant opens two branches.
 
 What this means for access:
 
@@ -111,7 +111,7 @@ when the payment came in with the import and nothing has been recorded on
 the job card since — the desk's own delete still refuses any job card with a
 payment.
 
-### Staff from SAP HR (P7)
+### Staff from a staff list (P7)
 
 The file is run by the IT Administrator (`dataexchange.import.run`) and
 approved by an **Organisation Administrator** (`dataexchange.import.approve`
@@ -178,25 +178,7 @@ else.
 
 ### Postings for SAP (C1a)
 
-Making and downloading a branch's postings file needs
-`dataexchange.export.run` **at that branch** (Finance, the Manager, the
-Store Manager, an administrator); the organisation's new-customers file
-carries names, phones and emails, so it needs `dataexchange.export.sensitive`.
-Loading SAP's return file and sending a rejected posting again need
-`dataexchange.import.approve` at that branch. Every file is fenced to the
-organisation, refused during an assisted session, and audited when made,
-downloaded and answered. A file that no longer matches its checksum is never
-given out.
-
-C1b adds the plant: its PDI usage decisions and vehicles to the yard are made
-by whoever exports the plant's records (the Plant Manager, the Quality
-Supervisor, an administrator) and answered by the Plant Manager (who approves
-the plant's imports). **Sent to SAP** on a job card, service, PDI or customer
-shows only to people who make or confirm that branch's postings (the
-organisation's file for a customer); everyone else sees no box. SAP's own
-master-data extract loads through Data Exchange like any update, so it needs
-`dataexchange.import.run` to prepare and `dataexchange.import.approve` (by
-someone else) to load.
+Switched off in this edition (no SAP link).
 
 ### Updates from an edited export (P10)
 
@@ -255,7 +237,7 @@ never in the real one. What keeps them safe:
 
 ### The workshop demo (D2)
 
-Seven months of the Victoria Island Workshop (DEMO_WALKTHROUGH §15), loaded
+Seven months of the Victoria Island Workshop (docs/DPHOENIX_DEMO.md), loaded
 only into the demo organisation, by the build the first time and by
 `npm run demo:reset` after. Every record it makes is written as the demo
 people and obeys the same rules the actions enforce (the tests in
@@ -309,7 +291,7 @@ records and the reset refusing a hosted database.
 | **Finance Officer** | Records payments and refunds, reviews outside purchases, pays out cash once approved. | Dashboard, Approvals, Workshop (read), Inventory, My exit passes, My visitors, Business Analytics, Notifications. My numbers: *Payments I recorded this month*, *Outside purchases with Finance*. Activity: every payment, refund and outside purchase in the branch. | Outside purchases (review, then pay out). | The gate, approving purchases (the Manager does), administration. |
 | **Store Manager** | Runs the store: parts, prices, stock levels, goods receipts, matching estimate parts, releasing parts. Authorises exit passes for the store team. | Dashboard, Approvals, Workshop (read), Inventory (all of it), My exit passes, My visitors, Deliveries, Notifications. My numbers: *Parts requests for the Store*, *Parts at or below reorder point*. | Parts requests (approve, reserve, release); exit passes for their department. | The gate registers, money, administration. |
 | **Store Officer** | Records goods receipts, matches parts, approves, reserves and releases parts requests. | Same as the Store Manager, without exit-pass authorisation. | Parts requests (approve, reserve, release). | The gate registers, money, administration. |
-| **Warranty HOD** | Registers and verifies warranties, approves claims, manages providers and policies. Authorises exit passes for the warranty team. Approves the warranties and open claims brought in from SAP at the cut-over (and only those imports). | Dashboard, Approvals, Workshop (read), Inventory (including goods receipts, to trace parts), Warranty, Data Exchange (warranty imports to approve), My exit passes, My visitors, Notifications. My numbers: *Warranties awaiting verification*, *Warranty claims open*. | Warranty verifications and claims, policy and provider removals, warranty and open-claim imports; exit passes for their department. | The gate, money, administration. |
+| **Warranty HOD** | Registers and verifies warranties, approves claims, manages providers and policies. Authorises exit passes for the warranty team. Approves the warranties and open claims brought in at the cut-over (and only those imports). | Dashboard, Approvals, Workshop (read), Inventory (including goods receipts, to trace parts), Warranty, Data Exchange (warranty imports to approve), My exit passes, My visitors, Notifications. My numbers: *Warranties awaiting verification*, *Warranty claims open*. | Warranty verifications and claims, policy and provider removals, warranty and open-claim imports; exit passes for their department. | The gate, money, administration. |
 | **Warranty Officer** | Registers warranties and prepares claims. | Like the Warranty HOD, without Approvals. | Nothing. | The gate, money, administration. |
 | **Department Head** | Authorises exit passes for the people in their department. | Dashboard, Approvals, My exit passes, My visitors (plus Contractors: the passes they asked for or are responsible for), Scheduling, Notifications. | Exit passes (the Department Head step). | Workshop, Store, Warranty, the gate registers. |
 | **Chief Security Officer** | Runs the Security desk and handles incidents. | Dashboard, Approvals, Security (the whole desk), Notifications. My numbers: *Visitors on site*, *Staff out on passes*, *Vehicles on road test*. Activity: all security records in the branch. | Incidents (assigns, closes, reopens). Exit passes only when they are someone's reporting manager. | Workshop, Store, money. |
@@ -523,7 +505,7 @@ Three rules follow, and they hold together:
    Warranty, and at the workshop not the Assembly plant. The same goes for
    dashboard tiles and shortcuts.
    Opening such an area by a pasted link or an old bookmark shows a short
-   notice in place of the page ("Afprint Assembly Plant has no Warranty"),
+   notice in place of the page ("Assembly Plant has no Warranty"),
    with the way to the person's own area. It shows none of the area's records.
 
 These rules decide what is *offered*. What anyone may *do* is still decided

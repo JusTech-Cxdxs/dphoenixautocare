@@ -158,11 +158,11 @@ test('several emails in one cell keep the first; N/A and dashes are empty', () =
 
 test('a long address keeps a short printed line and the full text', () => {
   const long = 'Block 12, Plot 34, Industrial Estate Road, Off Oshodi-Apapa Expressway, Behind the Old Depot';
-  const a = primaryAddress(long, 'Isolo', 'Lagos');
+  const a = primaryAddress(long, 'Ikeja', 'Lagos');
   assert.ok(a.address && a.address.length <= 80);
   assert.equal(a.shortened, true);
   assert.equal(a.full?.line1, long);
-  assert.equal(a.full?.city, 'Isolo');
+  assert.equal(a.full?.city, 'Ikeja');
   assert.deepEqual(primaryAddress('Plot 3', 'Lagos', 'Lagos'), { address: 'Plot 3, Lagos', full: null, shortened: false });
 });
 
@@ -183,7 +183,7 @@ test('vehicles: VIN and plate tidied, commercial worked out from the model, year
   assert.equal(r.values?.vehicleType, 'COMMERCIAL');
   assert.equal(r.values?.mileage, 45200);
   assert.deepEqual(r.keys, ['vin:JAANLR85EL7100001', 'plate:LND123AB']);
-  const suv = checkVehicleRow(['9', '', '', '', '', 'KJA 1 AA', '', '', 'Soueast', 'S07', '1890', '', 'lots'], VEH, 2026);
+  const suv = checkVehicleRow(['9', '', '', '', '', 'KJA 1 AA', '', '', 'Toyota', 'Camry', '1890', '', 'lots'], VEH, 2026);
   assert.equal(suv.status, 'WARNING');
   assert.equal(suv.values?.vehicleType, 'PASSENGER');
   assert.equal(suv.values?.year, null);

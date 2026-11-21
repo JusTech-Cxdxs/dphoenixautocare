@@ -22,7 +22,7 @@ import { lagosDateTime } from './format';
 import { describeParams, partMaxRows, PART_BUDGET_MS, PART_IN_FLIGHT_MS, isExportFormat, type ExportFormat } from './describe';
 import { EXPORT_KINDS, mayExport, type ExportKind, type Params } from './kinds';
 import { exportStream } from './stream';
-import { columnsFor, hasSapLayout } from './sap-layout';
+import { columnsFor, sapLayoutOffered } from './sap-layout';
 import { portalBaseUrl } from '@/lib/portal-url';
 
 export type PartRefusal = { status: 401 | 403 | 404 | 409 | 410; message: string };
@@ -103,8 +103,8 @@ export async function partStream(c: ClaimedPart): Promise<{ body: ReadableStream
     complete = true;
   }
   const now = new Date();
-  // SAP field names (KUNNR, NAME1…): for the SAP team's own load tools.
-  const sap = c.job.params.layout === 'sap' && hasSapLayout(c.kind.key);
+  // SAP field names (KUNNR, NAME1…): for the SAP team's own load tools, only while the SAP link is on.
+  const sap = c.job.params.layout === 'sap' && sapLayoutOffered(c.kind.key);
   const about: [string, string][] = [
     ['List', c.kind.label],
     ['Organisation', org?.name ?? ''],
@@ -114,7 +114,7 @@ export async function partStream(c: ClaimedPart): Promise<{ body: ReadableStream
     ['Exported by', `${by?.fullName ?? ''} · ${lagosDateTime(c.job.createdAt)}`],
     ['Downloaded by', `${me?.fullName ?? ''} · ${lagosDateTime(now)}`],
     ...(c.part > 1 || c.from ? [['Part', `${c.part} — carries on where part ${c.part - 1} stopped`] as [string, string]] : []),
-    ['What is in it', `${c.kind.note ?? 'Every matching record you may see today, in the list’s order.'} Times are Lagos time; money is in naira (NGN), as numbers; record numbers are text, with SAP’s leading zeros kept.`],
+    ['What is in it', `${c.kind.note ?? 'Every matching record you may see today, in the list’s order.'} Times are Lagos time; money is in naira (NGN), as numbers; record numbers are text, with their leading zeros kept.`],
     ['The list in EJO', `${portalBaseUrl().replace(/\/$/, '')}${c.kind.page}`],
     ...(sap ? [['Column names', 'SAP field names (KUNNR, NAME1, MATNR…). Days are YYYYMMDD and flags X or empty, as SAP flat files write them. ZZ_EJO_ID is the EJO record. SAP’s team loads this with their own tools; EJO never writes into SAP. The file also comes straight back into EJO’s Data Exchange.'] as [string, string]] : []),
   ];

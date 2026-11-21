@@ -62,7 +62,7 @@ test('upload blocks are measured as the UTF-8 bytes of their JSON, so they stay 
   assert.equal(jsonStringBytes('abc'), Buffer.byteLength(JSON.stringify('abc')));
   assert.equal(jsonStringBytes('刹车片'), Buffer.byteLength(JSON.stringify('刹车片')));
   // A worst case block: Chinese descriptions, quotes, many columns — built the way the uploader builds it.
-  const cells = ['8-97366-430-0', '刹车片 前轴 "原厂" Soueast S07 ' + '配件'.repeat(40), 'ZERS', 'PC', '45000.00', 'NGN', '₦ price "incl. VAT"'];
+  const cells = ['8-97366-430-0', '刹车片 前轴 "原厂" Toyota Hilux ' + '配件'.repeat(40), 'ZERS', 'PC', '45000.00', 'NGN', '₦ price "incl. VAT"'];
   const block: { rowNumber: number; cells: string[] }[] = [];
   let bytes = 0;
   for (let n = 2; n < 100_000 && block.length < 5000; n += 1) {

@@ -11,14 +11,14 @@ import { cleanPath, cleanSeconds, deviceOf, isBot, lagosDay, makeLimiter, referr
 import { nudgeFor } from '../lib/enyo/nudge';
 
 test('paths keep no query, no tokens and no ids', () => {
-  assert.equal(cleanPath('/services?utm=x#top'), '/services');
+  assert.equal(cleanPath('/support?utm=x#top'), '/support');
   assert.equal(cleanPath('/track/8f2c9a71b3d44e0fa1c2'), '/track/:id');
   assert.equal(cleanPath('/customer-portal/jobs/clx9abc12def'), null); // never the customer portal
   assert.equal(cleanPath('/jobs/clx9abc12def'), '/jobs/:id');
-  assert.equal(cleanPath('/news/2026'), '/news/2026');
+  assert.equal(cleanPath('/support/2026'), '/support/2026');
   assert.equal(cleanPath('/x/1234567'), '/x/:id');
   assert.equal(cleanPath('/me/someone@mail.com'), '/me/:id');
-  assert.equal(cleanPath('/About/'), '/about');
+  assert.equal(cleanPath('/Privacy/'), '/privacy');
   assert.equal(cleanPath('/'), '/');
   assert.equal(cleanPath('/api/enyo/chat'), null);
   assert.equal(cleanPath('//evil.com'), null);
@@ -39,7 +39,7 @@ test('bots and empty agents are not counted; devices are told apart', () => {
 
 test('referrer is another site\'s host only', () => {
   assert.equal(referrerHost('https://www.google.com/search?q=x', 'example.com'), 'google.com');
-  assert.equal(referrerHost('https://example.com/about', 'example.com:443'), null);
+  assert.equal(referrerHost('https://example.com/privacy', 'example.com:443'), null);
   assert.equal(referrerHost('', 'example.com'), null);
   assert.equal(referrerHost('not a url', 'example.com'), null);
 });
@@ -70,9 +70,9 @@ test('the limiter allows a burst per minute, then refuses', () => {
   assert.deepEqual([ok('a', 0), ok('a', 1), ok('a', 2), ok('a', 3), ok('b', 3), ok('a', 61_000)], [true, true, true, false, true, true]);
 });
 
-test('Enyo offers one page-fitting question, never on the customer portal', () => {
-  assert.match(nudgeFor('/services/maintenance')!.ask, /services/i);
-  assert.match(nudgeFor('/contact')!.ask, /call me/i);
+test('Enyo offers one page-fitting question, never on the customer portal or an estimate', () => {
+  assert.match(nudgeFor('/support')!.ask, /help/i);
+  assert.equal(nudgeFor('/estimate/approve/abc'), null, 'never while a customer answers an estimate');
   assert.equal(nudgeFor('/customer-portal/jobs'), null);
   assert.equal(nudgeFor('/privacy'), null);
   assert.ok(nudgeFor('/somewhere-else'));
@@ -87,11 +87,4 @@ test('the beacon is same-site, rate-limited, ignores bots and Do Not Track, and 
   assert.doesNotMatch(src.slice(src.indexOf('prisma.siteVisit.create')), /address(?!\))|ip\b/i);
   const tracker = readFileSync(join(__dirname, '..', '..', 'components', 'site', 'VisitTracker.tsx'), 'utf8');
   assert.ok(tracker.includes('doNotTrack') && tracker.includes("visibilityState === 'hidden'") && tracker.includes("startsWith('/customer-portal')"));
-});
-
-test('the site search lists the first stories by their real addresses', async () => {
-  const { FIRST_STORIES } = await import('../lib/news/stories');
-  const { FIRST_STORY_ENTRIES } = await import('../lib/news/index-entries');
-  assert.deepEqual(FIRST_STORY_ENTRIES, FIRST_STORIES.map((s) => ({ slug: s.slug, title: s.title })));
-  assert.doesNotMatch(FIRST_STORIES.map((s) => s.body).join('\n'), /^>/m, 'no invented quotations');
 });

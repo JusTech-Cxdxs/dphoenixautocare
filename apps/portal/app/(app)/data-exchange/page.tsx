@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { allows, guardAnyPage } from '@/lib/authz/server';
 import { listImportJobs } from '@/lib/actions/data-exchange';
-import { EDITION_ENTITY_KEYS, ENTITIES } from '@/lib/data-exchange/fields';
-import { featureOn, moduleIsOn } from '@/lib/modules';
-import { IMPORT_STEPS, bytesText, importStatus } from '@/lib/data-exchange/status';
+import { EDITION_ENTITY_KEYS, ENTITIES, type EntityKey } from '@/lib/data-exchange/fields';
+import { featureOn } from '@/lib/modules';
+import { bytesText, importStatus } from '@/lib/data-exchange/status';
 import { StagingSettings } from '@/components/data-exchange/StagingSettings';
 import { formatDateTimeCompact } from '@/lib/utils/format-date';
 import { EmptyState, HeaderAction, Icon, PageHeader, ResponsiveTable, SectionCard, StatusChip } from '@/components/ui';
@@ -14,7 +14,25 @@ export const dynamic = 'force-dynamic';
 
 const nf = (n: number) => n.toLocaleString('en-NG');
 
-/** Data Exchange: bring existing records in from SAP and spreadsheets — checked, approved by a second person, reversible. Only the kinds of record and the SAP link this edition switches on (lib/modules.ts). */
+const ICON: Record<EntityKey, 'user' | 'users' | 'car' | 'truck' | 'boxes' | 'package' | 'receipt' | 'wrench' | 'clipboard' | 'calendar' | 'shield-check' | 'shield' | 'alert'> = {
+  staff: 'user', customers: 'users', vehicles: 'car', suppliers: 'truck', parts: 'boxes', stock: 'package', invoices: 'receipt', jobs: 'wrench', openJobs: 'clipboard', openServices: 'calendar', warranties: 'shield-check', claims: 'shield', plantShipments: 'truck', plantVehicles: 'car', plantKits: 'package', plantKitIssues: 'alert', registers: 'clipboard',
+};
+const importWords = (k: EntityKey) => (k === 'stock' ? 'opening stock' : k === 'invoices' ? 'invoice history' : k === 'jobs' ? 'job card history' : k === 'registers' ? 'registers' : ENTITIES[k].plural);
+
+/** The lists this edition exports from here: the same Export button as on each list, for the whole list. */
+const EXPORTS: { kind: string; label: string }[] = [
+  { kind: 'customers', label: 'Customers' },
+  { kind: 'vehicles', label: 'Vehicles' },
+  { kind: 'job-cards', label: 'Job Cards' },
+  { kind: 'invoices', label: 'Invoices' },
+];
+
+/**
+ * Data Exchange: Excel and CSV in and out. Import (the kinds of record this
+ * edition switches on, lib/modules.ts), export (the main lists), the
+ * templates, and the history of imports. Every file is checked, approved by
+ * a second person and can be undone.
+ */
 export default async function DataExchangePage({ searchParams }: { searchParams: Promise<{ before?: string }> }) {
   await guardAnyPage(['dataexchange.import.run', 'dataexchange.import.approve'], '/data-exchange');
   const canExport = await allows('dataexchange.export.run');
@@ -23,57 +41,63 @@ export default async function DataExchangePage({ searchParams }: { searchParams:
   const { before } = await searchParams;
   const { jobs, canRun, staging, space } = await listImportJobs({ take: 30, before });
   const sap = featureOn('sap');
-  const what = ['Customers', 'vehicles', ...(moduleIsOn('inventory') ? ['suppliers', 'parts', 'opening stock'] : ['job history', 'open jobs'])];
-  const intro = `${what.slice(0, -1).join(', ')} and ${what.at(-1)} from ${sap ? 'SAP or your spreadsheets' : 'your old system or spreadsheets'}, without retyping.`;
   return (
     <div className="w-full space-y-6 p-4 sm:p-8">
       <PageHeader
         hero
         icon="layers"
         eyebrow="Data Exchange"
-        title="Bring in existing records"
-        description={`${intro} Every file is checked first, the department that owns the records approves it, it loads in batches, and it can be undone. Every list in EJO exports to Excel or CSV the same careful way.`}
-        actions={<><HeaderAction href="/data-exchange/cutover" icon="check-circle" variant="secondary">Cut-over checklist</HeaderAction>{sap && (canExport || canApprove) ? <HeaderAction href="/data-exchange/sap" icon="match" variant="secondary">Postings for SAP</HeaderAction> : null}{canExport ? <HeaderAction href="/data-exchange/exports" icon="download" variant="secondary">Exports</HeaderAction> : null}{canDocuments ? <HeaderAction href="/data-exchange/documents" icon="file" variant="secondary">Documents in bulk</HeaderAction> : null}</>}
+        title="Excel in, Excel out"
+        description={`Bring records in from an Excel or CSV file — ${sap ? 'from SAP, Zoho, an old system or your own spreadsheet' : 'from Zoho, an old system or your own spreadsheet'} — and take any list out to Excel. Every file is checked first, approved by the department that owns the records, and can be undone.`}
+        actions={sap && (canExport || canApprove) ? <HeaderAction href="/data-exchange/sap" icon="match" variant="secondary">Postings for SAP</HeaderAction> : null}
       />
 
-      <ol className="grid grid-cols-2 gap-2 sm:grid-cols-6">
-        {IMPORT_STEPS.map((s, i) => (
-          <li key={s} className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-3">
-            <span className="text-[11px] font-medium text-[var(--ejo-primary)]">Step {i + 1}</span>
-            <p className="text-sm font-medium text-[var(--ejo-text)]">{s}</p>
-          </li>
-        ))}
-      </ol>
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {EDITION_ENTITY_KEYS.map((k) => {
-          const e = ENTITIES[k];
-          return (
-            <SectionCard key={k} icon={({ staff: 'user', customers: 'users', vehicles: 'car', suppliers: 'truck', parts: 'boxes', stock: 'package', invoices: 'receipt', jobs: 'wrench', openJobs: 'clipboard', openServices: 'calendar', warranties: 'shield-check', claims: 'shield', plantShipments: 'truck', plantVehicles: 'car', plantKits: 'package', plantKitIssues: 'alert', registers: 'clipboard' } as const)[k]} title={e.label} description={e.description}>
-              <p className="text-xs text-[var(--ejo-text-muted)]">Recognised by {e.matchOrder.join(', then ')}.{e.after ? ` Load the ${ENTITIES[e.after].plural} file first.` : ''}</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {canRun ? <Link href={`/data-exchange/new?entity=${k}`} className="inline-flex items-center gap-2 rounded-[var(--ejo-radius-md)] bg-[var(--ejo-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"><Icon name="plus" size={14} /> Import {k === 'stock' ? 'opening stock' : k === 'invoices' ? 'invoice history' : k === 'registers' ? 'registers' : e.plural}</Link> : null}
-                <a href={`/data-exchange/templates/${k}`} className="inline-flex items-center gap-2 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] px-4 py-2 text-sm font-medium text-[var(--ejo-text)] hover:bg-[var(--ejo-bg)]"><Icon name="download" size={14} /> Excel template</a>
-                <a href={`/data-exchange/templates/${k}?format=csv`} className="inline-flex items-center gap-2 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] px-4 py-2 text-sm font-medium text-[var(--ejo-text)] hover:bg-[var(--ejo-bg)]"><Icon name="download" size={14} /> CSV template</a>
-              </div>
-            </SectionCard>
-          );
-        })}
-      </div>
-
-      <DatabaseSpaceCard space={space} />
-
-      <SectionCard icon="layers" title="Space used by staged files" description={`Each import keeps a copy of its file while it is checked, approved and loaded. Once it is finished — and Finance has confirmed the totals, where needed — the copy is released after ${staging.days === 0 ? 'no set period (kept for ever)' : `${staging.days} days`}. The summary, every row’s outcome, rejected rows and what undo needs are kept.`}>
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <p className="text-sm text-[var(--ejo-text)]"><span className="text-2xl font-semibold tabular-nums">{bytesText(staging.totalBytes)}</span> <span className="text-[var(--ejo-text-muted)]">in staged files now</span></p>
-          {staging.canSet ? <StagingSettings days={staging.days} /> : null}
-        </div>
+      <SectionCard icon="plus" title="Import" description="Choose what to bring in. Load customers before their vehicles, and vehicles before job cards."
+        actions={<Link href="/data-exchange/cutover" className="text-xs font-medium text-[var(--ejo-primary)] hover:underline">Going live? The cut-over checklist →</Link>}>
+        <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {EDITION_ENTITY_KEYS.map((k) => {
+            const e = ENTITIES[k];
+            return (
+              <li key={k} className="flex flex-col justify-between gap-3 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] p-4">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-[var(--ejo-text)]"><Icon name={ICON[k]} size={16} /> {e.label}</p>
+                  <p className="mt-1 text-xs text-[var(--ejo-text-muted)]">Recognised by {e.matchOrder.join(', then ')}.{e.after ? ` Load the ${ENTITIES[e.after].plural} file first.` : ''}</p>
+                </div>
+                {canRun ? <Link href={`/data-exchange/new?entity=${k}`} className="inline-flex w-fit items-center gap-2 rounded-[var(--ejo-radius-md)] bg-[var(--ejo-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"><Icon name="plus" size={14} /> Import {importWords(k)}</Link> : null}
+              </li>
+            );
+          })}
+        </ul>
       </SectionCard>
 
-      <SectionCard icon="history" title="Imports" description="Newest first. Open one to see its check, approval, load and report." flush
+      {canExport ? (
+        <SectionCard icon="download" title="Export" description="The whole list, as Excel (.xlsx) or CSV. Every list in EJO also has its own Export button, which follows its filters and search."
+          actions={<Link href="/data-exchange/exports" className="text-xs font-medium text-[var(--ejo-primary)] hover:underline">Exports made and scheduled →</Link>}>
+          <div className="flex flex-wrap gap-3">
+            {EXPORTS.map((x) => <ExportAction key={x.kind} kind={x.kind} label={x.label} align="left" />)}
+            {canDocuments ? <Link href="/data-exchange/documents" className="inline-flex items-center gap-1.5 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-4 py-2 text-sm font-medium text-[var(--ejo-text)] hover:border-[var(--ejo-primary)]/60 hover:text-[var(--ejo-primary)]"><Icon name="file" size={16} /> Invoices and receipts as PDF</Link> : null}
+          </div>
+        </SectionCard>
+      ) : null}
+
+      <SectionCard icon="file" title="Templates" description="An empty file with the right columns: the Excel one has a sheet that explains every column, and dropdowns for the columns with fixed choices. Your own column names also work — they are matched when the file is uploaded." flush>
+        <ul className="divide-y divide-[var(--ejo-border)]">
+          {EDITION_ENTITY_KEYS.map((k) => (
+            <li key={k} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+              <span className="text-sm text-[var(--ejo-text)]">{ENTITIES[k].label}</span>
+              <span className="flex flex-wrap gap-3 text-sm">
+                <a href={`/data-exchange/templates/${k}`} className="inline-flex items-center gap-1.5 font-medium text-[var(--ejo-primary)] hover:underline"><Icon name="download" size={14} /> Excel template</a>
+                <a href={`/data-exchange/templates/${k}?format=csv`} className="inline-flex items-center gap-1.5 font-medium text-[var(--ejo-primary)] hover:underline"><Icon name="download" size={14} /> CSV template</a>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </SectionCard>
+
+      <SectionCard icon="history" title="History of imports" description="Newest first. Open one to see its check, approval, load and report." flush
         actions={<span className="flex flex-wrap items-center gap-3"><ExportAction kind="imports" label="Export the list" /><Link href="/data-exchange/timeline" className="text-xs font-medium text-[var(--ejo-primary)] hover:underline">Day by day →</Link></span>}>
         {jobs.length === 0 ? (
-          <div className="p-4"><EmptyState icon="inbox" title="No imports yet" compact>{sap ? 'Download a template above, or start with your SAP export: its columns are matched automatically.' : 'Download a template above, or start with your old system’s export or spreadsheet: common column names are matched automatically.'}</EmptyState></div>
+          <div className="p-4"><EmptyState icon="inbox" title="No imports yet" compact>{sap ? 'Download a template above, or start with your SAP export: its columns are matched automatically.' : 'Download a template above, or start with your Zoho export or spreadsheet: common column names are matched automatically.'}</EmptyState></div>
         ) : (
           <ResponsiveTable>
             <table className="w-full text-sm">
@@ -109,6 +133,15 @@ export default async function DataExchangePage({ searchParams }: { searchParams:
         )}
         {jobs.length === 30 ? <div className="border-t border-[var(--ejo-border)] p-3 text-center"><Link href={`/data-exchange?before=${encodeURIComponent(jobs[jobs.length - 1]!.createdAt.toISOString())}`} className="text-sm font-medium text-[var(--ejo-primary)] hover:underline">View older imports</Link></div> : null}
       </SectionCard>
+
+      <SectionCard icon="layers" title="Space used by staged files" description={`Each import keeps a copy of its file while it is checked, approved and loaded. Once it is finished — and Finance has confirmed the totals, where needed — the copy is released after ${staging.days === 0 ? 'no set period (kept for ever)' : `${staging.days} days`}. The summary, every row’s outcome, rejected rows and what undo needs are kept.`}>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <p className="text-sm text-[var(--ejo-text)]"><span className="text-2xl font-semibold tabular-nums">{bytesText(staging.totalBytes)}</span> <span className="text-[var(--ejo-text-muted)]">in staged files now</span></p>
+          {staging.canSet ? <StagingSettings days={staging.days} /> : null}
+        </div>
+      </SectionCard>
+
+      <DatabaseSpaceCard space={space} />
     </div>
   );
 }

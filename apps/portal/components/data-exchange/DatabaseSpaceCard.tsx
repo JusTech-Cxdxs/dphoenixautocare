@@ -1,5 +1,6 @@
 import { SectionCard } from '@/components/ui';
 import { IMPORT_CEILING, mb, recordsThatFit, type Space } from '@/lib/database-space-core';
+import { moduleIsOn } from '@/lib/modules';
 
 const BAR = { ok: 'bg-[var(--ejo-success)]', warn: 'bg-[var(--ejo-warning)]', full: 'bg-[var(--ejo-error)]', unlimited: 'bg-[var(--ejo-primary)]' } as const;
 const TONE = { ok: 'success', warn: 'warning', full: 'error', unlimited: 'neutral' } as const;
@@ -30,7 +31,9 @@ export function DatabaseSpaceCard({ space }: { space: Space }) {
           <div className={`h-full rounded-full ${BAR[space.level]}`} style={{ width: `${Math.max(pct, 1)}%` }} />
         </div>
         <p className="text-xs text-[var(--ejo-text-muted)]">
-          About {nf(recordsThatFit(space, 'parts'))} more parts, or {nf(recordsThatFit(space, 'customers'))} more customers, or {nf(recordsThatFit(space, 'stock'))} more opening-stock lines fit.
+          {moduleIsOn('inventory')
+            ? <>About {nf(recordsThatFit(space, 'parts'))} more parts, or {nf(recordsThatFit(space, 'customers'))} more customers, or {nf(recordsThatFit(space, 'stock'))} more opening-stock lines fit.</>
+            : <>About {nf(recordsThatFit(space, 'customers'))} more customers, or {nf(recordsThatFit(space, 'vehicles'))} more vehicles fit.</>}
           {space.level === 'ok' ? '' : ' Release finished imports’ staged files below, or move the database to a bigger plan.'}
         </p>
       </div>

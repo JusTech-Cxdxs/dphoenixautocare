@@ -5,16 +5,16 @@ import Link from 'next/link';
 import { FloatingLayer } from '@/components/ui/FloatingLayer';
 import { Icon } from '@/components/ui';
 import { createExport, getExportProgress, type ExportProgress } from '@/lib/actions/exports';
-import { hasSapLayout, type Layout } from '@/lib/exports/sap-layout';
+import { sapLayoutOffered, type Layout } from '@/lib/exports/sap-layout';
 
 type Params = Record<string, string | string[] | undefined>;
 
-/** The menu: Excel and CSV with EJO's column names, and — for lists SAP also holds — the same with SAP's field names. */
+/** The menu: Excel and CSV with EJO's column names, and — with the SAP link on, for lists SAP also holds — the same with SAP's field names. */
 function choices(kind: string): ['xlsx' | 'csv', Layout, string, string][] {
   return [
     ['xlsx', 'ejo', 'Excel (.xlsx)', 'Real dates and numbers, ready to sort and total'],
     ['csv', 'ejo', 'CSV', 'For other systems; opens in Excel too'],
-    ...(hasSapLayout(kind) ? ([
+    ...(sapLayoutOffered(kind) ? ([
       ['xlsx', 'sap', 'Excel, SAP field names', 'KUNNR, NAME1, MATNR… for the SAP team'],
       ['csv', 'sap', 'CSV, SAP field names', 'Line 1 is the header, as SAP load tools expect'],
     ] as ['xlsx' | 'csv', Layout, string, string][]) : []),

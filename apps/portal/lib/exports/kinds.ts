@@ -7,7 +7,7 @@
  * (from the page's address), within the person's own reach (organisation,
  * branch, department — the same fences the list uses), in the same order,
  * in blocks — every matching record, not just the first page. Every row
- * carries the EJO number, the SAP (or old-system) number where there is one,
+ * carries the EJO number, the old system's number where there is one,
  * and a link back to the record.
  */
 import { AREA_BRANCH_TYPES } from '@/lib/branch-types';
@@ -65,7 +65,6 @@ const BLOCK = Math.max(1, Math.trunc(Number(process.env.EXPORT_BLOCK_ROWS)) || 2
 const base = () => portalBaseUrl().replace(/\/$/, '');
 const link = (path: string) => `${base()}${path}`;
 const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
-const sys = (src: string | null | undefined) => (!src ? null : src.toUpperCase().startsWith('LEGACY') ? 'Old system' : 'SAP');
 const words = (s: string | null | undefined) => (s ? s.toLowerCase().replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()) : '');
 
 /** Keyset reading in the list's own order (with the id as tie-breaker), a block at a time, from a record already written. */
@@ -101,7 +100,7 @@ type CustomerRow = Awaited<ReturnType<typeof getCrmHub>>['rows'][number] & { imp
 const customers: ExportKind<CustomerRow> = {
   key: 'customers', label: 'Customers', view: ['crm.view'], sensitive: true, page: '/crm',
   columns: [
-    { header: 'Customer number (SAP or old system)', type: 'code', width: 16, get: (r) => r.externalId },
+    { header: 'Customer number', type: 'code', width: 16, get: (r) => r.externalId },
     { header: 'Name', type: 'text', width: 28, get: (r) => r.fullName },
     { header: 'Type', type: 'text', width: 12, get: (r) => (r.customerType === 'ORGANIZATION' ? 'Organisation' : 'Individual') },
     { header: 'Company name', type: 'text', width: 24, get: (r) => r.companyName },
@@ -141,10 +140,10 @@ const customers: ExportKind<CustomerRow> = {
 const vehicles: ExportKind = {
   key: 'vehicles', label: 'Vehicles', view: ['workshop.view'], sensitive: false, page: '/workshop/vehicles',
   columns: [
-    { header: 'Customer number (SAP or old system)', type: 'code', width: 16, get: (r) => r.customer?.externalId },
+    { header: 'Customer number', type: 'code', width: 16, get: (r) => r.customer?.externalId },
     { header: 'Plate', type: 'code', width: 12, get: (r) => r.plateNumber },
     { header: 'Chassis number (VIN)', type: 'code', width: 20, get: (r) => r.chassisNumber },
-    { header: 'Vehicle number (SAP or old system)', type: 'code', width: 14, get: (r) => r.externalId },
+    { header: 'Vehicle number', type: 'code', width: 14, get: (r) => r.externalId },
     { header: 'Engine number', type: 'code', width: 14, get: (r) => r.engineNumber },
     { header: 'Engine type', type: 'text', width: 10, get: (r) => r.engineType },
     { header: 'Make', type: 'text', width: 10, get: (r) => r.make },
@@ -309,7 +308,7 @@ const jobCards: ExportKind = {
     { header: 'Checked out', type: 'datetime', width: 16, get: (r) => r.checkedOutAt },
     { header: 'Branch', type: 'text', width: 14, get: (r) => r.branch?.name },
     { header: 'Customer', type: 'text', width: 24, get: (r) => r.customer?.fullName },
-    { header: 'Customer SAP number', type: 'code', width: 14, get: (r) => r.customer?.externalId },
+    { header: 'Customer number', type: 'code', width: 14, get: (r) => r.customer?.externalId },
     { header: 'Plate', type: 'code', width: 12, get: (r) => r.vehicle?.plateNumber },
     { header: 'Chassis number (VIN)', type: 'code', width: 20, get: (r) => r.vehicle?.chassisNumber },
     { header: 'Vehicle', type: 'text', width: 16, get: (r) => [r.vehicle?.make, r.vehicle?.model].filter(Boolean).join(' ') },
@@ -340,7 +339,7 @@ const services: ExportKind = {
     { header: 'Completed', type: 'datetime', width: 16, get: (r) => r.completedAt },
     { header: 'Branch', type: 'text', width: 14, get: (r) => r.branch?.name },
     { header: 'Customer', type: 'text', width: 24, get: (r) => r.customer?.fullName },
-    { header: 'Customer SAP number', type: 'code', width: 14, get: (r) => r.customer?.externalId },
+    { header: 'Customer number', type: 'code', width: 14, get: (r) => r.customer?.externalId },
     { header: 'Plate', type: 'code', width: 12, get: (r) => r.vehicle?.plateNumber },
     { header: 'Chassis number (VIN)', type: 'code', width: 20, get: (r) => r.vehicle?.chassisNumber },
     { header: 'Moved to Job Card', type: 'code', width: 16, get: (r) => r.escalatedToJobCard?.jobNumber },
@@ -391,10 +390,10 @@ const warranties: ExportKind = {
   },
 };
 
-// ── SAP history, imports and exports ─────────────────────────────────
+// ── History from before EJO, imports and exports ──────────────────────
 
 const sapInvoices: ExportKind = {
-  key: 'sap-invoices', label: 'SAP invoice history', view: ['crm.view'], sensitive: true, page: '/crm',
+  key: 'sap-invoices', label: 'Invoice history (before EJO)', view: ['crm.view'], sensitive: true, page: '/crm',
   columns: [
     { header: 'Invoice number', type: 'code', width: 14, get: (r) => r.invoiceNumber },
     { header: 'Fiscal year', type: 'int', width: 8, get: (r) => r.fiscalYear },
@@ -402,7 +401,7 @@ const sapInvoices: ExportKind = {
     { header: 'Document type', type: 'code', width: 8, get: (r) => r.documentType },
     { header: 'Invoice date', type: 'day', width: 12, get: (r) => r.invoiceDate },
     { header: 'Customer name', type: 'text', width: 24, get: (r) => r.customerName },
-    { header: 'Customer number (SAP)', type: 'code', width: 14, get: (r) => r.customerExt },
+    { header: 'Customer number', type: 'code', width: 14, get: (r) => r.customerExt },
     { header: 'Chassis number (VIN)', type: 'code', width: 20, get: (r) => r.vin },
     { header: 'Amount (incl. tax)', type: 'money', width: 13, get: (r) => n(r.amount) },
     { header: 'Currency', type: 'text', width: 8, get: () => 'NGN' },
@@ -484,30 +483,30 @@ const invoices: ExportKind = {
   },
 };
 
-/** Job cards from SAP before EJO (P4): in the job card layout with the SAP names, as the open job cards import reads them. */
+/** Job cards from before EJO (P4): in the job card history layout, as the import reads them. */
 const sapJobs: ExportKind = {
-  key: 'sap-jobs', label: 'SAP job card history', view: ['crm.view', 'workshop.job_card.view'], sensitive: true, page: '/crm',
+  key: 'sap-jobs', label: 'Job card history (before EJO)', view: ['crm.view', 'workshop.job_card.view'], sensitive: true, page: '/crm',
   columns: [
-    { header: 'Job number (AUFNR)', type: 'code', width: 12, get: (r) => r.jobNumber },
+    { header: 'Job number', type: 'code', width: 12, get: (r) => r.jobNumber },
     { header: 'Service', type: 'text', width: 8, get: (r) => (r.kind === 'SERVICE' ? 'Yes' : 'No') },
-    { header: 'Order type (AUART)', type: 'code', width: 8, get: (r) => r.orderType },
-    { header: 'Notification (QMNUM)', type: 'code', width: 12, get: (r) => r.notificationNumber },
+    { header: 'Order type', type: 'code', width: 8, get: (r) => r.orderType },
+    { header: 'Notification number', type: 'code', width: 12, get: (r) => r.notificationNumber },
     { header: 'Status', type: 'text', width: 10, get: (r) => (r.status === 'CANCELLED' ? 'Cancelled' : 'Closed') },
-    { header: 'Opened on (ERDAT)', type: 'day', width: 12, get: (r) => r.openedAt },
-    { header: 'Completed on (IDAT2)', type: 'day', width: 12, get: (r) => r.completedAt },
+    { header: 'Opened on', type: 'day', width: 12, get: (r) => r.openedAt },
+    { header: 'Completed on', type: 'day', width: 12, get: (r) => r.completedAt },
     { header: 'Customer name', type: 'text', width: 24, get: (r) => r.customerName },
-    { header: 'Customer number (KUNNR)', type: 'code', width: 14, get: (r) => r.customerExt },
-    { header: 'Chassis number (VHVIN)', type: 'code', width: 20, get: (r) => r.vin },
+    { header: 'Customer number', type: 'code', width: 14, get: (r) => r.customerExt },
+    { header: 'Chassis number (VIN)', type: 'code', width: 20, get: (r) => r.vin },
     { header: 'Plate', type: 'code', width: 12, get: (r) => r.plateNumber },
-    { header: 'Equipment (EQUNR)', type: 'code', width: 12, get: (r) => r.equipmentNumber },
+    { header: 'Equipment number', type: 'code', width: 12, get: (r) => r.equipmentNumber },
     { header: 'Mileage (km)', type: 'int', width: 10, get: (r) => r.mileage },
-    { header: 'Complaint / work requested (KTEXT)', type: 'text', width: 36, get: (r) => r.description },
+    { header: 'Complaint / work requested', type: 'text', width: 36, get: (r) => r.description },
     { header: 'Work done', type: 'text', width: 36, get: (r) => r.workDone },
-    { header: 'Work centre (ARBPL)', type: 'code', width: 10, get: (r) => r.workCentre },
+    { header: 'Work centre', type: 'code', width: 10, get: (r) => r.workCentre },
     { header: 'Labour', type: 'money', width: 12, get: (r) => (r.labourAmount === null ? null : n(r.labourAmount)) },
     { header: 'Parts', type: 'money', width: 12, get: (r) => (r.partsAmount === null ? null : n(r.partsAmount)) },
-    { header: 'Total (NETWR)', type: 'money', width: 12, get: (r) => (r.totalAmount === null ? null : n(r.totalAmount)) },
-    { header: 'Invoice (VBELN)', type: 'code', width: 12, get: (r) => r.invoiceNumber },
+    { header: 'Total (₦)', type: 'money', width: 12, get: (r) => (r.totalAmount === null ? null : n(r.totalAmount)) },
+    { header: 'Invoice number', type: 'code', width: 12, get: (r) => r.invoiceNumber },
     { header: 'Branch', type: 'text', width: 16, get: (r) => r.branchName },
     { header: 'Import', type: 'code', width: 16, get: (r) => r.imp },
     { header: 'Link', type: 'link', width: 40, get: (r) => link(r.vehicleId ? `/workshop/vehicles/${r.vehicleId}/edit` : `/crm/customers/${r.customerId}?tab=jobs`) },
@@ -906,7 +905,7 @@ const headquarters: ExportKind<import('@/lib/actions/headquarters').HqRow> = {
     { header: 'Jobs opened', type: 'int', width: 9, get: (r) => r.opened },
     { header: 'Jobs finished', type: 'int', width: 9, get: (r) => r.finished },
     { header: 'Collected (payments less refunds)', type: 'money', width: 14, get: (r) => r.collected },
-    { header: 'Invoiced in SAP before EJO', type: 'money', width: 14, get: (r) => r.fromSap },
+    { header: 'Invoiced before EJO', type: 'money', width: 14, get: (r) => r.fromSap },
     { header: 'Currency', type: 'text', width: 8, get: () => 'NGN' },
     { header: 'In the workshop now', type: 'int', width: 9, get: (r) => r.inWorkshop },
     { header: 'Ready to collect', type: 'int', width: 9, get: (r) => r.ready },

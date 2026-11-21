@@ -78,7 +78,7 @@ def test_the_portal_address_must_be_https():
 
 def test_an_upload_carries_no_personal_fields(jobs):
     r = lines.train(jobs)
-    body = payload("kewalram-nigeria", r, dt.datetime(2026, 10, 15, tzinfo=dt.timezone.utc))
+    body = payload("dphoenix-autocare", r, dt.datetime(2026, 10, 15, tzinfo=dt.timezone.utc))
     assert body["version"].startswith("estimate-lines-tfidf-logreg-ovr-20261015-")
     text = json.dumps(body)
     for word in ("row_id", "customer", "phone", "email", "plate"):

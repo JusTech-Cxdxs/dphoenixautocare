@@ -49,7 +49,7 @@ test('the diary and the open services: refusals, the totals, approval and load â
   const customer = await db().customer.create({ data: { organisationId: org.businessUnit.organisationId, fullName: `Diary Cutover ${T}`, phone: `0806 ${D.slice(-7, -4)} ${D.slice(-4)}`, createdById: admin.id } });
   customerId = customer.id;
   const vehicles: string[] = [];
-  for (const n of [1, 2, 3, 4]) vehicles.push((await db().customerVehicle.create({ data: { customerId, chassisNumber: vin(n), plateNumber: plate(n), make: 'Soueast', model: 'S07', year: 2025, vehicleType: 'PASSENGER', mileage: 9000 + n * 500, createdById: admin.id } })).id);
+  for (const n of [1, 2, 3, 4]) vehicles.push((await db().customerVehicle.create({ data: { customerId, chassisNumber: vin(n), plateNumber: plate(n), make: 'Toyota', model: 'Camry', year: 2025, vehicleType: 'PASSENGER', mileage: 9000 + n * 500, createdById: admin.id } })).id);
   // Vehicle 4 already has an open job card in EJO.
   const jc = await db().jobCard.create({ data: { jobNumber: `JC-E2E-${D}`, branchId, customerId, vehicleId: vehicles[3]!, createdById: admin.id } });
   const tech = await db().user.findUniqueOrThrow({ where: { email: who('technician').email }, select: { id: true, employeeId: true, fullName: true } });

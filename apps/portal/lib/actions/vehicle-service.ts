@@ -12,6 +12,7 @@ import { authorize, canSeeRecord, reachWhere, authorizeOnService, authorizeOnJob
 import { notifyGateOfRelease } from '@/lib/security-notify';
 import { billingOf, jobCardTotals, ESTIMATE_TOTALS_SELECT, JOB_CARD_BILLING_SELECT } from '@/lib/estimate-billing';
 import { prisma, type VehicleServiceStatus } from '@ejo/database';
+import { featureOn } from '@/lib/modules';
 import { requireUser, createJobCard, currentUserIsMasterAdmin, requireJobCardApprover, listEligibleManagersForBranch, requireEligibleManager } from './workshop';
 import { writeAuditLog, getWorkshopBranchId, getWorkshopDepartmentForVehicleType, isEligibleSupervisor, getWorkshopOrgContext } from '@/lib/workshop-core';
 import { computeServiceCycle, historyAnchorId, jobCardAnchorId, serviceAnchorHref, SERVICE_JOB_CARD_WHERE, loadServiceTracking, assertServiceNotEscalated, ESCALATION_CLAIM_MS, type WorkshopVisit } from '@/lib/vehicle-service-cycle';
@@ -807,7 +808,7 @@ export async function attendToOverdueVehicle(serviceId: string): Promise<void> {
     await seeVehicle(job.vehicleId, 'attendToOverdueVehicle');
     if (job.attendedAt) throw new VehicleServiceActionError('This overdue prediction has already been attended to.');
     await prisma.historicalJob.update({ where: { id: job.id }, data: { attendedAt: new Date() } });
-    await writeAuditLog({ userId: user.id, action: 'vehicle_service.attended_to', entityType: 'CustomerVehicle', entityId: job.vehicleId, metadata: { serviceNumber: `${job.jobNumber} (SAP, before EJO)` } });
+    await writeAuditLog({ userId: user.id, action: 'vehicle_service.attended_to', entityType: 'CustomerVehicle', entityId: job.vehicleId, metadata: { serviceNumber: `${job.jobNumber} (${featureOn('sap') ? 'SAP, ' : ''}before EJO)` } });
     return;
   }
   // A Job Card opened as a service: attended on the Job Card, after checking it is within reach.

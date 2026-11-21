@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { OLD_ORGANISATION } from './leftovers';
 import { knownPeople, organisationKnowledge } from '../lib/enyo/knowledge';
 
 test('the organisation background is found by slug or name, and nothing is claimed for an unknown organisation', () => {
@@ -20,5 +21,5 @@ test('the background names nobody, carries no prices, and gives only the publish
   assert.match(all, /Restore Life To Your Vehicle/);
   assert.match(all, /\+234 811 496 6212/);
   assert.match(all, /Tire Services/);
-  assert.doesNotMatch(all, /Kewalram|Chanrai|Afprint|Isolo/);
+  assert.doesNotMatch(all, OLD_ORGANISATION);
 });

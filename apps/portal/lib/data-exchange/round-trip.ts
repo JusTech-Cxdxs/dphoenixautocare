@@ -51,7 +51,7 @@ export const UPDATABLE: Record<RoundTripEntity, Spec[]> = {
     { field: 'email', label: 'Email', cols: ['email'], same: ci },
     { field: 'address', label: 'Address', cols: ['address'] },
     { field: 'customerSince', label: 'Customer since', cols: ['customerSince'] },
-    { field: 'externalId', label: 'Customer number (SAP or old system)', cols: ['externalId'], same: code },
+    { field: 'externalId', label: 'Customer number', cols: ['externalId'], same: code },
   ],
   vehicles: [
     { field: 'plateNumber', label: 'Plate', cols: ['plateNumber'], same: code },
@@ -63,7 +63,7 @@ export const UPDATABLE: Record<RoundTripEntity, Spec[]> = {
     { field: 'year', label: 'Year', cols: ['year'], same: num },
     { field: 'vehicleType', label: 'Category', cols: ['vehicleType'] },
     { field: 'mileage', label: 'Mileage (km)', cols: ['mileage'], same: num },
-    { field: 'externalId', label: 'Vehicle number (SAP or old system)', cols: ['externalId'], same: code },
+    { field: 'externalId', label: 'Vehicle number', cols: ['externalId'], same: code },
   ],
   parts: [
     { field: 'name', label: 'Description', cols: ['name'] },

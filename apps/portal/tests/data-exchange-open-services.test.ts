@@ -43,7 +43,7 @@ const row = (o: Partial<Record<(typeof H)[number], string>>) => H.map((h) => o[h
 test('a row: a booking with its day and time; a service with the day it came in; refusals', () => {
   assert.deepEqual(mappingProblems('openServices', m), []);
   assert.deepEqual(mappingProblems('openServices', { ...m, vin: null, plateNumber: null }), ['Choose the column for the vehicle’s chassis number (VIN) or plate: a service or a booking is for a vehicle.']);
-  const b = checkOpenServiceRow(row({ 'Booking number': 'BK-2026-0600', KUNUM: '0001000113', VHVIN: 'JAANLR85EL7100013', 'Booked for': '03.11.2026', Time: '8.30', 'Work requested': 'Service 15,000 km; check the brakes', Branch: 'Isolo Branch' }), m, TODAY);
+  const b = checkOpenServiceRow(row({ 'Booking number': 'BK-2026-0600', KUNUM: '0001000113', VHVIN: 'JAANLR85EL7100013', 'Booked for': '03.11.2026', Time: '8.30', 'Work requested': 'Service 15,000 km; check the brakes', Branch: 'Ajah Branch' }), m, TODAY);
   assert.equal(b.status, 'GOOD', JSON.stringify(b.issues));
   assert.equal(b.values!.stage, 'SCHEDULED');
   assert.deepEqual(b.values!.bookedFor, { day: '2026-11-03', time: '08:30' });
@@ -65,7 +65,7 @@ test('a row: a booking with its day and time; a service with the day it came in;
   assert.equal(s.values!.technician, 'EMP-0042');
   assert.equal(checkOpenServiceRow(row({ 'Booking number': 'B3', VHVIN: 'JAANLR85EL7100013', 'Booked for': '05.11.2026', Technician: 'EMP-0042', 'Work requested': 'Service' }), m, TODAY).values?.technician, null);
   const err = (o: Partial<Record<(typeof H)[number], string>>) => checkOpenServiceRow(row(o), m, TODAY).issues.filter((i) => i.level === 'error').map((i) => i.message);
-  assert.deepEqual(err({ VHVIN: 'JAANLR85EL7100013', 'Booked for': '05.11.2026' }), ['Booking or service number is required (SAP AUFNR or QMNUM, or the diary’s booking reference).']);
+  assert.deepEqual(err({ VHVIN: 'JAANLR85EL7100013', 'Booked for': '05.11.2026' }), ['Booking or service number is required (the old system’s or the diary’s booking reference).']);
   assert.match(err({ 'Booking number': 'X', VHVIN: 'JAANLR85EL7100013', Stage: 'Collected', 'Checked in on': '01.10.2026' })[0]!, /is history/);
   assert.match(err({ 'Booking number': 'X', VHVIN: 'JAANLR85EL7100013', Stage: 'Somewhere' })[0]!, /is not a stage EJO knows/);
   assert.deepEqual(err({ 'Booking number': 'X', VHVIN: 'JAANLR85EL7100013' }), ['A booking needs its day (Booked for): when is the customer expected?']);

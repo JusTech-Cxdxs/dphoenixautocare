@@ -1,6 +1,4 @@
 @import "tailwindcss";
-/* The shared placeholder card (ComingSoon) lives in packages/ui; scan it so its classes are generated. */
-@source "../../../packages/ui/src";
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
@@ -70,33 +68,11 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Reusable "photography" placeholder — a deliberate gradient mesh used
-   anywhere a real photo will eventually go. Swap the element for
-   next/image once real photography is available. */
-.ejo-media-placeholder {
-  background:
-    radial-gradient(circle at 20% 20%, rgba(240, 158, 44, 0.35), transparent 55%),
-    radial-gradient(circle at 80% 30%, rgba(214, 137, 11, 0.3), transparent 50%),
-    radial-gradient(circle at 50% 90%, rgba(15, 23, 42, 0.6), transparent 60%),
-    linear-gradient(135deg, #0a1628 0%, #13233d 50%, #070f1c 100%);
-}
-
 .ejo-glass {
   background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(16px) saturate(160%);
   -webkit-backdrop-filter: blur(16px) saturate(160%);
   border: 1px solid rgba(255, 255, 255, 0.14);
-}
-
-@keyframes ejo-marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-.ejo-marquee-track {
-  animation: ejo-marquee 48s linear infinite;
-}
-.ejo-marquee-track:hover {
-  animation-play-state: paused;
 }
 
 @keyframes ejo-shimmer {
@@ -121,7 +97,6 @@ html {
   html {
     scroll-behavior: auto;
   }
-  .ejo-marquee-track,
   .ejo-shimmer {
     animation: none;
   }
@@ -213,8 +188,6 @@ html, body { overscroll-behavior-x: none; }
 .ejo-intro > :nth-child(4) { animation-delay: 260ms; }
 .ejo-intro > :nth-child(5) { animation-delay: 360ms; }
 /* A slow, quiet drift of light across dark bands (the group's green, never a disco). */
-@keyframes ejo-ambient { 0% { transform: translate3d(-8%, -6%, 0) rotate(0deg); } 50% { transform: translate3d(6%, 4%, 0) rotate(8deg); } 100% { transform: translate3d(-8%, -6%, 0) rotate(0deg); } }
-.ejo-ambient { pointer-events: none; background: radial-gradient(60% 50% at 25% 30%, rgba(214, 137, 11, 0.4), transparent 70%), radial-gradient(45% 40% at 80% 75%, rgba(240, 158, 44, 0.2), transparent 70%); animation: ejo-ambient 22s ease-in-out infinite; will-change: transform; }
 /* The heritage ribbon (About): a horizontal strip of years that scrolls on a phone and lays out in full on a wide screen. */
 .ejo-ribbon { scrollbar-width: thin; scroll-snap-type: x proximity; }
 /* Full-bleed strips whose content starts where the page's 80rem column starts. */
@@ -222,7 +195,6 @@ html, body { overscroll-behavior-x: none; }
 .ejo-ribbon > * { scroll-snap-align: start; }
 @media (prefers-reduced-motion: reduce) {
   .ejo-intro > * { animation: none; }
-  .ejo-ambient { animation: none; }
 }
 
 /* ── Cards, focus and reveal (v42): one hover, one focus ring, one way in ── */

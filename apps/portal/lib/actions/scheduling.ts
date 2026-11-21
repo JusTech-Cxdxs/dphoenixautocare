@@ -534,7 +534,7 @@ async function loadForGroups(apptId: string) {
   return { user, appt };
 }
 
-/** Add another visitor group (e.g. "2 people from Soueast China"). */
+/** Add another visitor group (e.g. "2 people from a supplier"). */
 export async function addVisitorGroup(apptId: string, input: VisitorGroupInput): Promise<void> {
   const { user, appt } = await loadForGroups(apptId);
   const g = cleanGroup(input);

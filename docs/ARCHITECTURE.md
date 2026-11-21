@@ -25,7 +25,7 @@ newer.
 | App | Who uses it | What it is |
 |---|---|---|
 | `apps/portal` | Staff | The staff portal. Next.js App Router. Pages are server components. Every write is a server action in `lib/actions/*` that authorises and then calls Prisma directly. |
-| `apps/website` | The public and customers | The organisation's public website (its own brand) and the customer portal under `/customer-portal`, with a separate customer sign-in. |
+| `apps/website` | Customers | The customer portal under `/customer-portal` (its root opens the sign-in), with a separate customer sign-in, plus the estimate approval links, the support page and the privacy and terms pages. |
 | `apps/api` | The platform team | NestJS. A health check and read-only platform routes behind `PlatformTeamGuard`. No business workflow depends on it. |
 
 A fourth part, `ml/`, is a Python package that trains the models behind
@@ -81,7 +81,7 @@ ejo100/
 │   │   ├── components/             shared UI (components/ui for page building blocks)
 │   │   ├── tests/                  unit and source-coverage tests (node --test)
 │   │   └── e2e/                    Playwright specs, seed, security sweeps
-│   ├── website/                    public website and customer portal (Next.js)
+│   ├── website/                    customer portal (Next.js)
 │   └── api/                        NestJS API
 ├── packages/
 │   ├── database/                   Prisma schema, client, audit journal, seed
@@ -149,8 +149,8 @@ Platform team ─ Organisation ─ Business unit ─ Branch ─ Department ─ T
 ```
 
 - One database holds many organisations. Nothing in code assumes a
-  particular one: Kewalram, its division and its branches are rows created
-  by the seed.
+  particular one: D'Phoenix Autocare, its business unit and its branch are
+  rows created by the seed.
 - **The tenant fence.** A record outside the person's organisation is
   refused before any scope is considered, including the widest one. Out of
   reach and missing look the same ("not found").

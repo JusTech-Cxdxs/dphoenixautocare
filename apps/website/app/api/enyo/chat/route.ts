@@ -30,8 +30,7 @@ import { isPlainId, isVisitorKey, MESSAGE_MAX, newVisitorKey, originAllowed, rat
 import type { WebCtx, WebMode } from '@/lib/enyo/types';
 import { loadCompanyInfo } from '@/lib/enyo/company';
 import { busyAnswer, cleanHistory, quickAnswer, type QuickInfo } from '@/lib/enyo/quick-core';
-import { OFFERS, PRODUCTS, REFERRAL } from '@ejo/ui';
-import { moduleOn, PUBLIC_WEBSITE } from '@/lib/edition';
+import { moduleOn } from '@/lib/edition';
 import type { AgentResult } from '@ejo/enyo';
 
 export const runtime = 'nodejs';
@@ -167,10 +166,6 @@ export async function POST(req: NextRequest) {
       ...(mode === 'PUBLIC'
         ? [`Before using the handover tool, collect the visitor's name and a phone number or email, then say: "${CONSENT_LINE}" and ask if that is fine.`]
         : ['A job number the tools do not find is simply "not found on your account". Never suggest it belongs to someone else.']),
-      // This edition has no public website (lib/edition.ts): the shared prompt's store, offers, refer-and-earn and news wording is corrected here.
-      ...(PUBLIC_WEBSITE ? [] : [
-        'This website is only the customer portal: there is no store, no price list, no offers, no refer and earn, no news and no other public pages, and there is no website search tool. Ignore anything above about them and never mention them. Answer questions about the organisation, its services, address, phone numbers, email and opening hours only from the organisation information tool.',
-      ]),
       // Warranties are switched off in this edition (lib/edition.ts).
       ...(moduleOn('warranty') ? [] : [
         'Warranties are not shown in this customer portal and there is no warranty tool. For a question about a warranty, ask the customer to call or email the workshop.',
@@ -197,7 +192,7 @@ export async function POST(req: NextRequest) {
         };
         try {
           emit({ type: 'conversation', id: conversation.id });
-          // The records answer greetings, "who is …", how to reach us and the offers at once, without the model.
+          // The records answer greetings, "who is …" and how to reach us at once, without the model.
           let quickInfo: QuickInfo | null = null;
           const info = async (): Promise<QuickInfo> => {
             if (quickInfo) return quickInfo;
@@ -207,15 +202,6 @@ export async function POST(req: NextRequest) {
               assistantName: ready.settings.displayName || 'Enyo',
               people: c?.people ?? [],
               headOffice: { address: c?.headOffice.address ?? null, phones: c?.headOffice.phones ?? [], email: c?.headOffice.email ?? null },
-              // The store, its offers and refer and earn exist only on the public website (lib/edition.ts).
-              offers: !PUBLIC_WEBSITE ? [] : OFFERS.map((o) => ({ title: o.title, text: o.text, href: o.href, ...(o.until ? { until: o.until } : {}), ...(o.partner ? { partner: o.partner } : {}) })),
-              products: !PUBLIC_WEBSITE ? [] : PRODUCTS.map((p) => ({ id: p.id, name: p.name, brand: p.brand, kind: p.kind, category: p.category, price: p.price, listPrice: p.listPrice, blurb: p.blurb, ...(p.offerLabel ? { offerLabel: p.offerLabel } : {}), ...(p.offerUntil ? { offerUntil: p.offerUntil } : {}) })),
-              referral: !PUBLIC_WEBSITE ? [] : REFERRAL.rewards.map((r) => `${r.reward} for ${r.what.toLowerCase()}`),
-              ...(PUBLIC_WEBSITE ? {} : {
-                contactPage: { label: 'Customer support', href: '/support' },
-                greetingOffer: 'I can tell you about our services, where we are and our opening hours, help you book a service, or have the right person call you back.',
-                addressLabel: 'Workshop',
-              }),
             };
             return quickInfo;
           };

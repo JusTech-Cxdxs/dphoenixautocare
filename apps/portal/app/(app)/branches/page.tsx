@@ -1,3 +1,4 @@
+import { featureOn, moduleIsOn } from '@/lib/modules';
 import { guardPage } from '@/lib/authz/server';
 import { getBranches, getStrandedPlantRecords } from '@/lib/actions/branches';
 import { MovePlantRecords } from '@/components/branches/MovePlantRecords';
@@ -35,7 +36,7 @@ export default async function BranchesPage() {
               className="flex items-center justify-between rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] px-5 py-4 hover:bg-[var(--ejo-bg)]"
             >
               <div>
-                <p className="text-sm font-medium text-[var(--ejo-text)]">{branch.name} <span className="ml-1 rounded-full border border-[var(--ejo-border)] px-2 py-0.5 text-[11px] font-medium text-[var(--ejo-text-muted)]">{BRANCH_TYPE_WORDS[branch.type]}{branch.sapPlant ? ` · SAP ${branch.sapPlant}` : ''}</span></p>
+                <p className="text-sm font-medium text-[var(--ejo-text)]">{branch.name} <span className="ml-1 rounded-full border border-[var(--ejo-border)] px-2 py-0.5 text-[11px] font-medium text-[var(--ejo-text-muted)]">{BRANCH_TYPE_WORDS[branch.type]}{branch.sapPlant && (featureOn('sap') || moduleIsOn('plant')) ? ` · SAP ${branch.sapPlant}` : ''}</span></p>
                 <p className="mt-0.5 text-xs text-[var(--ejo-text-muted)]">
                   {branch.businessUnit.name} · {branch.city.name}, {branch.city.state.name}
                 </p>

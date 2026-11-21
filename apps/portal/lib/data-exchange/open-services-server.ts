@@ -18,6 +18,7 @@
  * and keeps — and reports — the ones that have.
  */
 import { prisma, type Prisma } from '@ejo/database';
+import { featureOn } from '@/lib/modules';
 import { checkOpenServiceRow, type OpenServiceValues } from './check-open-services';
 import type { Issue } from './check';
 import type { Mapping } from './fields';
@@ -104,7 +105,7 @@ function resolve(v: OpenServiceValues, L: Lookups, job: OpenServicesJob, self: s
   if (vehicle && named && named !== vehicle.customerId) notes.push('The customer named is not the vehicle’s owner in EJO; the service is booked for the owner.');
   if (v.branch && L.branch) {
     const plantCode = /^\d{1,4}$/.test(v.branch.trim());
-    if (plantCode && !L.branch.sapPlant) notes.push(`SAP plant ${v.branch.trim()} could not be checked against ${L.branch.name}: the branch has no SAP plant code yet.`);
+    if (plantCode && !L.branch.sapPlant) notes.push((featureOn('sap') ? `SAP plant ${v.branch.trim()} could not be checked against ${L.branch.name}: the branch has no SAP plant code yet.` : `Branch “${v.branch.trim()}” could not be checked against ${L.branch.name}: it is a number, not the branch’s name.`));
     else if (!(norm(v.branch) === norm(L.branch.name) || (L.branch.sapPlant ? v.branch.trim().replace(/^0+/, '') === L.branch.sapPlant.replace(/^0+/, '') : false) || norm(L.branch.name).includes(norm(v.branch)))) errors.push(`This row is for the branch “${v.branch}”, but this import loads into ${L.branch.name}. Import it into its own branch.`);
   }
   if (vehicle) {

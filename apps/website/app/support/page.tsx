@@ -4,7 +4,6 @@ import { prisma } from '@ejo/database';
 import { siteOrganisation } from '@/lib/enyo/settings';
 import { siteConfig } from '@/lib/site-config';
 import { DPHOENIX } from '@/lib/content/dphoenix';
-import { PUBLIC_WEBSITE } from '@/lib/edition';
 
 export const metadata: Metadata = { title: 'Customer support', description: 'How to reach our support teams: email, chat with our assistant, your customer portal, or a call.' };
 export const revalidate = 300;
@@ -28,8 +27,8 @@ export default async function SupportPage() {
     prisma.supportSetting.findUnique({ where: { organisationId: org.id }, select: { hours: true } }),
     prisma.branch.findMany({ where: { isActive: true, businessUnit: { organisationId: org.id, isActive: true } }, orderBy: { name: 'asc' }, take: 20, select: { id: true, name: true, hotlines: true, email: true } }),
   ]).catch(() => [[], null, []] as const) : [[], null, []] as const;
-  // Without the public website (lib/edition.ts) the fallback is D'Phoenix Autocare's published hours.
-  const hours = (setting?.hours && typeof setting.hours === 'object' ? setting.hours : !PUBLIC_WEBSITE ? DPHOENIX.hoursByDay : { 1: ['08:00', '17:00'], 2: ['08:00', '17:00'], 3: ['08:00', '17:00'], 4: ['08:00', '17:00'], 5: ['08:00', '17:00'], 6: ['09:00', '13:00'] }) as Record<string, [string, string]>;
+  // Until the Support centre's hours are saved, D'Phoenix Autocare's published hours.
+  const hours = (setting?.hours && typeof setting.hours === 'object' ? setting.hours : DPHOENIX.hoursByDay) as Record<string, [string, string]>;
   const withEmail = queues.filter((q) => q.mailboxes.length);
   return (
     <main className="mx-auto max-w-5xl px-4 pb-16 pt-28 sm:px-6 lg:px-10 sm:pb-24 sm:pt-32">

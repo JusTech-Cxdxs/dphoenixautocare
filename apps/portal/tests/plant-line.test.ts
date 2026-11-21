@@ -14,7 +14,7 @@ import { REFERENCE_TYPES } from '../lib/search-plan';
 
 const read = (rel: string) => readFileSync(join(__dirname, '..', '..', rel), 'utf8');
 
-test('two default routes: the Isuzu truck line is the simple one Kewalram runs — it starts from the chassis as delivered (three assembly stations), then the tests, the road test and a gate; the SUV route is fuller; every code unique', () => {
+test('two default routes: the Isuzu truck line is the simple one a CKD truck plant runs — it starts from the chassis as delivered (three assembly stations), then the tests, the road test and a gate; the SUV route is fuller; every code unique', () => {
   const truck = DEFAULT_ROUTES['isuzu-n'];
   assert.deepEqual(truck.stations.map((s) => s.code), ['C1', 'C2', 'C3', 'E1', 'R1', 'G1']);
   assert.deepEqual(truck.stations.map((s) => s.kind), ['STATION', 'STATION', 'STATION', 'TEST', 'TEST', 'GATE']);

@@ -152,7 +152,7 @@ test('agent: a model outage ends with a calm error, not a crash', async () => {
 });
 
 test('prompts: who is asking, the rules, and Lagos time', () => {
-  const p = buildSystemPrompt({ assistantName: 'Enyo', organisationName: 'Kewalram Chanrai Group', channel: 'STAFF', personName: 'Ada', roleDescription: 'Front desk', now: lagosNow(new Date('2026-10-14T17:40:00Z')), memory: ['Call me Ada'] });
+  const p = buildSystemPrompt({ assistantName: 'Enyo', organisationName: "D'Phoenix Autocare", channel: 'STAFF', personName: 'Ada', roleDescription: 'Front desk', now: lagosNow(new Date('2026-10-14T17:40:00Z')), memory: ['Call me Ada'] });
   assert.match(p, /6:40 pm \(Lagos\)/);
   assert.match(p, /Wednesday 14 October 2026/);
   assert.match(p, /Call me Ada/);
@@ -214,7 +214,7 @@ test('config: quotes pasted around a value are removed', () => {
 
 test('prompts: Enyo knows who made it, says "organisation", and keeps a human voice', () => {
   for (const channel of ['STAFF', 'CUSTOMER', 'PUBLIC'] as const) {
-    const p = buildSystemPrompt({ assistantName: 'Enyo', organisationName: 'Kewalram Chanrai Group', channel, now: 'Thursday 15 October 2026, 9:00 pm (Lagos)' });
+    const p = buildSystemPrompt({ assistantName: 'Enyo', organisationName: "D'Phoenix Autocare", channel, now: 'Thursday 15 October 2026, 9:00 pm (Lagos)' });
     assert.match(p, /Enefola Justice Ojonuba/);
     assert.match(p, /Just Technologies \(JusTech\)/);
     assert.match(p, /namesakes/);
@@ -451,17 +451,17 @@ test('agent: the per-minute budget running out after a tool call waits and finis
 });
 
 test('free web search: when the html site refuses the server, the lite site is tried', async () => {
-  const lite = "<table><tr><td><a rel='nofollow' href='//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.kewalramchanrai.com%2Fabout&amp;rut=1' class='result-link'>Kewalram Chanrai Group — About</a></td></tr><tr><td class='result-snippet'>A diversified family business group founded in 1860 with its largest presence in Nigeria, Kewalram Chanrai Group operates across Africa and Asia.</td></tr></table>";
+  const lite = "<table><tr><td><a rel='nofollow' href='//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.dphoenixautocare.com%2Fabout&amp;rut=1' class='result-link'>D'Phoenix Autocare — About</a></td></tr><tr><td class='result-snippet'>An auto workshop in Victoria Island, Lagos, that maintains fleets for client companies.</td></tr></table>";
   const urls: string[] = [];
   const fake = (async (url: string) => {
     urls.push(url);
     if (url.startsWith('https://html.')) return { ok: false, status: 403, json: async () => ({}), text: async () => 'refused' };
     return { ok: true, status: 200, json: async () => ({}), text: async () => lite };
   }) as never;
-  const r = await webSearch('Kewalram Chanrai Group', { provider: { name: 'duckduckgo', label: 'DuckDuckGo', key: '' }, fetchImpl: fake });
+  const r = await webSearch("D'Phoenix Autocare", { provider: { name: 'duckduckgo', label: 'DuckDuckGo', key: '' }, fetchImpl: fake });
   assert.equal(r.pages.length, 1);
-  assert.equal(r.pages[0]!.url, 'https://www.kewalramchanrai.com/about');
-  assert.match(r.pages[0]!.text, /founded in 1860/);
+  assert.equal(r.pages[0]!.url, 'https://www.dphoenixautocare.com/about');
+  assert.match(r.pages[0]!.text, /maintains fleets/);
   assert.ok(urls[1]!.startsWith('https://lite.duckduckgo.com/lite/'));
 });
 

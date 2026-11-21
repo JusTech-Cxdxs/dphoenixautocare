@@ -79,17 +79,6 @@ test('the plant’s rules hold in the demo: stations in order, rework and verifi
   }
 });
 
-test('docs/demo/correct has the plant’s six weeks as files, from the same plan', () => {
-  const dir = join(__dirname, '..', '..', '..', '..', 'docs', 'demo', 'correct');
-  for (const f of ['10_plant_shipments_demo.csv', '11_plant_kits_demo.csv', '12_plant_kit_issues_demo.csv', '13_plant_vehicles_demo.csv']) assert.ok(existsSync(join(dir, f)), f);
-  const plan = planPlantDemo(new Date('2026-10-30T15:00:00Z'));
-  const rows = (f: string) => readFileSync(join(dir, f), 'utf8').trim().split('\n').length - 1;
-  assert.equal(rows('10_plant_shipments_demo.csv'), plan.shipments.length);
-  assert.equal(rows('11_plant_kits_demo.csv'), plan.shipments.reduce((n, s) => n + s.kits.length, 0));
-  assert.equal(rows('13_plant_vehicles_demo.csv'), plan.vehicles.length);
-  assert.ok(readFileSync(join(dir, '13_plant_vehicles_demo.csv'), 'utf8').includes('"Branch","VIN"'));
-});
-
 test('npm run demo:reset refuses a hosted database unless the confirmation is given, and deletes only EJO-DEMO records', () => {
   const script = readFileSync(join(__dirname, '..', '..', 'scripts', 'demo-reset.ts'), 'utf8');
   assert.match(script, /supabase/);

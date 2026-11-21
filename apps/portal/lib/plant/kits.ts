@@ -192,7 +192,7 @@ export function parseKitLines(raw: string | null | undefined, defaults: { modelC
   return { kits: kits.slice(0, 200), problems };
 }
 
-/** SAP's view of a kit decision, for the SAP team's file (docs/SAP_INTEGRATION.md). */
+/** SAP's view of a kit decision, for the SAP team's file. */
 export const KIT_SAP = {
   goodsReceiptMovement: '101',
   usageDecision: { RELEASE: 'A', REJECT: 'R' } as Record<Exclude<KitDecision, 'HOLD'>, 'A' | 'R'>,
