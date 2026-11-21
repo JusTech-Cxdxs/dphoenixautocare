@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PDI_TEMPLATES, PLANT_MODELS, afterSubmit, modelByCode, openDefects, parseFaultCodes, pdiBlockers, pdiWarnings, templateFor, type PdiItemState, type PdiReadings } from '../lib/plant/pdi';
 import { APPROVAL_PERMISSIONS, PERMISSIONS, ROLE_GRANTS } from '../lib/authz/catalogue';
@@ -80,9 +80,10 @@ test('permissions and roles: inspectors inspect, supervisors approve, never thei
   // Two tablets never overwrite each other: every change compares the PDI's status.
   assert.match(actions, /pdiItem\.updateMany\(\{ where: \{ inspectionId: p\.id, code: item\.code, inspection: \{ status: \{ in: EDITABLE \} \} \}/);
   assert.match(actions, /updateMany\(\{ where: \{ id: p\.id, status: 'SUBMITTED' \}/);
-  // Roles exist for every organisation, and in a fresh seed.
-  assert.match(read('../../scripts/postdeploy/0009-plant-roles.sql'), /'pdi-inspector'[\s\S]*ON CONFLICT \("organisationId", "slug"\) DO NOTHING/);
-  assert.match(read('../../packages/database/prisma/seed.ts'), /'Plant Manager', 'PDI Supervisor', 'PDI Inspector'/);
+  // The D'Phoenix edition has no assembly plant: neither the seed nor a
+  // deploy script creates the plant roles.
+  assert.doesNotMatch(read('../../packages/database/prisma/seed.ts'), /'Plant Manager'|'PDI Supervisor'|'PDI Inspector'/);
+  assert.ok(!existsSync(join(__dirname, '..', '..', '../../scripts/postdeploy/0009-plant-roles.sql')));
   // The vehicle's page and its PDI certificate use the PDI recorded on screen.
   assert.match(read('lib/actions/vehicle-passport.ts'), /stage: 'PDI checklist'/);
   assert.match(read('app/print/pdi-certificate/[vin]/page.tsx'), /p\.pdi\.status === 'PASSED' \? 'passed'/);

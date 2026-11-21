@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { AREA_BRANCH_TYPES, BRANCH_TYPES, BRANCH_TYPE_HINTS, BRANCH_TYPE_WORDS, PLANT_DEPARTMENTS, branchTypeFits, branchTypeMismatch, departmentsFor, isBranchType } from '../lib/branch-types';
 
@@ -42,18 +42,14 @@ test('the SQL is additive and the schema carries the kind with a default of WORK
   const schema = read('../../packages/database/prisma/schema.prisma');
   assert.match(schema, /enum BranchType \{\n  WORKSHOP\n  ASSEMBLY_PLANT\n  SALES\n  HEAD_OFFICE\n  WAREHOUSE\n\}/);
   assert.match(schema, /type           BranchType @default\(WORKSHOP\)/);
-  for (const f of ['../../scripts/predeploy/0012-branch-types.sql', '../../scripts/v-p1-branch-types.sql']) {
+  for (const f of ['../../scripts/predeploy/0012-branch-types.sql']) {
     const sql = read(f);
     assert.match(sql, /ADD COLUMN IF NOT EXISTS "type" "BranchType" NOT NULL DEFAULT 'WORKSHOP'/, f);
     assert.doesNotMatch(sql, /DROP |DELETE |TRUNCATE/i, `${f}: deletes nothing`);
   }
-  // The deploy opens the plant and moves records and plant-only staff onto it — once, and never for an organisation that already has a plant.
-  const post = read('../../scripts/postdeploy/0011-afprint-plant.sql');
-  assert.match(post, /AND NOT EXISTS \(SELECT 1 FROM branches x[\s\S]*x\.type = 'ASSEMBLY_PLANT'\)/);
-  assert.match(post, /'Afprint Assembly Plant', 'KWL-AP', 'ASSEMBLY_PLANT', '1100'/);
-  assert.match(post, /AND NOT EXISTS \(SELECT 1 FROM user_roles ur JOIN roles r ON r\.id = ur\."roleId" WHERE ur\."userId" = u\.id AND r\.slug NOT IN/, 'people with any other role stay where they are');
-  assert.match(post, /'branch\.plant_records_moved'/);
-  assert.doesNotMatch(post, /DELETE |DROP |TRUNCATE/i);
+  // The D'Phoenix edition has no assembly plant: no deploy script opens one.
+  const dir = join(__dirname, '..', '..', '../../scripts/postdeploy');
+  for (const f of readdirSync(dir)) assert.doesNotMatch(readFileSync(resolve(dir, f), 'utf8'), /'ASSEMBLY_PLANT'/, f);
 });
 
 test('wired in: every plant read goes through the typed reach; the workshop anchors only on workshop branches; a new plant needs its SAP plant code', () => {

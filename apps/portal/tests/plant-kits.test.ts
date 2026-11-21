@@ -105,8 +105,8 @@ test('roles and permissions: inspectors receive; the quality supervisor and plan
   assert.equal(approvalArea({ id: 'kit-release-abc', title: 'Release kit KIT-2026-000001' }), 'Plant');
   assert.equal(REFERENCE_TYPES.find((t) => t.prefix === 'KIT')!.path('x'), '/plant/kits/x');
   assert.equal(REFERENCE_TYPES.find((t) => t.prefix === 'SHP')!.path('x'), '/plant/shipments/x');
-  assert.match(read('../../packages/database/prisma/seed.ts'), /'Quality Supervisor', 'Kit Inspector'[,\]]/);
-  assert.match(read('../../scripts/postdeploy/0010-plant-kit-roles.sql'), /\('Kit Inspector', 'kit-inspector'/);
+  // The D'Phoenix edition has no assembly plant: no kit roles are seeded.
+  assert.doesNotMatch(read('../../packages/database/prisma/seed.ts'), /'Quality Supervisor'|'Kit Inspector'/);
 });
 
 test('wired in: second person, compare-and-set, refused during assisted sessions, the vehicle created on release, PDI waits for the kit', () => {

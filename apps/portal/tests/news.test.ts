@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { checkNews, readingMinutes, slugify } from '../lib/news/core';
 import { parseArticle, articleText, safeArticleHref } from '@ejo/ui/src/article';
@@ -71,14 +71,8 @@ test('publishing is a right of the communications team, administrators, executiv
   assert.match(actions, /deleteMany\(\{ where: \{ id, organisationId, status: 'DRAFT' \} \}\)/);
 });
 
-test('the first stories are seeded once, additively, for a single-organisation platform', () => {
-  const sql = read('../../scripts/postdeploy/0007-first-news-stories.sql');
-  assert.match(sql, /count\(\*\) FROM "organisations" WHERE "isActive"\) <> 1 THEN RETURN/);
-  assert.match(sql, /IF EXISTS \(SELECT 1 FROM "news_posts" WHERE "organisationId" = org\) THEN RETURN/);
-  assert.equal((sql.match(/INSERT INTO "news_posts"/g) ?? []).length, 4);
-  assert.doesNotMatch(sql, /\b(DELETE|DROP|TRUNCATE|UPDATE)\b/);
+test('the D\'Phoenix edition loads no news stories: News & media is off and no deploy script inserts any', () => {
+  const dir = join(ROOT, '../../scripts/postdeploy');
+  for (const f of readdirSync(dir)) assert.doesNotMatch(readFileSync(resolve(dir, f), 'utf8'), /INSERT INTO "news_posts"/, f);
   assert.match(read('lib/schema-health-core.ts'), /news_posts/);
-  // The website's own copy of the first stories matches the seed's addresses.
-  const site = read('../website/lib/news/stories.ts');
-  for (const slug of sql.match(/org, '([a-z0-9-]+)'/g)!.map((m) => m.slice(6, -1))) assert.ok(site.includes(`'${slug}'`), slug);
 });
