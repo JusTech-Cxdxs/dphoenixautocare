@@ -157,6 +157,7 @@ model Organisation {
   plantDefects  PlantDefect[]
   invoices      Invoice[]
   plantQaAudits PlantQaAudit[]
+  documentLinks DocumentLink[]
 }
 
 model BusinessUnit {
@@ -415,6 +416,7 @@ model User {
   estimateDiscountsApproved Estimate[] @relation("EstimateDiscountApprovedBy")
   estimateCustomerApprovalsTaken Estimate[] @relation("EstimateCustomerApprovedByStaff")
   estimateApprovalLinksCreated EstimateApprovalLink[] @relation("EstimateApprovalLinkCreatedBy")
+  documentLinksCreated DocumentLink[] @relation("DocumentLinkCreatedBy")
   customerCreditApproved CustomerCompany[] @relation("CustomerCreditApprovedBy")
   vehicleServiceCancellationRequestsMade VehicleServiceCancellationRequest[] @relation("VehicleServiceCancellationRequestedBy")
   vehicleServiceCancellationRequestsDecided VehicleServiceCancellationRequest[] @relation("VehicleServiceCancellationDecidedBy")
@@ -1234,6 +1236,38 @@ model Invoice {
   @@index([branchId])
   @@index([customerId])
   @@map("invoices")
+}
+
+// D'Phoenix phase 6A: the secure link a WhatsApp message carries to a
+// customer document (WhatsApp cannot attach a file from a link). The staff
+// portal's /d/<token> opens the PDF, drawn from the live record, without
+// signing in. The token is 32 random bytes (base64url), only in the
+// message; only its SHA-256 (hex) is kept. 30 days; can be revoked.
+// recordId: the Job Card (ESTIMATE, INVOICE) or the payment (RECEIPT).
+enum DocumentLinkKind {
+  ESTIMATE
+  INVOICE
+  RECEIPT
+}
+
+model DocumentLink {
+  id             String           @id @default(cuid())
+  organisationId String
+  kind           DocumentLinkKind
+  recordId       String
+  tokenHash      String           @unique
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  createdById    String
+  createdAt      DateTime         @default(now())
+  openCount      Int              @default(0)
+  lastOpenedAt   DateTime?
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation("DocumentLinkCreatedBy", fields: [createdById], references: [id])
+
+  @@index([organisationId, kind, recordId])
+  @@map("document_links")
 }
 
 // A cancellation request does not change JobCard.status until a Manager

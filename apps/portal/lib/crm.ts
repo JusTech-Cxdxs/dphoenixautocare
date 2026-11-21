@@ -129,6 +129,7 @@ export const CUSTOMER_ACTION_LABEL: Record<string, string> = {
   'customer.welcome_failed': 'Welcome email could not be sent',
   'customer.set_password_link_sent': 'Set-password link emailed',
   'customer.set_password_link_failed': 'Set-password link could not be emailed',
+  'whatsapp.prepared': 'Message prepared for WhatsApp (sent from staff phone)',
   'customer.note_added': 'Note added',
   'customer.note_pinned': 'Note pinned',
   'customer.note_unpinned': 'Note unpinned',

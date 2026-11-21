@@ -1092,6 +1092,7 @@ permissions; the columns are SAP's:
 | D'Phoenix phase 2 — one Job Card for repairs and services (two columns on job cards) | `scripts/predeploy/0028-job-card-service.sql` (deploy) · `scripts/v-dp2-job-card-service.sql` (manual) |
 | D'Phoenix phase 3 — billing & tax settings, estimate discounts and the VAT rate fixed at approval, receipt numbers on payments, invoices | `scripts/predeploy/0029-billing.sql` (deploy) · `scripts/v-dp3-billing.sql` (manual) |
 | D'Phoenix phase 4 — the deposit switch, the customer's approval of the estimate (link, portal, phone), approval links, credit terms for organisation customers, the invoice due date | `scripts/predeploy/0030-approval-credit.sql` (deploy) · `scripts/v-dp4-approval-credit.sql` (manual) |
+| D'Phoenix phase 6A — secure document links for WhatsApp (the estimate, invoice and receipt PDFs; only each token's SHA-256 is kept) | `scripts/predeploy/0031-document-links.sql` (deploy) · `scripts/v-dp6-document-links.sql` (manual) |
 
 All are additive (new tables, columns and indexes), re-runnable, and tested
 twice on Postgres 16 against the previous structure and compared with a

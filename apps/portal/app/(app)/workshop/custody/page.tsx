@@ -2,7 +2,10 @@ import { ResponsiveTable } from '@/components/ui/ResponsiveTable';
 import { OrgTrail } from '@/components/OrgTrail';
 import { allows, guardAnyPage } from '@/lib/authz/server';
 import { getWorkshopCustodySummary, type WorkshopCustodyEntry, currentUserIsMasterAdmin, listEligibleManagersForBranch, currentUserId } from '@/lib/actions/workshop';
-import { getWorkshopBranchId } from '@/lib/workshop-core';
+import { getWorkshopBranchId, workshopContactFor } from '@/lib/workshop-core';
+import { WhatsAppLink } from '@/components/WhatsAppLink';
+import { WhatsAppSendButton } from '@/components/WhatsAppSendButton';
+import { customerCanWhatsApp, customerWhatsAppUrl, custodyReminderMessage } from '@/lib/whatsapp-messages';
 import { sendApprovalReminderFormAction, notifyOverdueCancelledVehicleFormAction, sendReadyForCollectionReminderFormAction, requestJobCardCancellationFormAction, approveCancellationRequestFormAction, declineCancellationRequestFormAction } from '@/lib/actions/workshop-form-handlers';
 import { LoadingLink } from '@/components/LoadingLink';
 import { SubmitButton } from '@/components/SubmitButton';
@@ -164,6 +167,11 @@ export default async function WorkshopCustodyPage({
     allows('workshop.customer.notify'),
   ]);
   const isEligibleManager = isMasterAdmin || eligibleManagers.supervisors.some((m: { id: string }) => m.id === viewerId);
+  // "Send on WhatsApp" beside each emailed reminder: the same words, sent by the colleague from their own phone.
+  const workshop = await workshopContactFor(branchId);
+  const custodyWhatsApp = (kind: 'READY' | 'CANCELLED', entry: WorkshopCustodyEntry) => entry.whatsApp
+    ? customerWhatsAppUrl(entry.whatsApp, custodyReminderMessage({ kind, customerName: entry.customerName, organisation: entry.whatsApp.organisation, vehicle: entry.whatsApp, jobNumber: entry.jobNumber, collectBy: entry.dueDate ? new Date(entry.dueDate) : null, workshop }))
+    : null;
   // Overdue = past the grace period for collection (cancelled or ready).
   // Awaiting Approval is excluded: it waits on a customer decision and is
   // flagged in its own section.
@@ -358,6 +366,9 @@ export default async function WorkshopCustodyPage({
                   <>
                   <ReminderStatus entry={entry} noun="approval reminder" />
                   <div className="mt-3 flex flex-wrap gap-2">
+                    {canNotify && entry.whatsApp && customerCanWhatsApp(entry.whatsApp) ? (
+                      <WhatsAppSendButton prepare={{ document: { kind: 'ESTIMATE', id: entry.id } }} label="Estimate on WhatsApp" testId="custody-estimate-whatsapp" />
+                    ) : null}
                     {canNotify && entry.reminder?.dueNow ? (
                       <form action={sendApprovalReminderFormAction}>
                         <FormPendingOverlay />
@@ -471,6 +482,9 @@ export default async function WorkshopCustodyPage({
                     Only a Manager or HOD can notify the customer.
                   </p>
                 )}
+                {isEligibleManager ? (
+                  <div className="mt-2"><WhatsAppLink href={custodyWhatsApp('CANCELLED', entry)} label="Collection notice on WhatsApp" testId="custody-cancelled-whatsapp" /></div>
+                ) : null}
               </div>
             ))}
           </div>
@@ -538,6 +552,9 @@ export default async function WorkshopCustodyPage({
                       className="rounded-[var(--ejo-radius-md)] bg-[var(--ejo-warning)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
                     />
                   </form>
+                ) : null}
+                {canNotify ? (
+                  <div className="mt-2"><WhatsAppLink href={custodyWhatsApp('READY', entry)} label="Collection reminder on WhatsApp" testId="custody-ready-whatsapp" /></div>
                 ) : null}
               </div>
             ))}

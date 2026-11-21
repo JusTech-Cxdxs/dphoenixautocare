@@ -17,6 +17,10 @@ const AUTH_PAGES = ['/login', '/forgot-password', '/reset-password', '/verify-em
 // on the sign-in pages; it checks the origin and limits itself.
 // /api/ml: the trainer's machine door, protected by its own token (lib/enyo/ml/service.ts).
 const ALWAYS_PUBLIC = ['/api/auth', '/api/cron', '/api/health', '/api/error-report', '/api/ml', '/signed-out'];
+// /d/<token>: a customer's document (estimate, invoice, receipt PDF) opened
+// from a WhatsApp message. Only paths under /d/ — the route checks the token
+// itself and refuses anything else (app/d/[token]/route.ts).
+const DOCUMENT_LINK = /^\/d\/[^/]+$/;
 
 // Flood protection for submissions (form posts / server actions): at most
 // 120 a minute per person (1,500 per shared address), per server instance. Reading pages is never
@@ -89,6 +93,12 @@ export async function middleware(request: NextRequest) {
   const requestId = crypto.randomUUID();
   if (tooManyPosts(request)) {
     return tagged(new NextResponse('Too many requests — please wait a moment and try again.', { status: 429, headers: { 'Retry-After': '60' } }), requestId);
+  }
+
+  // A PDF, or the route's own small page with its own policy: no page
+  // policy here, which a browser's PDF viewer could trip over.
+  if (DOCUMENT_LINK.test(pathname)) {
+    return tagged(NextResponse.next(), requestId);
   }
 
   const isAlwaysPublic = ALWAYS_PUBLIC.some((p) => pathname === p || pathname.startsWith(`${p}/`));

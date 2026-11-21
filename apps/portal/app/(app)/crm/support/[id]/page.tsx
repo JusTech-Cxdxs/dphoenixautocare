@@ -16,6 +16,9 @@ import { formatDateTime } from '@/lib/utils/format-date';
 import { SUPPORT_STATUSES, SUPPORT_STATUS_LABEL, type SupportStatus } from '@/lib/support-rules';
 import { CHANNEL_LABEL, PRIORITIES, PRIORITY_LABEL, intlDigits } from '@/lib/support/core';
 import { formatSize } from '@/lib/mail/parse-core';
+import { WhatsAppLink } from '@/components/WhatsAppLink';
+import { customerWhatsAppUrl, supportReplyMessage } from '@/lib/whatsapp-messages';
+import { getWorkshopBranchId, workshopContactFor } from '@/lib/workshop-core';
 
 export const metadata = { title: 'Support request' };
 export const dynamic = 'force-dynamic';
@@ -54,6 +57,10 @@ export default async function SupportTicketPage({ params, searchParams }: { para
   if (!t) notFound();
   const notice = sp.status ? STATUS_NOTICE[sp.status] : null;
   const lastAgentReply = [...t.replies].reverse().find((r) => r.kind === 'AGENT' && !r.internal);
+  // "Send on WhatsApp" beside the emailed reply: the same reply, sent by the colleague from their own phone.
+  const replyWhatsApp = lastAgentReply && !t.colleagueRequest && t.contactPhone
+    ? customerWhatsAppUrl({ phone: t.contactPhone }, supportReplyMessage({ customerName: t.customerName ?? t.contactName, ticketNumber: t.number, subject: t.subject, reply: lastAgentReply.body, workshop: await workshopContactFor(await getWorkshopBranchId().catch(() => null)) }))
+    : null;
 
   return (
     <div className="w-full max-w-7xl p-4 sm:p-8">
@@ -109,6 +116,9 @@ export default async function SupportTicketPage({ params, searchParams }: { para
                     </p>
                     <p className={`mt-1 whitespace-pre-wrap break-words ${r.kind === 'SYSTEM' ? 'text-xs text-[var(--ejo-text-muted)]' : 'text-sm text-[var(--ejo-text)]'}`}>{r.body}</p>
                     {r.attachments.length ? <p className="mt-1.5 text-xs text-[var(--ejo-text-muted)]"><Icon name="file" size={12} /> {r.attachments.map((a) => `${a.name} (${formatSize(a.size)})`).join(', ')} — open the original email in the team mailbox to download.</p> : null}
+                    {r.kind === 'AGENT' && !r.internal && r.id === lastAgentReply?.id && replyWhatsApp ? (
+                      <div className="mt-1.5"><WhatsAppLink href={replyWhatsApp} label="This reply on WhatsApp" testId="support-reply-whatsapp" /></div>
+                    ) : null}
                     {r.kind === 'AGENT' && !r.internal && r.id === lastAgentReply?.id ? (
                       <form action={saveSupportAnswerAction} className="mt-1.5">
                         <input type="hidden" name="ticketId" value={t.id} />

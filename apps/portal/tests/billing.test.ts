@@ -175,7 +175,13 @@ test('the estimate page, prints, PDF, emails and payment checks all go through i
   for (const fn of ['recordPayment', 'updateJobCardStatus', 'requestJobCardClose', 'sendApprovalReminder']) assert.match(body(ws, fn), /jobCardTotals\(/, fn);
   assert.match(body(ws, 'updateJobCardStatus'), /paidInFull\(totalPaid, totalEstimate\)/, 'checkout: paid in full in kobo');
   assert.match(body(ws, 'requestJobCardClose'), /paidInFull\(totalPaid, totalEstimate\)/, 'close: paid in full in kobo');
-  assert.match(body(ws, 'notifyCustomerOfApprovedEstimate'), /jobEstimateTotals\(estimate\.lineItems, billing\)[\s\S]*jobEstimatePdfProps\(\{[\s\S]*billing,/, 'the email and its PDF: the same figures');
+  // The email's figures and its PDF: the same billing rules (vatSettingFor, depositFractionFor); the PDF is drawn once, in lib/document-pdfs.
+  const notify = body(ws, 'notifyCustomerOfApprovedEstimate');
+  assert.match(notify, /vat: vatSettingFor\(estimate, estimate\.jobCard\.branch\.businessUnit\.organisation\), depositFraction: depositFractionFor\(/);
+  assert.match(notify, /jobEstimateTotals\(estimate\.lineItems, billing\)[\s\S]*await estimatePdfFor\(jobCardId\)/, 'the email and its PDF: the same figures');
+  const pdfs = read('lib/document-pdfs.ts');
+  assert.match(pdfs, /vat: vatSettingFor\(jc\.estimate, org\), depositFraction: depositFractionFor\(org, String\(jc\.customer\.customerType\)\)/);
+  assert.match(pdfs, /EstimatePdf\(jobEstimatePdfProps\(\{[\s\S]*billing,/);
   assert.match(read('lib/pdf/document-props.ts'), /export function jobEstimateTotals[\s\S]{0,900}billingTotals\(/);
   assert.match(read('app/(app)/workshop/job-cards/[id]/page.tsx'), /const estimateTotal = jobCardTotals\(estimate, billingSettings\)\.total;/);
   assert.match(read('app/print/job-cards/[id]/estimate/page.tsx'), /jobCardTotals\(estimate, billingOf\(jobCard\)\)/);

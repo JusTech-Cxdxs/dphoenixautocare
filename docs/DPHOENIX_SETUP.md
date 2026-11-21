@@ -267,6 +267,35 @@ organisation, *D'Phoenix Autocare (Demo)* — see `docs/DPHOENIX_DEMO.md`.
 If you change the staff portal address later (custom domain), run both scripts again with the new
 address.
 
+### WhatsApp
+
+Wherever the portal emails a customer because someone pressed a button, a **Send on WhatsApp** button
+sits beside it with the same message, written for WhatsApp. Nothing is ever sent by WhatsApp
+automatically: you press **Send on WhatsApp**, then **Open WhatsApp**, and WhatsApp opens on your
+own phone or computer with the message ready; you press send. The button only shows when the
+customer's phone can take WhatsApp (see above). Each message is recorded on the Job Card or the
+customer's activity, without the links in it.
+
+| Where | Button | What the message carries |
+| --- | --- | --- |
+| Job Card, waiting for the customer's approval (also **Vehicles in custody**) | **Send estimate on WhatsApp** | The total, any deposit, the **estimate PDF** and a fresh **approval link**. The new approval link replaces the one in the email: only the newest works |
+| Job Card → Invoice | **Send on WhatsApp** | The invoice number, total, balance and due date, the **invoice PDF** and the customer-portal link |
+| Job Card → Payments | **Receipt on WhatsApp** (Finance) | The amount, date, receipt number and balance after it, and the **receipt PDF** |
+| Job Card → Refunds | **Refund on WhatsApp** (Finance) | The amount, method and refund number (there is no refund PDF; print the customer copy) |
+| Job Card (Contact) | The notice for where the Job Card is: *Checked in*, *Work started*, *Quality check*, *Completed*, *Ready for collection*, *Collected*, *Cancelled*, *Closed* | The same notice as the email |
+| Vehicles in custody | *Collection reminder* / *Collection notice on WhatsApp* | The same reminder as the email |
+| Service Tracker and each vehicle | **Send on WhatsApp** | The service reminder |
+| Customers → Support centre → a request | *This reply on WhatsApp* (under your last reply) | Your reply, with the request number |
+| A new customer (Customers → Register, or the front desk) and the customer's **Customer portal** card | **Send the welcome on WhatsApp** / **Send on WhatsApp** | The welcome, the customer portal's address and a fresh **set-password link** (72 hours). It replaces the link we emailed: only the newest link works, and the screen says so |
+
+**The PDF goes as a secure link.** WhatsApp cannot attach a file from a link, so the message carries a
+link such as `https://<staff portal>/d/…` that opens the PDF — the same document as the email
+attachment, drawn from the record as it is now — without signing in. Each press makes a new link;
+it works for **30 days**. The link is long and random, is not kept anywhere in readable form, and
+opens nothing else. If it has expired the customer sees "This link does not open" and asks you to
+send the document again. The links name the staff portal's address, so links already sent stop
+working if that address changes (section 7).
+
 ## 5. Email
 
 Start with the existing Gmail account; move to a mailbox on `dphoenixautocare.com` later (customers

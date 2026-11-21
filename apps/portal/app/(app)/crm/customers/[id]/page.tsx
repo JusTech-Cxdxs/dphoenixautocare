@@ -26,6 +26,9 @@ import { ExportAction } from '@/components/ExportAction';
 import { SapTrail } from '@/components/data-exchange/SapTrail';
 import { featureOn, moduleIsOn } from '@/lib/modules';
 import { bookServiceHref, separateVehicleServiceOn, OPEN_SERVICE_JOB_CARD } from '@/lib/service-entry';
+import { WhatsAppSendButton } from '@/components/WhatsAppSendButton';
+import { customerCanWhatsApp } from '@/lib/whatsapp-messages';
+import { hasEmail } from '@/lib/customer-email';
 
 /** Where records from before EJO came from, in this edition's words. */
 const OLD_SYSTEM = featureOn('sap') ? 'SAP' : 'the previous system';
@@ -140,6 +143,12 @@ export default async function Customer360Page({ params, searchParams }: { params
       </section>
 
       {notice ? <NoticeBox n={notice} /> : null}
+      {(sp.status === 'registered' || sp.status === 'registered_no_email') && can.manage && c.isActive && hasEmail(c.email) && customerCanWhatsApp(c) ? (
+        <div className="mt-3 flex flex-wrap items-center gap-3 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] px-4 py-3" data-testid="welcome-whatsapp-offer">
+          <WhatsAppSendButton prepare={{ access: { customerId: c.id, kind: 'welcome' } }} label="Send the welcome on WhatsApp" testId="welcome-whatsapp" />
+          <p className="text-xs text-[var(--ejo-text-muted)]">The welcome with a fresh set-password link, ready to send from your phone. It replaces the link we emailed.</p>
+        </div>
+      ) : null}
       {c.gaps.length ? (
         <NoticeBox n={{ kind: 'warning', title: `Profile gap: no ${c.gaps.join(' or ')}`, text: can.manage ? <>Registration now requires both. <Link href={`${base}?edit=1`} className="font-medium text-[var(--ejo-primary)] hover:underline">Add {c.gaps.length > 1 ? 'them' : 'it'} now</Link> — nothing else is blocked meanwhile.</> : 'Registration now requires both — ask front desk to complete the profile.' }} />
       ) : null}
@@ -489,6 +498,12 @@ function PortalCard({ data, base }: { data: Data; base: string }) {
               <SubmitButton label="Send set-password link" pendingLabel="Sending…" className={`${primary} w-full justify-center`} />
               <p className="mt-1 text-[11px] text-[var(--ejo-text-muted)]">Valid 72 hours. Any earlier link stops working. No password is ever emailed.</p>
             </form>
+          ) : null}
+          {c.isActive && hasEmail(c.email) && customerCanWhatsApp(c) ? (
+            <div className="space-y-1">
+              <WhatsAppSendButton prepare={{ access: { customerId: c.id, kind: 'access' } }} testId="set-password-whatsapp" />
+              <p className="text-[11px] text-[var(--ejo-text-muted)]">A fresh set-password link in a message you send from your phone. This replaces the link we emailed: only the newest link works.</p>
+            </div>
           ) : null}
           <details className="group">
             <summary className="cursor-pointer text-xs font-medium text-[var(--ejo-text-muted)] hover:text-[var(--ejo-text)]">{c.isActive ? 'Switch portal access off…' : 'Switch portal access on…'}</summary>

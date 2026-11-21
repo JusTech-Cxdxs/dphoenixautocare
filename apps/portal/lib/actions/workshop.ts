@@ -43,13 +43,11 @@ import { exceedsBalance, NUMBER_CLASH_TRIES, numberClashPause, retryOnNumberClas
 import { APPROVAL_DEADLINE_WORKING_DAYS, APPROVAL_REMINDER_WORKING_DAYS, CANCELLED_COLLECTION_GRACE_WORKING_DAYS, READY_FOR_COLLECTION_GRACE_WORKING_DAYS } from '@/lib/workshop-constants';
 import { workingDaysBetween, addWorkingDays } from '@/lib/utils/working-days';
 import { pluralize } from '@/lib/utils/pluralize';
-import { getOrganisation } from '@/lib/actions/organisation';
 import { getSelectableJobCardStatuses, isReworkTransition as isReworkMove } from '@/lib/job-card-status-rules';
 import { anchorEscalatedServiceFromJobCard, serviceJobCardCycle } from '@/lib/vehicle-service-cycle';
 import { custodyReminderState, notDueYetMessage, type CustodyReminderKind } from '@/lib/custody-reminders';
-import { renderToBuffer } from '@react-pdf/renderer';
-import { EstimatePdf } from '@/lib/pdf/estimate-pdf';
-import { jobEstimatePdfProps, jobEstimateTotals, letterhead, nairaForPdf, vatLabel } from '@/lib/pdf/document-props';
+import { estimatePdfFor } from '@/lib/document-pdfs';
+import { jobEstimateTotals, nairaForPdf, vatLabel } from '@/lib/pdf/document-props';
 import { activeAssistFor, signedInSession, type ActiveAssist } from '@/lib/assist/server';
 import { sendEmail } from '@/lib/email';
 import { renderSupervisorJobCardAssignedEmail } from '@/lib/email-templates/supervisor-job-card-assigned';
@@ -2828,6 +2826,8 @@ export async function returnEstimateForChanges(jobCardId: string, reason: string
     data: { status: 'SUBMITTED', approvedAt: null, approvedById: null, vatRate: null, ...CLEARED_CUSTOMER_ANSWER },
   }), 'This estimate was just approved or changed by someone else — refresh the page.');
   await prisma.estimateApprovalLink.updateMany({ where: { estimateId: estimate.id, usedAt: null, revokedAt: null }, data: { revokedAt: new Date() } });
+  // The estimate PDF links sent on WhatsApp stop opening too: the estimate will change.
+  await prisma.documentLink.updateMany({ where: { kind: 'ESTIMATE', recordId: jobCardId, revokedAt: null }, data: { revokedAt: new Date() } });
   await writeAuditLog({ userId: user.id, action: 'estimate.returned_for_changes', entityType: 'JobCard', entityId: jobCardId, metadata: { reason: why } });
   // The supervisor (who approves it again) and the technician (who edits it) hear at once.
   emailColleaguesLater({
@@ -2962,24 +2962,13 @@ export async function notifyCustomerOfApprovedEstimate(jobCardId: string): Promi
         branchName: estimate.jobCard.branch.name,
       }),
       await (async () => {
-        // PDF attachment, using the same Organisation record as the print letterhead.
+        // PDF attachment: lib/document-pdfs estimatePdfFor, the one drawing of
+        // this estimate from the same billing rules as the figures above; the
+        // secure WhatsApp link (/d/<token>) opens this same PDF.
         try {
-          const organisation = await getOrganisation();
-          if (!organisation) return undefined;
-          const portalUrl = portalBaseUrl();
-          // The document's contents are worked out in one place (lib/pdf/document-props), so a copy made later for the records is this same document.
-          const pdfBuffer = await renderToBuffer(
-            EstimatePdf(jobEstimatePdfProps({
-              letterhead: letterhead(organisation, estimate.jobCard.branch, portalUrl),
-              bank: await bankDetailsFor(estimate.jobCard.branch.id),
-              jobNumber: estimate.jobCard.jobNumber,
-              customer: estimate.jobCard.customer,
-              vehicle: estimate.jobCard.vehicle,
-              lineItems: estimate.lineItems,
-              billing,
-            })),
-          );
-          return [{ filename: `Estimate-${estimate.jobCard.jobNumber}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }];
+          const made = await estimatePdfFor(jobCardId);
+          if (!made) return undefined;
+          return [{ filename: made.fileName, content: made.pdf, contentType: 'application/pdf' }];
         } catch (pdfErr) {
           // A failed PDF never blocks the email.
           logFailure('Failed to generate estimate PDF attachment', jobCardId, pdfErr);
@@ -4107,6 +4096,8 @@ export type WorkshopCustodyEntry = {
   /** Set on an awaiting-approval entry with a cancellation request pending,
    * so a Manager can approve or decline it from the dashboard. */
   pendingCancellationRequest?: { id: string; reason: string; requestedByName: string };
+  /** The customer's phones and the vehicle, for the WhatsApp message beside each emailed reminder. */
+  whatsApp?: { phone: string | null; altPhone: string | null; organisation: boolean; plateNumber: string | null; make: string | null; model: string | null };
 };
 
 const CUSTODY_REMINDER_ACTIONS = ['approval.reminder_sent', 'collection.overdue_notice_sent', 'collection.ready_reminder_sent'] as const;
@@ -4147,8 +4138,8 @@ export async function getWorkshopCustodySummary(search?: string): Promise<{
       isService: true,
       status: true,
       readyForCollectionAt: true,
-      customer: { select: { id: true, fullName: true } },
-      vehicle: { select: { id: true, make: true, model: true, vehicleType: true } },
+      customer: { select: { id: true, fullName: true, phone: true, altPhone: true, customerType: true } },
+      vehicle: { select: { id: true, make: true, model: true, plateNumber: true, vehicleType: true } },
       estimate: { select: { customerNotifiedAt: true } },
       // All requests: gives both the latest approval (cancelled entries) and any
       // pending request (awaiting-approval entries) from one query.
@@ -4178,8 +4169,8 @@ export async function getWorkshopCustodySummary(search?: string): Promise<{
     isService: boolean;
     status: string;
     readyForCollectionAt: Date | null;
-    customer: { id: string; fullName: string };
-    vehicle: { id: string; make: string | null; model: string | null; vehicleType: string | null };
+    customer: { id: string; fullName: string; phone: string | null; altPhone: string | null; customerType: string };
+    vehicle: { id: string; make: string | null; model: string | null; plateNumber: string | null; vehicleType: string | null };
     estimate: { customerNotifiedAt: Date | null } | null;
     cancellationRequests: { id: string; status: string; reason: string; decidedAt: Date | null; requestedBy: { fullName: string } }[];
   }>) {
@@ -4194,6 +4185,8 @@ export async function getWorkshopCustodySummary(search?: string): Promise<{
       customerName: jc.customer.fullName,
       vehicleDescription,
       status: jc.status,
+      // For "Send on WhatsApp" beside the emailed reminders (no usable phone, no button).
+      whatsApp: { phone: jc.customer.phone, altPhone: jc.customer.altPhone, organisation: String(jc.customer.customerType) === 'ORGANIZATION', plateNumber: jc.vehicle.plateNumber, make: jc.vehicle.make, model: jc.vehicle.model },
     };
 
     if (jc.status === JobCardStatus.AWAITING_CUSTOMER_APPROVAL && jc.estimate?.customerNotifiedAt) {

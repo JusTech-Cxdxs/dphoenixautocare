@@ -53,6 +53,9 @@ const nextConfig: NextConfig = {
       },
       // The logo is shown inside emails, which load it from another site.
       { source: '/images/:path*', headers: [{ key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' }] },
+      // A customer's document from a WhatsApp link (app/d/[token]): never
+      // cached, indexed or passed on as a referrer.
+      { source: '/d/:token', headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }, { key: 'X-Robots-Tag', value: 'noindex, nofollow' }, { key: 'Cache-Control', value: 'private, no-store' }] },
     ];
   },
   // npm workspaces hoist pdfkit (a dependency of @react-pdf/renderer) to the
@@ -63,8 +66,11 @@ const nextConfig: NextConfig = {
   // Server actions can render a PDF from any route (an estimate or invoice
   // email, the bulk copies), so the fonts go into every function. The globs
   // are relative to this file, not to outputFileTracingRoot.
+  // The document-link route (app/d/[token]) draws PDFs too, and is named
+  // here as well so its fonts are traced even if the catch-all changes.
   outputFileTracingIncludes: {
     '/**': ['../../node_modules/pdfkit/js/standard-fonts/**', './lib/pdf/fonts/**'],
+    '/d/[token]': ['../../node_modules/pdfkit/js/standard-fonts/**', './lib/pdf/fonts/**'],
   },
 };
 

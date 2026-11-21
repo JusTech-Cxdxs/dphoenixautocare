@@ -9,7 +9,7 @@ import { owedOnInvoices } from '@/lib/credit';
 import { creditLimitOf, isOnCredit } from '@/lib/credit-core';
 import { writeAuditLog } from '@/lib/workshop-core';
 import { billingOf, jobCardTotals, ESTIMATE_TOTALS_SELECT, JOB_CARD_BILLING_SELECT } from '@/lib/estimate-billing';
-import { sendCustomerAccessEmail, withdrawCustomerSetPasswordLinks } from '@/lib/customer-access';
+import { prepareCustomerAccessWhatsApp, sendCustomerAccessEmail, withdrawCustomerSetPasswordLinks, type CustomerWhatsAppResult } from '@/lib/customer-access';
 import {
   applyCrmFilters, cleanEmail, cleanName, cleanOptional, cleanPhone, cleanPrimaryAddress, customerMoney, diffChanges, isOpenJob, lagosMonthStart,
   lagosYearStart, monthlySpend, normaliseTags, paginate, profileGaps, sortCrmRows, type CrmJob, type CrmRow,
@@ -584,6 +584,27 @@ export async function sendCustomerSetPasswordLink(customerId: string): Promise<{
   const c = await fencedCustomer(customerId);
   if (!c.isActive) throw new CrmError('Their portal access is switched off — switch it on first.');
   return sendCustomerAccessEmail(c.id, 'access', me.id);
+}
+
+/**
+ * "Send on WhatsApp" beside the welcome and the set-password link: a fresh
+ * set-password link (the same mechanism as the email; earlier links stop
+ * working) in a message the colleague sends from their own phone. The
+ * welcome, just after registering, is for whoever may register customers
+ * (the front desk, as findOrCreateCustomer); the link sent again needs
+ * crm.manage, as the email does.
+ */
+export async function sendCustomerAccessOnWhatsApp(customerId: string, kind: 'welcome' | 'access'): Promise<CustomerWhatsAppResult> {
+  await refuseDuringAssist('sendCustomerAccessOnWhatsApp');
+  if (kind === 'welcome') {
+    if (!(await allows('workshop.customer.manage'))) await authorize('crm.manage', undefined, 'sendCustomerAccessOnWhatsApp', 'Only front desk, managers and administrators can send portal links.');
+  } else {
+    await authorize('crm.manage', undefined, 'sendCustomerAccessOnWhatsApp', 'Only front desk, managers and administrators can send portal links.');
+  }
+  const me = await requireUser();
+  const c = await fencedCustomer(customerId);
+  if (!c.isActive) throw new CrmError('Their portal access is switched off — switch it on first.');
+  return prepareCustomerAccessWhatsApp(c.id, kind, me.id);
 }
 
 // Addresses (extra — the primary one is on the customer itself).

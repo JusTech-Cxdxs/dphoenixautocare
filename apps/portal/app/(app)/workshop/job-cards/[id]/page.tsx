@@ -56,7 +56,8 @@ import { featureOn, moduleIsOn } from '@/lib/modules';
 import { serviceJobCardCycle } from '@/lib/vehicle-service-cycle';
 import { ServiceJobCardBadge } from '@/components/ServiceJobCardBadge';
 import { WhatsAppLink } from '@/components/WhatsAppLink';
-import { customerWhatsAppUrl, invoiceMessage, readyForCollectionMessage, receiptMessage } from '@/lib/whatsapp-messages';
+import { WhatsAppSendButton } from '@/components/WhatsAppSendButton';
+import { JOB_CARD_NOTICES, customerCanWhatsApp, customerWhatsAppUrl, jobCardNoticeMessage, readyForCollectionMessage, refundMessage, type JobCardNotice } from '@/lib/whatsapp-messages';
 import { workshopContactFor } from '@/lib/workshop-core';
 import { websiteBaseUrl } from '@/lib/portal-url';
 import { customerLinks } from '@/lib/customer-links-core';
@@ -126,6 +127,7 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   'estimate.discount_approved': 'Discount approved by the Manager',
   'invoice.issued': 'Invoice issued',
   'invoice.emailed': 'Invoice emailed to the customer',
+  'whatsapp.prepared': 'Message prepared for WhatsApp (sent from staff phone)',
   'cancellation.requested': 'Cancellation requested',
   'cancellation.approved': 'Cancellation approved',
   'cancellation.declined': 'Cancellation declined',
@@ -526,13 +528,21 @@ export default async function JobCardDetailPage({
   const readyWhatsApp = jobCard.status === 'READY_FOR_COLLECTION'
     ? customerWhatsAppUrl(jobCard.customer, readyForCollectionMessage({ customerName: jobCard.customer.fullName, organisation: asOrganisation, vehicle: waVehicle, jobNumber: jobCard.jobNumber, balance: outstanding, onCredit: Boolean(credit?.onCredit), workshop: workshopContact }))
     : null;
-  const invoiceWhatsApp = invoice
-    ? customerWhatsAppUrl(jobCard.customer, invoiceMessage({ customerName: jobCard.customer.fullName, organisation: asOrganisation, invoiceNumber: invoice.invoiceNumber, jobNumber: jobCard.jobNumber, total: Number(invoice.total), balance: outstanding, dueOn: invoice.dueDate ?? null, portalUrl: customerLinks(websiteBaseUrl()).invoice(jobCard.id), workshop: workshopContact }))
+  // The estimate, the invoice and each receipt go with their PDF (a secure
+  // link): the button asks the server to prepare the message, as the email
+  // (lib/actions/whatsapp makeWhatsAppMessage). No usable phone, no button.
+  const canWhatsApp = customerCanWhatsApp(jobCard.customer);
+  // The status notice the customer was emailed for where the Job Card is now (checked in … closed), as WhatsApp.
+  const noticeKind = (JOB_CARD_NOTICES as readonly string[]).includes(jobCard.status) ? (jobCard.status as JobCardNotice) : null;
+  const noticeWhatsApp = noticeKind
+    ? customerWhatsAppUrl(jobCard.customer, jobCardNoticeMessage({ notice: noticeKind, customerName: jobCard.customer.fullName, organisation: asOrganisation, vehicle: waVehicle, jobNumber: jobCard.jobNumber, collectedByName: jobCard.collectedByName ?? null, portalUrl: customerLinks(websiteBaseUrl()).jobCard(jobCard.id), workshop: workshopContact }))
     : null;
-  const receiptWhatsApp = (p: { amount: unknown; receiptNumber: string | null; recordedAt: Date }) => {
-    if (!p.receiptNumber) return null;
-    const paidSoFar = payments.filter((x: (typeof payments)[number]) => new Date(x.recordedAt).getTime() <= new Date(p.recordedAt).getTime()).reduce((sum: number, x: (typeof payments)[number]) => sum + Number(x.amount ?? 0), 0);
-    return customerWhatsAppUrl(jobCard.customer, receiptMessage({ customerName: jobCard.customer.fullName, organisation: asOrganisation, receiptNumber: p.receiptNumber, amount: Number(p.amount ?? 0), jobNumber: jobCard.jobNumber, paidAt: new Date(p.recordedAt), balance: Math.max(0, Math.round((estimateTotal - paidSoFar) * 100) / 100), workshop: workshopContact }));
+  const NOTICE_LABEL: Record<JobCardNotice, string> = { CHECKED_IN: 'Checked in', IN_PROGRESS: 'Work started', QUALITY_CHECK: 'Quality check', COMPLETED: 'Completed', CHECKED_OUT: 'Collected', CANCELLED: 'Cancelled', CLOSED: 'Closed' };
+  // A refund, as its receipt email (there is no refund PDF): Finance, who records refunds.
+  const refundWhatsApp = (r: { referenceNumber: string; amount: unknown; method: string; recordedAt: Date }) => {
+    const refundedBy = refunds.filter((x: (typeof refunds)[number]) => new Date(x.recordedAt).getTime() <= new Date(r.recordedAt).getTime()).reduce((sum: number, x: (typeof refunds)[number]) => sum + Number(x.amount ?? 0), 0);
+    const owedBack = jobCard.status === 'CANCELLED' || approvedCancellation ? paymentsTotal : Math.max(0, paymentsTotal - estimateTotal);
+    return customerWhatsAppUrl(jobCard.customer, refundMessage({ customerName: jobCard.customer.fullName, organisation: asOrganisation, referenceNumber: r.referenceNumber, recordLabel: 'Job Card', recordNumber: jobCard.jobNumber, amount: Number(r.amount ?? 0), method: r.method, refundedAt: new Date(r.recordedAt), remaining: Math.max(0, Math.round((owedBack - refundedBy) * 100) / 100), workshop: workshopContact }));
   };
   // The customer's own answer to the estimate (approved by link, portal, phone or at the counter; or declined).
   const awaitingAnswer = jobCard.status === 'AWAITING_CUSTOMER_APPROVAL' && estimate?.status === 'MANAGER_APPROVED' && Boolean(estimate.customerNotifiedAt) && !estimate.customerApprovedAt;
@@ -727,6 +737,11 @@ export default async function JobCardDetailPage({
                   {readyWhatsApp ? (
                     <div className="mt-1">
                       <WhatsAppLink href={readyWhatsApp} label="Ready for collection: send on WhatsApp" testId="ready-for-collection-whatsapp" />
+                    </div>
+                  ) : null}
+                  {noticeKind && noticeWhatsApp ? (
+                    <div className="mt-1">
+                      <WhatsAppLink href={noticeWhatsApp} label={`${NOTICE_LABEL[noticeKind]}: send on WhatsApp`} testId="job-card-notice-whatsapp" />
                     </div>
                   ) : null}
                 </dd>
@@ -1263,6 +1278,12 @@ export default async function JobCardDetailPage({
                 {awaitingAnswer && mayTakeAnswer && !isCancelled ? (
                   <>
                     <ApprovalLinkPanel jobCardId={jobCard.id} />
+                    {canWhatsApp ? (
+                      <div className="space-y-1">
+                        <WhatsAppSendButton prepare={{ document: { kind: 'ESTIMATE', id: jobCard.id } }} label="Send estimate on WhatsApp" testId="estimate-whatsapp" />
+                        <p className="text-[11px] text-[var(--ejo-text-muted)]">The estimate PDF and a fresh approval link, ready to send from your phone. The new approval link replaces the one we emailed.</p>
+                      </div>
+                    ) : null}
                     <details className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2">
                       <summary className="cursor-pointer text-xs font-medium text-[var(--ejo-text)]">Customer approved by phone</summary>
                       <form action={recordCustomerApprovalByPhoneFormAction} className="mt-2 space-y-2">
@@ -1310,7 +1331,7 @@ export default async function JobCardDetailPage({
                         <SubmitButton label="Email invoice" pendingLabel="Sending…" className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] px-3 py-1.5 text-xs font-medium text-[var(--ejo-text)] hover:bg-[var(--ejo-bg)]" />
                       </form>
                     ) : null}
-                    {mayInvoice ? <WhatsAppLink href={invoiceWhatsApp} testId="invoice-whatsapp" className="inline-flex items-center rounded-[var(--ejo-radius-md)] bg-[var(--ejo-success)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90" /> : null}
+                    {mayInvoice && canWhatsApp ? <WhatsAppSendButton prepare={{ document: { kind: 'INVOICE', id: invoice.id } }} testId="invoice-whatsapp" /> : null}
                   </div>
                 </>
               ) : (
@@ -1334,6 +1355,7 @@ export default async function JobCardDetailPage({
               defaultPaidTo={jobCard.customer.fullName}
               defaultReason={approvedCancellation?.reason ?? pendingCancellationRequest?.reason ?? ((billing?.overpaid ?? 0) > 0 ? 'Overpayment — lines now covered by warranty, goodwill or internally' : null)}
               customerOwes={jobCard.status === 'CANCELLED' || approvedCancellation ? 0 : estimateTotal}
+              whatsAppFor={isEligibleFinance ? refundWhatsApp : undefined}
             />
           ) : null}
 
@@ -1365,7 +1387,7 @@ export default async function JobCardDetailPage({
                           <a href={`/print/receipts/${p.id}`} target="_blank" rel="noopener" className="text-xs font-medium text-[var(--ejo-primary)] hover:underline">
                             Print receipt
                           </a>
-                          <WhatsAppLink href={receiptWhatsApp(p)} label="Receipt on WhatsApp" testId="receipt-whatsapp" />
+                          {isEligibleFinance && canWhatsApp ? <WhatsAppSendButton prepare={{ document: { kind: 'RECEIPT', id: p.id } }} label="Receipt on WhatsApp" testId="receipt-whatsapp" /> : null}
                         </div>
                       ) : null}
                     </div>

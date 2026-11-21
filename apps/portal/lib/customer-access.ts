@@ -7,8 +7,10 @@ import { hashPassword } from 'better-auth/crypto';
 import { sendEmail } from '@/lib/email';
 import { NO_CUSTOMER_EMAIL, hasEmail } from '@/lib/customer-email';
 import { redact } from '@/lib/errors';
-import { writeAuditLog, getWorkshopBranchId } from '@/lib/workshop-core';
+import { writeAuditLog, getWorkshopBranchId, workshopContactFor } from '@/lib/workshop-core';
 import { renderCustomerWelcomeEmail } from '@/lib/email-templates/customer-welcome';
+import { customerWhatsAppUrl, welcomeMessage } from '@/lib/whatsapp-messages';
+import { whatsAppShareUrlFor } from '@ejo/utils/whatsapp';
 
 /**
  * Server-only (NOT a 'use server' file): customer portal access — the
@@ -119,4 +121,49 @@ export async function sendCustomerAccessEmail(customerId: string, kind: 'welcome
     metadata: { actor: 'staff', to: customer.email, ...(error ? { error: 'The mail server did not accept it' } : {}) },
   });
   return error ? { sent: false, reason: 'The mail server did not accept the email — see Settings → Email delivery for the reason.' } : { sent: true };
+}
+
+export type CustomerWhatsAppResult = { url: string } | { url: null; reason: string };
+
+/**
+ * The welcome (just registered) or the set-password link, for WhatsApp: the
+ * same fresh one-time link the email carries (issueCustomerSetPasswordLink),
+ * in a message the colleague sends from their own phone. Only the newest
+ * link works, so this one replaces the link in any earlier email — the
+ * message and the screen both say so. Nothing is made when the customer has
+ * no phone WhatsApp can take (the emailed link keeps working). Audited
+ * without the link. Never throws for a missing phone or email: the result
+ * says why.
+ */
+export async function prepareCustomerAccessWhatsApp(customerId: string, kind: 'welcome' | 'access', actorId: string): Promise<CustomerWhatsAppResult> {
+  const customer = await prisma.customer.findUnique({ where: { id: customerId }, select: { id: true, fullName: true, email: true, phone: true, altPhone: true, customerType: true, isActive: true, organisationId: true } }).catch(() => null);
+  if (!customer) return { url: null, reason: 'This customer no longer exists.' };
+  if (!customer.isActive) return { url: null, reason: 'Their portal access is switched off — switch it on first.' };
+  // Portal sign-in is by email: none on file means there is no account to open.
+  if (!hasEmail(customer.email)) return { url: null, reason: NO_CUSTOMER_EMAIL };
+  if (!whatsAppShareUrlFor([customer.phone, customer.altPhone], 'x')) return { url: null, reason: 'There is no mobile number WhatsApp can take on file for this customer.' };
+  await ensureCredentialAccount(customer.id);
+  const setPasswordUrl = await issueCustomerSetPasswordLink(customer.id);
+  // The workshop's name and first number, as on every WhatsApp message.
+  const workshop = await workshopContactFor(await getWorkshopBranchId().catch(() => null));
+  const url = customerWhatsAppUrl(customer, welcomeMessage({
+    kind,
+    customerName: customer.fullName,
+    organisation: String(customer.customerType) === 'ORGANIZATION',
+    email: customer.email,
+    signInUrl: `${websiteBaseUrl()}/customer-portal`,
+    setPasswordUrl,
+    hours: CUSTOMER_SET_PASSWORD_HOURS,
+    workshop,
+  }));
+  // Never the link itself in the audit trail.
+  await writeAuditLog({
+    userId: actorId,
+    organisationId: customer.organisationId,
+    action: 'whatsapp.prepared',
+    entityType: 'Customer',
+    entityId: customer.id,
+    metadata: { actor: 'staff', kind: kind === 'welcome' ? 'WELCOME' : 'SET_PASSWORD_LINK', replacesEarlierLink: true },
+  });
+  return url ? { url } : { url: null, reason: 'There is no mobile number WhatsApp can take on file for this customer.' };
 }

@@ -11,6 +11,9 @@ import { FormFeedbackBanner } from '@/components/FormFeedbackBanner';
 import { formatDateTimeCompact } from '@/lib/utils/format-date';
 import { LiveSearchInput } from '@/components/LiveSearchInput';
 import { PageHeader } from '@/components/ui';
+import { WhatsAppSendButton } from '@/components/WhatsAppSendButton';
+import { customerCanWhatsApp } from '@/lib/whatsapp-messages';
+import { hasEmail } from '@/lib/customer-email';
 
 const STATUS_MESSAGES: Record<string, { kind: 'success' | 'warning'; message: string }> = {
   customer_existing: { kind: 'success', message: 'That email already had a customer record — reused it, no duplicate created.' },
@@ -21,12 +24,15 @@ const STATUS_MESSAGES: Record<string, { kind: 'success' | 'warning'; message: st
 export default async function WorkshopCustomersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; error?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; error?: string; customer?: string }>;
 }) {
   await guardAnyPage(['workshop.view'], '/workshop');
-  const { q, status, error } = await searchParams;
+  const { q, status, error, customer: createdId } = await searchParams;
+  const justCreated = Boolean(createdId) && (status === 'customer_created_emailed' || status === 'customer_created_no_email');
   // The Customers (CRM) hub is the home of customers now — this address leads there.
   if (await allows('crm.view')) {
+    // Just registered: their customer page, which offers the welcome on WhatsApp too.
+    if (justCreated) redirect(`/crm/customers/${encodeURIComponent(createdId!)}?status=${status === 'customer_created_emailed' ? 'registered' : 'registered_no_email'}`);
     const qs = new URLSearchParams();
     if (q) qs.set('q', q);
     if (status) qs.set('status', status);
@@ -35,6 +41,9 @@ export default async function WorkshopCustomersPage({
   }
   const customers = await listCustomers(q);
   const statusInfo = status ? STATUS_MESSAGES[status] : undefined;
+  // "Send the welcome on WhatsApp" beside the welcome email, when their phone can take it.
+  const created = justCreated ? customers.find((c) => c.id === createdId) ?? null : null;
+  const offerWelcome = Boolean(created && created.isActive && hasEmail(created.email) && customerCanWhatsApp(created));
 
   return (
     <div className="p-8">
@@ -46,6 +55,12 @@ export default async function WorkshopCustomersPage({
       />
 
       {statusInfo ? <FormFeedbackBanner kind={statusInfo.kind} message={statusInfo.message} /> : null}
+      {offerWelcome && created ? (
+        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] px-4 py-3" data-testid="welcome-whatsapp-offer">
+          <WhatsAppSendButton prepare={{ access: { customerId: created.id, kind: 'welcome' } }} label="Send the welcome on WhatsApp" testId="welcome-whatsapp" />
+          <p className="text-xs text-[var(--ejo-text-muted)]">The welcome for {created.fullName} with a fresh set-password link, ready to send from your phone. It replaces the link we emailed.</p>
+        </div>
+      ) : null}
       {error ? <FormFeedbackBanner kind="error" message={error} /> : null}
 
       <form className="mb-6 flex gap-2" action="/workshop/customers">

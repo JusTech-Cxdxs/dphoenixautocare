@@ -1,7 +1,7 @@
 /**
  * The contents of each customer PDF, as types (no JSX here, so plain modules
  * and the unit tests can use them). The documents themselves are drawn in
- * estimate-pdf.tsx, inspection-pdf.tsx and invoice-pdf.tsx.
+ * estimate-pdf.tsx, inspection-pdf.tsx, invoice-pdf.tsx and receipt-pdf.tsx.
  */
 
 export type EstimatePdfLineItem = {
@@ -134,6 +134,32 @@ export type InvoicePdfProps = {
   accountName: string;
   accountNumber: string;
   paymentRemarkSuggestion: string;
+  /** "Thank you for choosing <the organisation>." */
+  closing: string;
+};
+
+export type ReceiptPdfProps = {
+  organisation: EstimatePdfProps['organisation'];
+  branch: EstimatePdfProps['branch'];
+  logoUrl: string;
+  receiptNumber: string;
+  /** "21 November 2026, 10:15" */
+  receivedOnLabel: string;
+  /** The person, or the organisation for a company customer. */
+  customerName: string;
+  jobNumber: string;
+  vehicleDescription: string;
+  plateNumber: string | null;
+  amountReceived: string;
+  /** "Cash" or "Bank Transfer". */
+  methodLabel: string;
+  reference: string | null;
+  receivedByName: string;
+  totalAmount: string;
+  paidToDate: string;
+  balanceAfter: string;
+  /** "Paid in full" or "Part payment". */
+  statusLabel: string;
   /** "Thank you for choosing <the organisation>." */
   closing: string;
 };

@@ -4,6 +4,7 @@ import { FormPendingOverlay } from '@/components/FormPendingOverlay';
 import { SubmitButton } from '@/components/SubmitButton';
 import { formatDateTime } from '@/lib/utils/format-date';
 import { IdempotencyKey } from '@/components/IdempotencyKey';
+import { WhatsAppLink } from '@/components/WhatsAppLink';
 
 type RefundRow = {
   id: string;
@@ -37,6 +38,7 @@ export function RefundsPanel({
   defaultPaidTo,
   defaultReason,
   customerOwes = 0,
+  whatsAppFor,
 }: {
   target: { jobCardId: string } | { vehicleServiceId: string };
   paid: number;
@@ -48,6 +50,8 @@ export function RefundsPanel({
   /** What the customer still owes on an active Job Card — only money
    * paid beyond it (an overpayment) is owed back. */
   customerOwes?: number;
+  /** "Refund on WhatsApp": the refund receipt email's words, for the colleague to send (null = no usable phone). There is no refund PDF. */
+  whatsAppFor?: (r: RefundRow) => string | null;
 }) {
   const refunded = Math.round(refunds.reduce((s, r) => s + Number(r.amount), 0) * 100) / 100;
   const remaining = Math.max(0, Math.round((paid - refunded - (isCancelled ? 0 : customerOwes)) * 100) / 100);
@@ -172,7 +176,10 @@ export function RefundsPanel({
                   {r.notes ? ` · ${r.notes}` : ''}
                 </p>
               </div>
-              <PrintMenu orgHref={`/print/refunds/${r.id}`} clientHref={`/print/refunds/${r.id}?variant=client`} clientLabel="Customer Copy" size="compact" align="right" />
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                {whatsAppFor ? <WhatsAppLink href={whatsAppFor(r)} label="Refund on WhatsApp" testId="refund-whatsapp" /> : null}
+                <PrintMenu orgHref={`/print/refunds/${r.id}`} clientHref={`/print/refunds/${r.id}?variant=client`} clientLabel="Customer Copy" size="compact" align="right" />
+              </div>
             </div>
           ))}
         </div>

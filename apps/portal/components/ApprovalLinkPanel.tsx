@@ -8,7 +8,8 @@ import { SubmitButton } from './SubmitButton';
  * "Send approval link" on the Job Card: makes a fresh secure link, emails it
  * to the customer, and offers "Share on WhatsApp" — a wa.me link the
  * colleague opens to send the message from their own phone (nothing is sent
- * by the server). The link is shown only here, once.
+ * by the server), with the same approval link and the estimate PDF as a
+ * secure document link. The links are shown only here, once.
  */
 export function ApprovalLinkPanel({ jobCardId }: { jobCardId: string }) {
   const [state, action] = useActionState<ApprovalLinkState, FormData>(sendEstimateApprovalLinkAction, null);

@@ -9,9 +9,9 @@
  * never the internal line types. On a Job Card, lines covered by warranty,
  * goodwill or the business are never charged, and show what covers them.
  */
-import { BILL_TO_LABEL, billingTotals, coveredLabel, depositOf, depositPercentOf, isCustomerLine, type BillTo, type VatSetting } from '../estimate-billing';
+import { BILL_TO_LABEL, balanceDue, billingTotals, coveredLabel, depositOf, depositPercentOf, isCustomerLine, type BillTo, type VatSetting } from '../estimate-billing';
 import { pluralizeWord } from '../utils/pluralize';
-import type { EstimatePdfProps, InspectionPdfProps, InvoicePdfProps } from './document-types';
+import type { EstimatePdfProps, InspectionPdfProps, InvoicePdfProps, ReceiptPdfProps } from './document-types';
 
 export type Letterhead = Pick<EstimatePdfProps, 'organisation' | 'branch' | 'logoUrl'>;
 export type Bank = { bankName: string; accountName: string; accountNumber: string };
@@ -243,6 +243,50 @@ export function invoicePdfProps(p: {
     balanceDue: nairaForPdf(balance),
     ...p.bank,
     paymentRemarkSuggestion: [p.invoiceNumber, p.jobNumber, p.vehicle.plateNumber].filter(Boolean).join(' '),
+    closing: `Thank you for choosing ${p.letterhead.organisation.name}.`,
+  };
+}
+
+/**
+ * The customer's receipt for one Job Card payment (the RCT-number), as the
+ * printed receipt shows it: what was paid, how, who received it, and what is
+ * still due after it — payments up to and including this one, less refunds
+ * by then, against the Job Card's total. Pure, like the invoice.
+ */
+export function receiptPdfProps(p: {
+  letterhead: Letterhead;
+  receiptNumber: string;
+  receivedOnLabel: string;
+  customerName: string;
+  jobNumber: string;
+  vehicle: { make: string | null; model: string | null; plateNumber: string | null };
+  amount: unknown;
+  method: string;
+  reference: string | null;
+  receivedByName: string;
+  total: number;
+  /** Payments up to and including this one, less refunds by then. */
+  paidToDate: number;
+}): ReceiptPdfProps {
+  const total = money(p.total);
+  const paid = money(p.paidToDate);
+  const balance = balanceDue(total, paid);
+  return {
+    ...p.letterhead,
+    receiptNumber: p.receiptNumber,
+    receivedOnLabel: p.receivedOnLabel,
+    customerName: p.customerName,
+    jobNumber: p.jobNumber,
+    vehicleDescription: [p.vehicle.make, p.vehicle.model].filter(Boolean).join(' ') || 'Vehicle',
+    plateNumber: p.vehicle.plateNumber,
+    amountReceived: nairaForPdf(money(p.amount)),
+    methodLabel: p.method === 'CASH' ? 'Cash' : 'Bank Transfer',
+    reference: p.reference?.trim() || null,
+    receivedByName: p.receivedByName,
+    totalAmount: nairaForPdf(total),
+    paidToDate: nairaForPdf(paid),
+    balanceAfter: nairaForPdf(balance),
+    statusLabel: balance > 0 ? 'Part payment' : 'Paid in full',
     closing: `Thank you for choosing ${p.letterhead.organisation.name}.`,
   };
 }

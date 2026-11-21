@@ -118,6 +118,8 @@ export const DATA_INVENTORY: Record<string, DataEntry> = {
   Estimate: { tenancy: 'VIA_PARENT', owner: 'jobCardId', classification: ['FINANCIAL'], lifecycle: 'CASCADE', retention: FIN_RETENTION, ai: 'AUTHORISED_USER' },
   // D'Phoenix phase 4: the customer's approval link — only the token's SHA-256, usable once within 7 days.
   EstimateApprovalLink: { tenancy: 'VIA_PARENT', owner: 'estimateId', classification: ['SECRET'], lifecycle: 'CASCADE', retention: 'Kept with the estimate (usable once, within 7 days)', ai: 'NEVER' },
+  // D'Phoenix phase 6A: the link a WhatsApp message carries to a document's PDF — only the token's SHA-256, 30 days.
+  DocumentLink: { tenancy: 'ORGANISATION', owner: 'organisationId', classification: ['SECRET'], lifecycle: 'CASCADE', retention: 'Kept with the organisation (the link works 30 days, or until revoked)', ai: 'NEVER' },
   EstimateLineItem: { tenancy: 'VIA_PARENT', owner: 'estimateId', classification: ['FINANCIAL'], lifecycle: 'CASCADE', retention: FIN_RETENTION, ai: 'AUTHORISED_USER' },
   Payment: { tenancy: 'VIA_PARENT', owner: 'jobCardId', classification: ['FINANCIAL'], lifecycle: 'IMMUTABLE', retention: FIN_RETENTION, ai: 'AUTHORISED_USER' },
   Refund: { tenancy: 'VIA_PARENT', owner: 'jobCardId', classification: ['FINANCIAL'], lifecycle: 'IMMUTABLE', retention: FIN_RETENTION, ai: 'AUTHORISED_USER' },

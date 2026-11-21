@@ -98,7 +98,9 @@ test('the parts and the names', () => {
 });
 
 test('wired in: the email and the bulk copies use the same builders; both rights at a workshop of the organisation; audited; never cached or during assist', () => {
-  const job = read('lib/actions/workshop.ts');
+  // The Job Card estimate is drawn once (lib/document-pdfs), for the email and the WhatsApp document link alike.
+  assert.match(read('lib/actions/workshop.ts'), /await estimatePdfFor\(jobCardId\)/);
+  const job = read('lib/document-pdfs.ts');
   assert.match(job, /EstimatePdf\(jobEstimatePdfProps\(\{/);
   const svc = read('lib/actions/vehicle-service-estimate.ts');
   assert.match(svc, /EstimatePdf\(serviceEstimatePdfProps\(\{/);

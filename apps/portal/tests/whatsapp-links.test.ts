@@ -67,9 +67,12 @@ test('the buttons sit next to the emails, and nothing is sent from the server', 
   assert.ok(tracker.indexOf('sendManualServiceReminderFormAction}') < tracker.indexOf('serviceReminderMessage({'), 'after the emailed reminder');
   assert.match(read('apps/portal/app/(app)/workshop/vehicles/[id]/edit/page.tsx'), /serviceReminderMessage\(/);
   const jc = read('apps/portal/app/(app)/workshop/job-cards/[id]/page.tsx');
-  for (const fn of ['readyForCollectionMessage(', 'invoiceMessage(', 'receiptMessage(']) assert.ok(jc.includes(fn), fn);
-  assert.match(jc, /testId="invoice-whatsapp"/);
-  assert.match(jc, /testId="receipt-whatsapp"/);
+  assert.ok(jc.includes('readyForCollectionMessage('), 'ready for collection');
+  // Phase 6A: the invoice and the receipt go with their PDF, prepared on the server (lib/actions/whatsapp.ts).
+  assert.match(jc, /<WhatsAppSendButton prepare=\{\{ document: \{ kind: 'INVOICE', id: invoice\.id \} \}\} testId="invoice-whatsapp" \/>/);
+  assert.match(jc, /<WhatsAppSendButton prepare=\{\{ document: \{ kind: 'RECEIPT', id: p\.id \} \}\} label="Receipt on WhatsApp" testId="receipt-whatsapp" \/>/);
+  const prepared = read('apps/portal/lib/actions/whatsapp.ts');
+  for (const fn of ['invoiceMessage(', 'receiptMessage(']) assert.ok(prepared.includes(fn), fn);
   const link = read('apps/portal/components/WhatsAppLink.tsx');
   assert.match(link, /if \(!href\) return null;/);
   assert.match(link, /rel="noopener noreferrer"/);

@@ -66,7 +66,7 @@ function num(formData: FormData, key: string): number | undefined {
 export async function createCustomerFormAction(formData: FormData) {
   let query: string;
   try {
-    const { wasExisting, welcomeEmailSent } = await findOrCreateCustomer({
+    const { customer, wasExisting, welcomeEmailSent } = await findOrCreateCustomer({
       customerType: str(formData, 'customerType') === 'ORGANIZATION' ? 'ORGANIZATION' : 'INDIVIDUAL',
       fullName: str(formData, 'fullName'),
       address: str(formData, 'address'),
@@ -78,9 +78,9 @@ export async function createCustomerFormAction(formData: FormData) {
     if (wasExisting) {
       query = 'status=customer_existing';
     } else if (welcomeEmailSent) {
-      query = 'status=customer_created_emailed';
+      query = `status=customer_created_emailed&customer=${encodeURIComponent(customer.id)}`;
     } else {
-      query = 'status=customer_created_no_email';
+      query = `status=customer_created_no_email&customer=${encodeURIComponent(customer.id)}`;
     }
   } catch (err) {
     const message = friendlyError(err, 'Could not add customer.', 'workshop-form-handlers');
