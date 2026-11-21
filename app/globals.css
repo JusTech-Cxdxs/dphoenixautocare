@@ -1,0 +1,232 @@
+@import "tailwindcss";
+
+/*
+ * EJO design system (ported from EJO 100), in D'Phoenix Autocare's colours.
+ * Brand values come from the website's own stylesheet:
+ *   navy #0A1628 · orange #F09E2C · hover #D48E1B · orange text #DB8B1C ·
+ *   logo gold #D6890B · WhatsApp #25D366 · red #E40014.
+ * Components use only these variables, so light and dark themes both work.
+ */
+:root {
+  --brand-navy: #0a1628;
+  --brand-orange: #f09e2c;
+  --brand-orange-hover: #d48e1b;
+  --brand-orange-text: #db8b1c;
+  --brand-gold: #d6890b;
+  --whatsapp: #25d366;
+
+  --ejo-primary: var(--brand-orange);
+  /* Orange text readable on white (4.7:1); the lighter brand orange is used on dark. */
+  --ejo-primary-text: #a8620c;
+  /* Text on an orange button: navy (8.3:1), never white (2.2:1). */
+  --ejo-on-primary: var(--brand-navy);
+  /* The logo's gold: the rule under the wordmark, thin lines, PDF accents. */
+  --ejo-brand: var(--brand-gold);
+  --ejo-secondary: var(--brand-navy);
+  --ejo-accent: var(--brand-orange);
+  --ejo-success: #15803d;
+  --ejo-warning: #f59e0b;
+  --ejo-error: #e40014;
+  --ejo-info: #2563eb;
+  --ejo-warning-text: #92400e;
+  /* Chip text: deeper shades of the same colours, readable on their own tint (5.4:1 or better). */
+  --ejo-success-text: #166534;
+  --ejo-error-text: #b00010;
+  --ejo-info-text: #1d4ed8;
+  --ejo-brand-text-strong: #8a4f08;
+  --ejo-muted-strong: #4a5565;
+
+  --ejo-bg: #ffffff;
+  --ejo-surface: #f9fafb;
+  --ejo-border: #e5e7eb;
+  --ejo-text: #0a1628;
+  --ejo-text-muted: #6a7282;
+
+  --ejo-radius-md: 12px;
+  --ejo-radius-lg: 16px;
+  --ejo-radius-xl: 24px;
+}
+
+:root { color-scheme: light; }
+
+/* Dark theme: chosen in the header (Light / Dark / System), stored in the
+   dpa-theme cookie and applied before the first paint (app/layout.tsx). */
+:root[data-theme='dark'] {
+  --ejo-primary-text: #f09e2c;
+  --ejo-success: #22c55e;
+  --ejo-error: #ff4d5e;
+  --ejo-info: #60a5fa;
+  --ejo-bg: #0a1628;
+  --ejo-surface: #111f36;
+  --ejo-border: #24324a;
+  --ejo-text: #e8eef7;
+  --ejo-text-muted: #9aa4b2;
+  --ejo-warning-text: #fbbf24;
+  --ejo-success-text: #22c55e;
+  --ejo-error-text: #ff4d5e;
+  --ejo-info-text: #60a5fa;
+  --ejo-brand-text-strong: #f09e2c;
+  --ejo-muted-strong: #9aa4b2;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --ejo-primary-text: #f09e2c;
+    --ejo-success: #22c55e;
+    --ejo-error: #ff4d5e;
+    --ejo-info: #60a5fa;
+    --ejo-bg: #0a1628;
+    --ejo-surface: #111f36;
+    --ejo-border: #24324a;
+    --ejo-text: #e8eef7;
+    --ejo-text-muted: #9aa4b2;
+    --ejo-warning-text: #fbbf24;
+    --ejo-success-text: #22c55e;
+    --ejo-error-text: #ff4d5e;
+    --ejo-info-text: #60a5fa;
+    --ejo-brand-text-strong: #f09e2c;
+    --ejo-muted-strong: #9aa4b2;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/* Smooth theme switch, without animating every hover. */
+html.ejo-theme-switching, html.ejo-theme-switching * {
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease !important;
+}
+
+@layer base {
+  *, ::before, ::after { border-color: var(--ejo-border); }
+  input, select, textarea { color: inherit; }
+  input[type='checkbox'], input[type='radio'], input[type='range'], progress { accent-color: var(--ejo-primary); }
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--ejo-primary) 80%, transparent);
+    outline-offset: 2px;
+  }
+}
+
+body {
+  background: var(--ejo-bg);
+  color: var(--ejo-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Sign-in brand panel: navy with a warm orange and gold glow. */
+.ejo-media-placeholder {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(240, 158, 44, 0.35), transparent 55%),
+    radial-gradient(circle at 80% 30%, rgba(214, 137, 11, 0.28), transparent 50%),
+    radial-gradient(circle at 50% 90%, rgba(10, 22, 40, 0.7), transparent 60%),
+    linear-gradient(135deg, #0a1628 0%, #13233d 50%, #070f1c 100%);
+}
+
+@keyframes ejo-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.ejo-shimmer {
+  background: linear-gradient(90deg, var(--ejo-accent) 0%, #ffe2b8 50%, var(--ejo-accent) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: ejo-shimmer 3.5s ease-in-out infinite;
+}
+.ejo-shimmer-soft {
+  background: linear-gradient(90deg, var(--ejo-primary-text) 0%, var(--ejo-text) 50%, var(--ejo-primary-text) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: ejo-shimmer 4s ease-in-out infinite;
+}
+
+/* "Powered by EJO": the platform mark, quietly alive. */
+@keyframes ejo-orbit { to { transform: rotate(360deg); } }
+@keyframes ejo-core { 0%, 100% { opacity: 0.55; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1.1); } }
+.ejo-orbit { animation: ejo-orbit 6s linear infinite; transform-origin: 50% 50%; transform-box: fill-box; }
+.ejo-core { animation: ejo-core 2.4s ease-in-out infinite; transform-origin: 50% 50%; transform-box: fill-box; }
+
+/* Loading mark. */
+@keyframes ejo-spin { to { transform: rotate(360deg); } }
+@keyframes ejo-glow { 0%, 100% { transform: scale(0.85); opacity: 0.15; } 50% { transform: scale(1.15); opacity: 0.3; } }
+.ejo-spin { animation: ejo-spin 2.2s linear infinite; }
+.ejo-glow { animation: ejo-glow 1.8s ease-in-out infinite; }
+
+/* Content rises in gently. */
+@keyframes ejo-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.ejo-rise { animation: ejo-rise 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+/* Page hero (PageHeader): a faint orange wash and a slowly drifting glow. */
+.ejo-hero {
+  background:
+    radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--ejo-primary) 10%, transparent) 0%, transparent 55%),
+    linear-gradient(135deg, var(--ejo-surface) 0%, var(--ejo-bg) 75%);
+}
+@keyframes ejo-drift { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-24px, 18px) scale(1.08); } }
+.ejo-orb { animation: ejo-drift 9s ease-in-out infinite; }
+.ejo-orb-slow { animation-duration: 14s; animation-direction: reverse; }
+
+/* Every page's top-level blocks rise in, one after another. */
+.ejo-page > :not(.fixed) > * { animation: ejo-rise 480ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.ejo-page > :not(.fixed) > :nth-child(2) { animation-delay: 40ms; }
+.ejo-page > :not(.fixed) > :nth-child(3) { animation-delay: 80ms; }
+.ejo-page > :not(.fixed) > :nth-child(4) { animation-delay: 120ms; }
+.ejo-page > :not(.fixed) > :nth-child(5) { animation-delay: 160ms; }
+.ejo-page > :not(.fixed) > :nth-child(n + 6) { animation-delay: 200ms; }
+.ejo-stagger > * { animation: ejo-rise 480ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.ejo-stagger > :nth-child(2) { animation-delay: 50ms; }
+.ejo-stagger > :nth-child(3) { animation-delay: 100ms; }
+.ejo-stagger > :nth-child(4) { animation-delay: 150ms; }
+.ejo-stagger > :nth-child(5) { animation-delay: 200ms; }
+.ejo-stagger > :nth-child(n + 6) { animation-delay: 250ms; }
+
+/* Cards that are links lift a little; buttons press. */
+.ejo-lift { transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease; }
+.ejo-lift:hover { transform: translateY(-2px); box-shadow: 0 10px 28px -14px color-mix(in srgb, var(--ejo-primary) 55%, transparent); }
+.ejo-press { transition: transform 120ms ease, filter 150ms ease, border-color 150ms ease, color 150ms ease; }
+.ejo-press:active { transform: scale(0.97); }
+@keyframes ejo-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.ejo-float { animation: ejo-float 3.2s ease-in-out infinite; }
+
+/* Tables in the working area: quiet header, gentle row hover. */
+.ejo-page table thead tr { background: color-mix(in srgb, var(--ejo-bg) 55%, transparent); }
+.ejo-page table thead th { font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600; color: var(--ejo-text-muted); }
+.ejo-page table:not(.table-fixed) thead th { white-space: nowrap; }
+.ejo-page table tbody tr { transition: background-color 120ms ease; }
+.ejo-page table tbody tr:hover { background: color-mix(in srgb, var(--ejo-primary) 5%, transparent); }
+
+/* Wide tables scroll sideways inside their own box; the page never does. */
+.ejo-scroll-x { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.ejo-scroll-x > table { min-width: var(--ejo-table-min, 40rem); }
+
+/* Phones: form fields at 16px (iOS zooms into anything smaller) and 44px tall. */
+@media (max-width: 767.98px) {
+  :is(input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="range"], [type="color"], [type="file"]), select, textarea):not([class*="text-base"], [class*="text-lg"], [class*="text-xl"], [class*="text-2xl"]) { font-size: 16px; }
+  :is(input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="range"], [type="color"], [type="file"]), select) { min-height: 2.75rem; }
+  .ejo-page form :is(button[type="submit"], button:not([type])) { min-height: 2.75rem; }
+}
+
+/* Shell: the drawer and menus. */
+@keyframes ejo-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ejo-slide-in { from { transform: translateX(-100%); } to { transform: none; } }
+@keyframes ejo-pop { from { opacity: 0; transform: translateY(-6px) scale(0.98); } to { opacity: 1; transform: none; } }
+.ejo-fade { animation: ejo-fade 180ms ease both; }
+.ejo-slide-in { animation: ejo-slide-in 240ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.ejo-pop { animation: ejo-pop 160ms cubic-bezier(0.2, 0.7, 0.2, 1) both; transform-origin: top right; }
+.ejo-scroll { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ejo-text-muted) 35%, transparent) transparent; }
+
+html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html, body { overscroll-behavior-x: none; }
+body { overscroll-behavior-y: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ejo-shimmer, .ejo-shimmer-soft { animation: none; color: var(--ejo-primary-text); background: none; }
+  .ejo-orbit, .ejo-core, .ejo-spin, .ejo-glow, .ejo-rise, .ejo-orb, .ejo-float, .ejo-fade, .ejo-slide-in, .ejo-pop,
+  .ejo-page > :not(.fixed) > *, .ejo-stagger > * { animation: none; }
+  .ejo-lift:hover { transform: none; }
+  .ejo-press:active { transform: none; }
+}
