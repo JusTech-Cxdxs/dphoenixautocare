@@ -6,6 +6,8 @@ export type CustomerInvoiceEmailOptions = {
   jobNumber: string;
   vehicleDescription: string;
   issuedOn: string;
+  /** For an organisation on credit: "Payment due by …". Null = due before collection. */
+  dueOn?: string | null;
   totalAmount: string;
   amountPaid: string;
   /** Null when nothing is left to pay. */
@@ -24,10 +26,11 @@ export function renderCustomerInvoiceEmail(o: CustomerInvoiceEmailOptions): stri
   const bodyHtml = html`
     ${greeting(o.customerName)}
     ${para(`The work on your ${o.vehicleDescription} (Job Card ${o.jobNumber}) is complete. Your invoice is attached to this email.`)}
-    ${highlight(o.balanceDue ? 'Balance due' : 'Invoice total', o.balanceDue ?? o.totalAmount, o.balanceDue ? 'Please pay the balance before collecting your vehicle.' : 'Thank you. This invoice is paid in full.', o.balanceDue ? 'warning' : 'success')}
+    ${highlight(o.balanceDue ? 'Balance due' : 'Invoice total', o.balanceDue ?? o.totalAmount, o.balanceDue ? (o.dueOn ? `Payment due by ${o.dueOn}.` : 'Please pay the balance before collecting your vehicle.') : 'Thank you. This invoice is paid in full.', o.balanceDue ? 'warning' : 'success')}
     ${details([
       ['Invoice', o.invoiceNumber],
       ['Date', o.issuedOn],
+      o.dueOn ? ['Payment due by', o.dueOn] : null,
       ['Job Card', o.jobNumber],
       ['Invoice total', o.totalAmount],
       ['Paid so far', o.amountPaid],

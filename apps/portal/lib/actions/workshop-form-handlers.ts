@@ -441,7 +441,7 @@ export async function requestJobCardCloseFormAction(formData: FormData) {
 export async function approveCloseRequestFormAction(formData: FormData) {
   const jobCardId = str(formData, 'jobCardId');
   try {
-    await approveCloseRequest(str(formData, 'requestId'), str(formData, 'decisionNotes') || undefined);
+    await approveCloseRequest(str(formData, 'requestId'), str(formData, 'decisionNotes') || undefined, formData.get('overCreditLimit') === 'on');
   } catch (err) {
     const message = friendlyError(err, 'Could not approve close.', 'workshop-form-handlers');
     redirect(`/workshop/job-cards/${jobCardId}?error=${encodeURIComponent(message)}`);

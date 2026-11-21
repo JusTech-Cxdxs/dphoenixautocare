@@ -17,7 +17,10 @@ export type JobState = {
   total: number;
   /** Paid, net of refunds. */
   paid: number;
+  /** The deposit share for this customer (depositFractionFor; 0 = no deposit). */
   depositFraction: number;
+  /** The customer has approved the estimate (by link, portal, phone or at the counter). */
+  customerApproved?: boolean;
 };
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -46,7 +49,15 @@ export function nextStep(s: JobState): string {
   if (s.estimateStatus === 'APPROVED') return 'Waiting for the Manager\'s final approval of the estimate.';
   if (s.estimateStatus === 'MANAGER_APPROVED' && !s.customerNotified) return 'The front desk sends the approved estimate to the customer ("Notify customer").';
   const deposit = r2(s.total * s.depositFraction);
-  if (s.status === 'AWAITING_CUSTOMER_APPROVAL' && s.paid < deposit - 0.004) return `Waiting for the customer's deposit: ${naira(deposit)} (${Math.round(s.depositFraction * 100)}% of ${naira(s.total)}); ${naira(s.paid)} paid so far.`;
+  if (s.status === 'AWAITING_CUSTOMER_APPROVAL') {
+    const depositWords = `${naira(deposit)} (${Math.round(s.depositFraction * 100)}% of ${naira(s.total)}); ${naira(s.paid)} paid so far`;
+    if (s.customerApproved && deposit > 0 && s.paid < deposit - 0.004) return `The customer has approved. Waiting for the deposit: ${depositWords}.`;
+    if (!s.customerApproved) {
+      return deposit > 0
+        ? `Waiting for the customer to approve the estimate (by link, portal or phone) and pay the deposit: ${depositWords}.`
+        : 'Waiting for the customer to approve the estimate: by the link in their email, in the customer portal, or by phone. No deposit applies.';
+    }
+  }
   // The Store and outside purchases are switched off in some editions (lib/modules.ts).
   if (s.status === 'AWAITING_PARTS') {
     const how = [moduleIsOn('inventory') ? 'Store release' : null, featureOn('externalProcurement') ? 'an outside purchase' : null].filter(Boolean);
@@ -62,6 +73,7 @@ export function paymentPosition(total: number, paid: number, depositFraction: nu
   if (total <= 0) return { label: paid > 0 ? 'Paid (no priced estimate yet)' : 'No priced estimate yet', balance: 0 };
   if (paid <= 0) return { label: 'Awaiting payment', balance };
   if (paid >= total - 0.004) return { label: paid > total + 0.004 ? 'Overpaid' : 'Paid in full', balance };
+  if (depositFraction <= 0) return { label: 'Part paid, balance pending', balance };
   if (paid >= r2(total * depositFraction) - 0.004) return { label: 'Deposit met, balance pending', balance };
   return { label: 'Part paid, below the deposit', balance };
 }

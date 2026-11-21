@@ -20,9 +20,10 @@ export const COMMON_ESTIMATE_LINE_DESCRIPTIONS = [
   'Labour for Brake',
 ];
 
-/** Minimum deposit before work begins, as a fraction of the estimate total.
- * One constant so emails and dashboards always agree. */
-export const MINIMUM_DEPOSIT_FRACTION = 0.7;
+// The deposit before work starts is the organisation's own setting
+// (Organisation → Billing & tax), worked out by depositFractionFor in
+// @ejo/utils/billing for both apps: off by default, never for an
+// organisation customer.
 
 /** Working days after the customer is notified of an approved estimate
  * before it is overdue (enough time for a bank transfer to clear). A

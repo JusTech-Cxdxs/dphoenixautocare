@@ -42,7 +42,7 @@ export default async function CustomerOverviewPage() {
       attention.push({
         key: `${i.id}-approve`, rank: 1, icon: 'receipt', tone: 'attention', href: i.href, cta: 'Review estimate',
         title: 'Your estimate is ready for approval',
-        text: `${ref}. Total ${naira(i.money.estimateTotal ?? 0)} — pay the minimum deposit of ${naira(i.money.depositDue ?? 0)} to approve${i.approvalDeadline ? ` by ${fmtDate(i.approvalDeadline)}` : ''}.`,
+        text: `${ref}. Total ${naira(i.money.estimateTotal ?? 0)} — ${i.answer?.approvedAt ? `you approved it; pay the deposit of ${naira(i.money.depositDue ?? 0)}` : (i.money.depositDue ?? 0) > 0 ? `approve it and pay the deposit of ${naira(i.money.depositDue ?? 0)}` : 'approve it'}${i.approvalDeadline ? ` by ${fmtDate(i.approvalDeadline)}` : ''}.`,
       });
     } else if (outstanding(i) > 0 && i.phase === 'active') {
       attention.push({

@@ -3,11 +3,11 @@
 import { useState } from 'react';
 
 export type PaymentAmountOption = {
-  /** e.g. "SEVENTY_PERCENT", "FULL", "REMAINING" — anything except the
+  /** e.g. "DEPOSIT", "FULL", "REMAINING" — anything except the
    * reserved "OTHER", which always means "let me type my own". */
   key: string;
   /** What's shown in the dropdown, with the real amount spelled out —
-   * e.g. "70% deposit (₦8,400.00)". */
+   * e.g. "Full payment (₦12,000.00)". */
   label: string;
   /** Exact value as a string, e.g. "8400.00", computed on the server. */
   value: string;

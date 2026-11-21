@@ -13,12 +13,12 @@
  * Pure: a seeded plan from an anchor ("now"), the same every run for the
  * same anchor, cut so that nothing is dated after it. The loader
  * (./load.ts) writes it; the tests check that every rule the portal
- * enforces holds inside the plan (statuses in order, deposits at 70%,
+ * enforces holds inside the plan (statuses in order, the customer's go-ahead
+ * — a 70% part payment at the counter — before work,
  * stock never negative, a refund only after a cancellation…).
  */
 import { DEMO_CUSTOMERS, DEMO_STAFF, demoPerson, type DemoStaff } from '../../demo/people';
 import { addWorkingMinutes, planPlantDemo } from '../../plant/demo/plan';
-import { MINIMUM_DEPOSIT_FRACTION } from '../../workshop-constants';
 import { getApplicableTemplate } from '../../vehicle-inspection-template';
 import {
   APPOINTMENT_TITLES, BROADCASTS, COLOURS, COMMERCIAL_COMPLAINTS, CUSTOMERS, DEMO_SOURCE, EXIT_REASONS, EXPORTS, IMPORTS, INCIDENTS, JOB_LINES, MODELS, PARTS, PASSENGER_COMPLAINTS,
@@ -67,6 +67,9 @@ const P = {
 const who = (s: DemoStaff) => s.email;
 
 // ── What the plan holds ─────────────────────────────────────────────────
+
+/** The share the demo's customers pay at the counter before work starts (their go-ahead). */
+export const DEMO_UPFRONT_SHARE = 0.7;
 export type Dept = 'workshop-passenger' | 'workshop-commercial';
 export type DemoCustomer = { key: string; name: string; type: 'INDIVIDUAL' | 'ORGANIZATION'; company: string | null; phone: string; address: string; email: string | null; since: Date; contacts: { name: string; role: string; phone: string }[]; tags: string[]; createdAt: Date };
 export type DemoVehicle = { key: string; customerKey: string; make: string; model: string; type: 'PASSENGER' | 'COMMERCIAL'; year: number; plate: string; vin: string; engineNumber: string; engineType: string; colour: string; mileage: number; createdAt: Date; fromPlant: boolean; plantVin?: string };
@@ -358,7 +361,9 @@ function build(anchor: Date, consumption: Map<string, number> | null): WorkshopD
     }
     return slip;
   };
-  const deposit = (total: number) => Math.min(total, round500(total * MINIMUM_DEPOSIT_FRACTION));
+  // The demo's customers pay 70% at the counter before work starts: their go-ahead (a payment counts as
+  // the customer's approval, lib/customer-approval). The organisation's own deposit rule is depositFractionFor.
+  const deposit = (total: number) => Math.min(total, round500(total * DEMO_UPFRONT_SHARE));
 
   type JobOpts = { vehicle: DemoVehicle; openedAt: Date; kind?: string; service?: boolean; target?: JobCardStatus; slow?: 'customer' | 'parts' | null; rework?: boolean; warranty?: DemoWarranty | null; fromServiceKey?: string | null; /** A quick job: the customer pays within the hour and the work is short, so a card opened a few days ago reaches its stage. */ quick?: boolean; /** With slow 'parts': where the slip waits. */ slipStage?: 'PENDING_HOD_APPROVAL' | 'PENDING_STORE_APPROVAL' | 'APPROVED'; /** A cancelled card: was the vehicle handed back (CHECKED_OUT)? */ collected?: boolean };
   /**
@@ -411,7 +416,7 @@ function build(anchor: Date, consumption: Map<string, number> | null): WorkshopD
         est.status = 'MANAGER_APPROVED'; est.submittedAt = wm(t, 30); est.approvedAt = wm(est.submittedAt, 30); est.managerApprovedAt = wm(est.approvedAt, 30); est.customerNotifiedAt = wm(est.managerApprovedAt, 10);
         jc.status = 'AWAITING_CUSTOMER_APPROVAL';
         const dep = deposit(est.customerTotal);
-        jc.payments.push({ key: `${jc.key}-p1`, amount: dep, method: 'BANK_TRANSFER', at: wm(est.customerNotifiedAt, 240), note: 'Deposit (70%)', byKey: who(P.finance) });
+        jc.payments.push({ key: `${jc.key}-p1`, amount: dep, method: 'BANK_TRANSFER', at: wm(est.customerNotifiedAt, 240), note: 'Part payment (70%)', byKey: who(P.finance) });
         log('payment.recorded', jc.payments[0]!.at, P.finance, { amount: dep });
       }
       jc.cancellation = { reason: pick(r, ['Customer will repair elsewhere (price)', 'Vehicle sold; owner no longer wants the repair', 'Insurance assessor took the vehicle', 'Customer travelled; will return next month']), requestedAt: reqAt, decidedAt: decidedAt <= now ? decidedAt : null, status: decidedAt <= now ? 'APPROVED' : 'PENDING' };
@@ -438,11 +443,11 @@ function build(anchor: Date, consumption: Map<string, number> | null): WorkshopD
     if (!stop('AWAITING_CUSTOMER_APPROVAL', t)) { /* status set */ }
     jc.status = 'AWAITING_CUSTOMER_APPROVAL';
     if (o.target === 'AWAITING_CUSTOMER_APPROVAL') return jc;
-    // 3. The deposit (70%) starts the work — a slow customer takes days.
+    // 3. The customer's go-ahead, paying 70% at the counter, starts the work — a slow customer takes days.
     const slowCustomer = o.slow === 'customer';
     t = wm(t, slowCustomer ? int(r, 2_500, 4_000) : o.quick ? int(r, 30, 120) : int(r, 60, 700)); if (t > now) return jc;
     const dep = est.customerTotal > 0 ? deposit(est.customerTotal) : 0;
-    if (dep > 0) { jc.payments.push({ key: `${jc.key}-p1`, amount: dep, method: chance(r, 0.7) ? 'BANK_TRANSFER' : 'CASH', at: t, note: 'Deposit (70%) before work starts', byKey: who(P.finance) }); log('payment.recorded', t, P.finance, { amount: dep }); }
+    if (dep > 0) { jc.payments.push({ key: `${jc.key}-p1`, amount: dep, method: chance(r, 0.7) ? 'BANK_TRANSFER' : 'CASH', at: t, note: 'Part payment (70%) before work starts', byKey: who(P.finance) }); log('payment.recorded', t, P.finance, { amount: dep }); }
     jc.status = 'IN_PROGRESS'; jc.workStartedAt = t; log('job_card.status_updated', t, P.finance, { status: 'IN_PROGRESS' });
     if (o.target === 'IN_PROGRESS') return jc;
     // 4. Parts: the slip. A slow store (parts awaited) holds the card at AWAITING_PARTS.
@@ -562,7 +567,7 @@ function build(anchor: Date, consumption: Map<string, number> | null): WorkshopD
     est.customerNotifiedAt = t;
     t = adv(t, 30, 400); if (t > now) return sv;
     const dep = deposit(est.customerTotal);
-    sv.payments.push({ key: `${sv.key}-p1`, amount: dep, method: chance(r, 0.7) ? 'BANK_TRANSFER' : 'CASH', at: t, note: 'Deposit (70%) before work starts', byKey: who(P.finance) }); log('payment.recorded', t, P.finance, { amount: dep });
+    sv.payments.push({ key: `${sv.key}-p1`, amount: dep, method: chance(r, 0.7) ? 'BANK_TRANSFER' : 'CASH', at: t, note: 'Part payment (70%) before work starts', byKey: who(P.finance) }); log('payment.recorded', t, P.finance, { amount: dep });
     sv.status = 'IN_SERVICE'; sv.workStartedAt = t; log('vehicle_service.status_updated', t, P.finance, { status: 'IN_SERVICE' });
     if (target === 'IN_SERVICE') return sv;
     const slip = makeSlip(est, wm(t, int(r, 10, 50)), 'RELEASED', tech);

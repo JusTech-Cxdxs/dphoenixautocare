@@ -5,6 +5,7 @@ import { isUniqueClashOn, retryOnNumberClash } from '@/lib/integrity-core';
 import { highestSequence } from '@/lib/recycle-bin/numbers';
 import { lagosYear } from '@/lib/utils/format-date';
 import { BILLING_SETTINGS_SELECT, jobCardTotals } from '@/lib/estimate-billing';
+import { invoiceDueDate, isOnCredit } from '@/lib/credit-core';
 import { invoiceLinesFrom, invoicePdfProps, letterhead, nairaForPdf, type InvoiceLine } from '@/lib/pdf/document-props';
 import { InvoicePdf } from '@/lib/pdf/invoice-pdf';
 import { bankDetailsFor, writeAuditLog } from '@/lib/workshop-core';
@@ -56,6 +57,7 @@ export async function ensureInvoice(jobCardId: string, issuedById: string): Prom
         where: { id: jobCardId },
         select: {
           status: true, branchId: true, customerId: true,
+          customer: { select: { customerType: true, customerCompany: { select: { paymentTermsDays: true, creditApprovedAt: true } } } },
           branch: { select: { businessUnit: { select: { organisationId: true, organisation: { select: BILLING_SETTINGS_SELECT } } } } },
           payments: { select: { amount: true } },
           refunds: { select: { amount: true } },
@@ -70,6 +72,10 @@ export async function ensureInvoice(jobCardId: string, issuedById: string): Prom
       if (!jc || !(INVOICEABLE_STATUSES as readonly string[]).includes(jc.status) || jc.estimate?.status !== 'MANAGER_APPROVED') return null;
       const settings = jc.branch.businessUnit.organisation;
       const t = jobCardTotals(jc.estimate, settings);
+      // An organisation on credit pays by the due date (its payment terms); otherwise before collection.
+      const issuedAt = new Date();
+      const company = jc.customer.customerCompany;
+      const dueDate = isOnCredit(String(jc.customer.customerType), company) ? invoiceDueDate(issuedAt, company!.paymentTermsDays!) : null;
       const invoice = await tx.invoice.create({
         data: {
           invoiceNumber: await nextInvoiceNumber(tx),
@@ -87,6 +93,8 @@ export async function ensureInvoice(jobCardId: string, issuedById: string): Prom
           total: t.total,
           amountPaidAtIssue: Math.max(0, Math.round((net(jc.payments) - net(jc.refunds)) * 100) / 100),
           lines: invoiceLinesFrom(jc.estimate.lineItems) as unknown as Prisma.InputJsonValue,
+          issuedAt,
+          dueDate,
           issuedById,
         },
         select: { id: true, invoiceNumber: true },
@@ -107,9 +115,20 @@ export async function ensureInvoice(jobCardId: string, issuedById: string): Prom
   }
 }
 
+/**
+ * A Job Card leaving on credit: its invoice carries the due date. An invoice
+ * issued before the customer's credit terms were set gets it now (issued
+ * date + the terms); one that already has a date keeps it.
+ */
+export async function setInvoiceDueDate(invoiceId: string, paymentTermsDays: number): Promise<void> {
+  const inv = await prisma.invoice.findUnique({ where: { id: invoiceId }, select: { issuedAt: true, dueDate: true } });
+  if (!inv || inv.dueDate || paymentTermsDays <= 0) return;
+  await prisma.invoice.updateMany({ where: { id: invoiceId, dueDate: null }, data: { dueDate: invoiceDueDate(inv.issuedAt, paymentTermsDays) } });
+}
+
 /** Everything a printed or PDF invoice shows. */
 export const INVOICE_DOCUMENT_SELECT = {
-  id: true, invoiceNumber: true, issuedAt: true, subtotal: true, lineDiscounts: true, discountAmount: true, discountReason: true,
+  id: true, invoiceNumber: true, issuedAt: true, dueDate: true, subtotal: true, lineDiscounts: true, discountAmount: true, discountReason: true,
   vatRate: true, vatAmount: true, vatNumber: true, total: true, amountPaidAtIssue: true, lines: true,
   issuedBy: { select: { fullName: true } },
   jobCard: {
@@ -145,6 +164,7 @@ export async function invoicePdfBuffer(inv: InvoiceDocument): Promise<Buffer> {
     bank: await bankDetailsFor(inv.branch.id),
     invoiceNumber: inv.invoiceNumber,
     issuedOnLabel: invoiceDate(inv.issuedAt),
+    dueOnLabel: inv.dueDate ? invoiceDate(inv.dueDate) : null,
     jobNumber: inv.jobCard.jobNumber,
     customer: { name: billToName(c), contact: [c.customerType === 'ORGANIZATION' ? c.fullName : null, c.phone, c.email].filter(Boolean).join(' · ') || null, address: c.address },
     vehicle: { ...inv.jobCard.vehicle, mileage: inv.jobCard.mileageAtCheckIn },
@@ -182,6 +202,7 @@ export async function sendInvoiceEmail(invoiceId: string): Promise<boolean> {
         jobNumber: inv.jobCard.jobNumber,
         vehicleDescription: [inv.jobCard.vehicle.make, inv.jobCard.vehicle.model].filter(Boolean).join(' ') || 'Vehicle',
         issuedOn: invoiceDate(inv.issuedAt),
+        dueOn: inv.dueDate ? invoiceDate(inv.dueDate) : null,
         totalAmount: nairaForPdf(total),
         amountPaid: nairaForPdf(paid),
         balanceDue: balance > 0 ? nairaForPdf(balance) : null,

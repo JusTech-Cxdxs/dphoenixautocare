@@ -4,9 +4,8 @@ import { jobCardVisible } from '@/lib/authz/server';
 import { getJobCard, getJobCardEstimate, getJobCardPayments, getJobCardAuditTrail } from '@/lib/actions/workshop';
 import { getOrganisation } from '@/lib/actions/organisation';
 import { EstimatePrintDocument, isEstimateAuditAction } from '@/components/print/EstimatePrintDocument';
-import { MINIMUM_DEPOSIT_FRACTION } from '@/lib/workshop-constants';
 import { bankDetailsFor } from '@/lib/workshop-core';
-import { billingOf, jobCardTotals } from '@/lib/estimate-billing';
+import { billingOf, depositFractionFor, jobCardTotals } from '@/lib/estimate-billing';
 
 const TYPE_ORDER = ['STORE_PART', 'EXTERNAL_PART', 'EXTERNAL_JOB', 'INTERNAL_JOB', 'LABOUR', 'SUNDRY'];
 const TYPE_LABEL: Record<string, string> = {
@@ -103,7 +102,7 @@ export default async function PrintJobCardEstimatePage({
         .filter((e: (typeof auditTrail)[number]) => isEstimateAuditAction(e.action))
         .sort((a: (typeof auditTrail)[number], b: (typeof auditTrail)[number]) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())}
       bank={await bankDetailsFor(jobCard.branchId)}
-      minimumDepositFraction={MINIMUM_DEPOSIT_FRACTION}
+      minimumDepositFraction={depositFractionFor(billingOf(jobCard), jobCard.customer.customerType)}
       paymentReference={[jobCard.jobNumber, vehicleDescription, jobCard.vehicle.plateNumber].filter(Boolean).join(' — ')}
     />
   );

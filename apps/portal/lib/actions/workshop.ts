@@ -31,13 +31,16 @@ import { unstable_cache } from 'next/cache';
  */
 
 import { notifyGateOfRelease } from '@/lib/security-notify';
-import { isCustomerLine, coveredLabel, vatSettingFor, BILLING_SETTINGS_SELECT, jobCardTotals, billingOf, paidInFull, balanceDue, depositOf, discountNeedsManager, discountPercent, ESTIMATE_TOTALS_SELECT, JOB_CARD_BILLING_SELECT, type BillingTotals } from '@/lib/estimate-billing';
-import { ensureInvoice, sendInvoiceEmail } from '@/lib/invoices';
+import { isCustomerLine, coveredLabel, vatSettingFor, BILLING_SETTINGS_SELECT, jobCardTotals, billingOf, paidInFull, balanceDue, depositDueOn, depositFractionFor, paymentApproves, discountNeedsManager, discountPercent, ESTIMATE_TOTALS_SELECT, JOB_CARD_BILLING_SELECT, type BillingTotals } from '@/lib/estimate-billing';
+import { ensureInvoice, sendInvoiceEmail, setInvoiceDueDate } from '@/lib/invoices';
+import { creditStanding } from '@/lib/credit';
+import { CLEARED_CUSTOMER_ANSWER, issueApprovalLink, revokeApprovalLinks, startWorkIfReady } from '@/lib/customer-approval';
+import { approvalLinkUrl } from '@ejo/utils/approval-link';
 import { moduleIsOn } from '@/lib/modules';
 import { prisma, JobCardStatus, setAuditActor, setAuditActorResolver, type Prisma } from '@ejo/database';
 import { claimed, lockExisting } from '@/lib/integrity';
 import { exceedsBalance, NUMBER_CLASH_TRIES, numberClashPause, retryOnNumberClash } from '@/lib/integrity-core';
-import { MINIMUM_DEPOSIT_FRACTION, APPROVAL_DEADLINE_WORKING_DAYS, APPROVAL_REMINDER_WORKING_DAYS, CANCELLED_COLLECTION_GRACE_WORKING_DAYS, READY_FOR_COLLECTION_GRACE_WORKING_DAYS } from '@/lib/workshop-constants';
+import { APPROVAL_DEADLINE_WORKING_DAYS, APPROVAL_REMINDER_WORKING_DAYS, CANCELLED_COLLECTION_GRACE_WORKING_DAYS, READY_FOR_COLLECTION_GRACE_WORKING_DAYS } from '@/lib/workshop-constants';
 import { workingDaysBetween, addWorkingDays } from '@/lib/utils/working-days';
 import { pluralize } from '@/lib/utils/pluralize';
 import { getOrganisation } from '@/lib/actions/organisation';
@@ -1154,7 +1157,9 @@ export async function updateJobCardStatus(id: string, status: JobCardStatus, col
     }
   }
   // No checkout while money is owed. Cancelled Job Cards are exempt: nothing
-  // is being paid for, the vehicle is only waiting to be collected.
+  // is being paid for, the vehicle is only waiting to be collected. An
+  // organisation on credit may leave with a balance once invoiced, within
+  // its credit limit (a Job Card a Manager has closed has had that decision).
   if (
     status === JobCardStatus.CHECKED_OUT
     && jobCard.status !== JobCardStatus.CANCELLED
@@ -1162,7 +1167,10 @@ export async function updateJobCardStatus(id: string, status: JobCardStatus, col
     const totalEstimate = jobCardTotals(jobCard.estimate, billingOf(jobCard)).total;
     const totalPaid = jobCard.payments.reduce((sum: number, p: { amount: unknown }) => sum + Number(p.amount), 0);
     if (!paidInFull(totalPaid, totalEstimate)) {
-      throw new WorkshopActionError('Payment must be completed in full before this Job Card can be checked out.');
+      await leaveOnCredit(id, balanceDue(totalEstimate, totalPaid), user.id, {
+        checkLimit: jobCard.status !== JobCardStatus.CLOSED,
+        refusal: 'Payment must be completed in full before this Job Card can be checked out.',
+      });
     }
   }
   const priorStatus = jobCard.status;
@@ -2013,6 +2021,7 @@ export async function getJobCardEstimate(jobCardId: string) {
       approvedBy: { select: { fullName: true } },
       managerApprovedBy: { select: { fullName: true } },
       matchingRequestedBy: { select: { fullName: true } },
+      customerApprovedByStaff: { select: { fullName: true } },
     },
   });
 }
@@ -2815,9 +2824,10 @@ export async function returnEstimateForChanges(jobCardId: string, reason: string
   await authorize('workshop.estimate.final_approve', { branchId: estimate.jobCard.branchId }, 'returnEstimateForChanges');
   claimed(await prisma.estimate.updateMany({
     where: { id: estimate.id, status: 'APPROVED' },
-    // Open for editing again: the VAT follows the settings until the Manager approves it once more.
-    data: { status: 'SUBMITTED', approvedAt: null, approvedById: null, vatRate: null },
+    // Open for editing again: the VAT follows the settings until the Manager approves it once more, and the customer answers the changed estimate afresh.
+    data: { status: 'SUBMITTED', approvedAt: null, approvedById: null, vatRate: null, ...CLEARED_CUSTOMER_ANSWER },
   }), 'This estimate was just approved or changed by someone else — refresh the page.');
+  await prisma.estimateApprovalLink.updateMany({ where: { estimateId: estimate.id, usedAt: null, revokedAt: null }, data: { revokedAt: new Date() } });
   await writeAuditLog({ userId: user.id, action: 'estimate.returned_for_changes', entityType: 'JobCard', entityId: jobCardId, metadata: { reason: why } });
   // The supervisor (who approves it again) and the technician (who edits it) hear at once.
   emailColleaguesLater({
@@ -2855,7 +2865,7 @@ export async function notifyCustomerOfApprovedEstimate(jobCardId: string): Promi
           createdById: true,
           jobNumber: true,
           vehicle: { select: { make: true, model: true, plateNumber: true, chassisNumber: true } },
-          customer: { select: { fullName: true, email: true, address: true } },
+          customer: { select: { fullName: true, email: true, address: true, customerType: true } },
           branch: { select: { id: true, name: true, address: true, hotlines: true, email: true, businessUnit: { select: { organisation: { select: { name: true, ...BILLING_SETTINGS_SELECT } } } } } },
         },
       },
@@ -2903,9 +2913,14 @@ export async function notifyCustomerOfApprovedEstimate(jobCardId: string): Promi
     // The customer sees three figures: Parts & Services (all parts and work
     // types combined), Labour and Sundry, then any discount and VAT. Never
     // the internal line types. The same figures as the attached PDF.
-    const billing = { discountAmount: estimate.discountAmount, vat: vatSettingFor(estimate, estimate.jobCard.branch.businessUnit.organisation) };
+    // The deposit, when one applies to this customer (the one rule; never for an organisation).
+    const billing = { discountAmount: estimate.discountAmount, vat: vatSettingFor(estimate, estimate.jobCard.branch.businessUnit.organisation), depositFraction: depositFractionFor(estimate.jobCard.branch.businessUnit.organisation, String(estimate.jobCard.customer.customerType)) };
     const t = jobEstimateTotals(estimate.lineItems, billing);
     const formatNaira = nairaForPdf;
+    // The secure link to approve or decline online: the token is only in this email.
+    const approvalUrl = await issueApprovalLink(estimate.id, user.id)
+      .then((l) => approvalLinkUrl(websiteBaseUrl(), l.token))
+      .catch((err) => { logFailure('Failed to make the estimate approval link', jobCardId, err); return null; });
 
     const websiteUrl = websiteBaseUrl();
     const vehicleDescription = [estimate.jobCard.vehicle.make, estimate.jobCard.vehicle.model].filter(Boolean).join(' ') || 'Vehicle';
@@ -2936,8 +2951,9 @@ export async function notifyCustomerOfApprovedEstimate(jobCardId: string): Promi
         vatLabel: t.vatRate > 0 ? vatLabel(t.vatRate) : undefined,
         vatAmount: t.vatRate > 0 ? formatNaira(t.vatAmount) : undefined,
         totalAmount: formatNaira(t.total),
-        minimumDepositAmount: formatNaira(t.minimumDeposit),
-        depositPercent: Math.round(MINIMUM_DEPOSIT_FRACTION * 100),
+        minimumDepositAmount: t.minimumDeposit > 0 ? formatNaira(t.minimumDeposit) : null,
+        depositPercent: t.depositPercent,
+        approvalUrl,
         ...(await bankDetailsFor(estimate.jobCard.branch.id)),
         paymentRemarkSuggestion,
         dashboardUrl: `${customerLinks(websiteUrl).jobCard(jobCardId)}`,
@@ -3038,14 +3054,17 @@ async function generateReceiptNumber(db: Pick<typeof prisma, 'payment'>): Promis
 
 /** Records one payment toward a Job Card.
  *
- * `amount` is exactly what is recorded; the UI's suggestions (70%, full,
- * remaining balance) only prefill the field. Amounts that would take the
- * total past the estimate are refused. There is no per-payment minimum:
+ * `amount` is exactly what is recorded; the UI's suggestions (the deposit,
+ * full, remaining balance) only prefill the field. Amounts that would take
+ * the total past the estimate are refused. There is no per-payment minimum:
  * what matters is the cumulative total.
  *
- * When the total first reaches the minimum deposit (70%), this call moves
- * the Job Card to IN_PROGRESS and sends the "requirement met" emails; there
- * is no separate approval step. */
+ * Paying at the counter while the estimate awaits the customer counts as
+ * their approval (DEPOSIT): the payment that reaches the deposit when one
+ * applies (depositFractionFor), else the first money in. Work starts (the
+ * Job Card moves to IN_PROGRESS) once the customer has approved — by link,
+ * portal, phone or this payment — and any deposit is paid. A Job Card that
+ * left on credit takes payments until it is paid. */
 export async function recordPayment(
   jobCardId: string,
   amount: number,
@@ -3074,6 +3093,7 @@ export async function recordPayment(
       estimate: { select: ESTIMATE_TOTALS_SELECT },
       ...JOB_CARD_BILLING_SELECT,
       payments: { select: { amount: true } },
+      invoice: { select: { id: true } },
     },
   });
   if (!jobCard) {
@@ -3083,7 +3103,9 @@ export async function recordPayment(
   // the Job Card to IN_PROGRESS: the balance is often settled while parts are
   // awaited, after quality check, or at collection, and close/checkout require
   // full payment. Overpayment is still refused, and the automatic move to
-  // IN_PROGRESS only happens from AWAITING_CUSTOMER_APPROVAL.
+  // IN_PROGRESS only happens from AWAITING_CUSTOMER_APPROVAL. A Job Card that
+  // was closed or checked out on credit (its invoice issued, a balance left)
+  // still takes payments until it is paid.
   const PAYABLE_STATUSES: JobCardStatus[] = [
     JobCardStatus.AWAITING_CUSTOMER_APPROVAL,
     JobCardStatus.IN_PROGRESS,
@@ -3092,8 +3114,10 @@ export async function recordPayment(
     JobCardStatus.COMPLETED,
     JobCardStatus.READY_FOR_COLLECTION,
   ];
-  if (!PAYABLE_STATUSES.includes(jobCard.status)) {
-    throw new WorkshopActionError('Payments can be recorded from the moment the customer is notified until the vehicle is ready for collection.');
+  const ON_ACCOUNT_STATUSES: JobCardStatus[] = [JobCardStatus.CLOSED, JobCardStatus.CHECKED_OUT];
+  const payable = (status: JobCardStatus, invoiced: boolean) => PAYABLE_STATUSES.includes(status) || (invoiced && ON_ACCOUNT_STATUSES.includes(status));
+  if (!payable(jobCard.status, Boolean(jobCard.invoice))) {
+    throw new WorkshopActionError('Payments can be recorded from the moment the customer is notified until the vehicle is ready for collection (or, on credit, until its invoice is paid).');
   }
   const user = await requireEligibleFinanceOfficer(jobCard.branchId, 'workshop.payment.record');
   // Same form submitted again (e.g. after a dropped connection): if it is the
@@ -3114,7 +3138,6 @@ export async function recordPayment(
 
   // The total after discounts and VAT: the one shared calculation, as on every screen and document.
   const total = jobCardTotals(jobCard.estimate, billingOf(jobCard)).total;
-  const minimumDeposit = depositOf(total, MINIMUM_DEPOSIT_FRACTION);
   const alreadyPaid = jobCard.payments.reduce((sum: number, p: { amount: unknown }) => sum + Number(p.amount ?? 0), 0);
   const formatNaira = (value: number) => `₦${value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -3142,9 +3165,9 @@ export async function recordPayment(
     if (idempotencyKey && (await tx.payment.findUnique({ where: { idempotencyKey }, select: { id: true } }))) return null;
     const now = await tx.jobCard.findUnique({
       where: { id: jobCardId },
-      select: { status: true, workStartedAt: true, estimate: { select: ESTIMATE_TOTALS_SELECT }, ...JOB_CARD_BILLING_SELECT, payments: { select: { amount: true } } },
+      select: { status: true, workStartedAt: true, customer: { select: { customerType: true } }, estimate: { select: { ...ESTIMATE_TOTALS_SELECT, id: true, customerApprovedAt: true } }, ...JOB_CARD_BILLING_SELECT, payments: { select: { amount: true } }, invoice: { select: { id: true } } },
     });
-    if (!now || !PAYABLE_STATUSES.includes(now.status)) {
+    if (!now || !payable(now.status, Boolean(now.invoice))) {
       throw new WorkshopActionError('This Job Card changed while you were recording the payment — refresh the page.');
     }
     const totalNow = jobCardTotals(now.estimate, billingOf(now)).total;
@@ -3155,11 +3178,14 @@ export async function recordPayment(
         `Another payment was recorded on this Job Card just now. Up to ${formatNaira(remaining)} can still be recorded — refresh to see it.`,
       );
     }
-    const minimumNow = depositOf(totalNow, MINIMUM_DEPOSIT_FRACTION);
+    // The deposit for this customer (the one rule; 0 when none applies).
+    const depositNow = depositDueOn(totalNow, billingOf(now), String(now.customer.customerType)).amount;
     const afterNow = Math.round((paidNow + roundedAmount) * 100) / 100;
-    const metDeposit = !paidInFull(paidNow, minimumNow) && paidInFull(afterNow, minimumNow);
+    const metDeposit = depositNow > 0 && !paidInFull(paidNow, depositNow) && paidInFull(afterNow, depositNow);
     const metTotal = !paidInFull(paidNow, totalNow) && paidInFull(afterNow, totalNow);
-    const autoApprove = now.status === JobCardStatus.AWAITING_CUSTOMER_APPROVAL && (metDeposit || metTotal);
+    // Paying at the counter while the estimate awaits the customer is their go-ahead.
+    const approvesNow = now.status === JobCardStatus.AWAITING_CUSTOMER_APPROVAL && Boolean(now.estimate) && !now.estimate!.customerApprovedAt
+      && paymentApproves({ total: totalNow, deposit: depositNow, paidBefore: paidNow, paidAfter: afterNow });
     const receiptNumber = await generateReceiptNumber(tx);
     const payment = await tx.payment.create({
       data: {
@@ -3173,19 +3199,18 @@ export async function recordPayment(
       },
       select: { id: true, receiptNumber: true },
     });
-    if (autoApprove) {
-      // Compare-and-set as well as the lock: only from AWAITING_CUSTOMER_APPROVAL.
-      claimed(await tx.jobCard.updateMany({
-        where: { id: jobCardId, status: JobCardStatus.AWAITING_CUSTOMER_APPROVAL },
-        data: {
-          status: JobCardStatus.IN_PROGRESS,
-          // Set once. Crossing the deposit is the usual way a Job Card reaches
-          // IN_PROGRESS, so it starts the "In Service" clock.
-          workStartedAt: now.workStartedAt ?? new Date(),
-        },
+    if (approvesNow) {
+      claimed(await tx.estimate.updateMany({
+        where: { id: now.estimate!.id, customerApprovedAt: null },
+        data: { customerApprovedAt: new Date(), customerApprovedVia: 'DEPOSIT', customerDeclinedAt: null, customerDeclineNote: null },
       }));
+      await revokeApprovalLinks(tx, now.estimate!.id);
     }
+    // Approved (now or earlier) and any deposit paid: work starts — the same
+    // compare-and-set move as an approval by link, portal or phone.
+    const autoApprove = await startWorkIfReady(tx, jobCardId);
     return {
+      approvedByPayment: approvesNow,
       newTotal: afterNow,
       totalNow,
       autoApprove,
@@ -3199,7 +3224,6 @@ export async function recordPayment(
   const newTotal = settled.newTotal;
   const shouldAutoApprove = settled.autoApprove;
   const { justMetDeposit, justCompletedFull } = settled;
-  void minimumDeposit;
 
   await writeAuditLog({
     userId: user.id,
@@ -3215,6 +3239,9 @@ export async function recordPayment(
     entityId: settled.paymentId,
     metadata: { receiptNumber: settled.receiptNumber, jobCardId, jobNumber: jobCard.jobNumber, amount: roundedAmount },
   });
+  if (settled.approvedByPayment) {
+    await writeAuditLog({ userId: user.id, action: 'estimate.customer_approved', entityType: 'JobCard', entityId: jobCardId, metadata: { via: 'DEPOSIT', receiptNumber: settled.receiptNumber, workStarted: shouldAutoApprove } });
+  }
   if (shouldAutoApprove) {
     await writeAuditLog({
       userId: user.id,
@@ -3377,6 +3404,27 @@ async function requireJobCardCreatorOrSupervisor(jobCard: {
   return refuse('workshop.close.request', 'requireJobCardCreatorOrSupervisor', 
     "Only this Job Card's creator or its assigned supervisor can request cancellation.",
   );
+}
+
+/**
+ * A Job Card leaving with a balance (checkout, close): only for an
+ * organisation customer on credit. Its invoice is issued if it is not yet
+ * (as on completion), with the due date of the payment terms, and — when
+ * `checkLimit` — the organisation's unpaid invoices, this one included, must
+ * stay within its credit limit. Anyone else must pay in full (`refusal`).
+ */
+async function leaveOnCredit(jobCardId: string, balance: number, userId: string, o: { checkLimit: boolean; refusal: string }): Promise<{ balance: number; owedIncludingThis: number; limit: number | null; withinLimit: boolean }> {
+  const standing = await creditStanding(jobCardId, balance);
+  if (!standing.onCredit) throw new WorkshopActionError(o.refusal);
+  if (o.checkLimit && !standing.withinLimit) {
+    const naira = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    throw new WorkshopActionError(`This would take ${standing.companyName ?? 'the organisation'} to ${naira(standing.owedIncludingThis)} unpaid, over its credit limit of ${naira(standing.limit ?? 0)}. Record a payment first, or a Manager can close it over the limit.`);
+  }
+  const issued = await ensureInvoice(jobCardId, userId);
+  if (!issued) throw new WorkshopActionError('The invoice could not be issued for this Job Card, so it cannot leave on credit — check that its estimate is approved and the work is finished.');
+  await setInvoiceDueDate(issued.invoice.id, standing.paymentTermsDays ?? 0);
+  if (issued.created) await sendInvoiceEmail(issued.invoice.id);
+  return { balance, owedIncludingThis: standing.owedIncludingThis, limit: standing.limit, withinLimit: standing.withinLimit };
 }
 
 export async function getCancellationRequests(jobCardId: string) {
@@ -3731,14 +3779,19 @@ export async function requestJobCardClose(jobCardId: string): Promise<void> {
   if (jobCard.status !== JobCardStatus.READY_FOR_COLLECTION) {
     throw new WorkshopActionError('A close can only be requested once this Job Card is Ready for Collection. To stop a Job Card before then, request a cancellation instead.');
   }
+  const user = await requireJobCardCreatorOrSupervisor(jobCard);
   // Same full-payment rule as checkout, checked now so a request that could
-  // never be approved isn't sent to a Manager.
+  // never be approved isn't sent to a Manager. An organisation on credit:
+  // its invoice is issued now, and the Manager deciding sees whether it fits
+  // the credit limit (only a Manager can close over it).
   const totalEstimate = jobCardTotals(jobCard.estimate, billingOf(jobCard)).total;
   const totalPaid = jobCard.payments.reduce((sum: number, p: { amount: unknown }) => sum + Number(p.amount), 0);
   if (!paidInFull(totalPaid, totalEstimate)) {
-    throw new WorkshopActionError('Payment must be completed in full before a close can be requested.');
+    await leaveOnCredit(jobCardId, balanceDue(totalEstimate, totalPaid), user.id, {
+      checkLimit: false,
+      refusal: 'Payment must be completed in full before a close can be requested.',
+    });
   }
-  const user = await requireJobCardCreatorOrSupervisor(jobCard);
 
   // Checked and created with the Job Card locked: never two pending closes.
   await prisma.$transaction(async (tx) => {
@@ -3790,7 +3843,7 @@ export async function requestJobCardClose(jobCardId: string): Promise<void> {
 
 /** The Manager approves: the Job Card becomes CLOSED (set here, since
  * updateJobCardStatus refuses CLOSED) and staff and the customer are emailed. */
-export async function approveCloseRequest(requestId: string, decisionNotes?: string): Promise<void> {
+export async function approveCloseRequest(requestId: string, decisionNotes?: string, overCreditLimit = false): Promise<void> {
   // Decisions are never taken during an assisted session (the assistant approves nothing).
   await refuseDuringAssist('approveCloseRequest');
   // Catalogue check first (who may attempt this); branch eligibility and
@@ -3833,6 +3886,18 @@ export async function approveCloseRequest(requestId: string, decisionNotes?: str
   if (request.requestedById === user.id && !(await currentUserIsMasterAdmin())) {
     throw new WorkshopActionError('You asked for this — another Manager decides it.');
   }
+  // Money is checked again at the decision: paid in full, or an organisation
+  // on credit (invoiced). Over its credit limit only the Manager's explicit
+  // tick closes it, and that is recorded.
+  const money = await prisma.jobCard.findUnique({ where: { id: request.jobCardId }, select: { estimate: { select: ESTIMATE_TOTALS_SELECT }, ...JOB_CARD_BILLING_SELECT, payments: { select: { amount: true } } } });
+  const owedTotal = money ? jobCardTotals(money.estimate, billingOf(money)).total : 0;
+  const owedPaid = (money?.payments ?? []).reduce((sum: number, p: { amount: unknown }) => sum + Number(p.amount), 0);
+  const credit = paidInFull(owedPaid, owedTotal)
+    ? null
+    : await leaveOnCredit(request.jobCardId, balanceDue(owedTotal, owedPaid), user.id, {
+        checkLimit: !overCreditLimit,
+        refusal: 'Payment must be completed in full before this Job Card can be closed — decline this request until the balance is paid.',
+      });
 
   // Same all-or-nothing, compare-and-set shape as approving a cancellation.
   let withdrawn: Awaited<ReturnType<typeof withdrawOpenSourcing>> | undefined;
@@ -3868,8 +3933,11 @@ export async function approveCloseRequest(requestId: string, decisionNotes?: str
     action: 'job_card.status_updated',
     entityType: 'JobCard',
     entityId: request.jobCardId,
-    metadata: { withdrawn: withdrawn && (withdrawn.slips.length || withdrawn.procurements.length) ? withdrawn : undefined,  from: 'READY_FOR_COLLECTION', to: 'CLOSED', notes: decisionNotes?.trim() || undefined },
+    metadata: { withdrawn: withdrawn && (withdrawn.slips.length || withdrawn.procurements.length) ? withdrawn : undefined,  from: 'READY_FOR_COLLECTION', to: 'CLOSED', notes: decisionNotes?.trim() || undefined, ...(credit ? { onCredit: { balance: credit.balance, owedIncludingThis: credit.owedIncludingThis, limit: credit.limit } } : {}) },
   });
+  if (credit && !credit.withinLimit) {
+    await writeAuditLog({ userId: user.id, action: 'credit.closed_over_limit', entityType: 'JobCard', entityId: request.jobCardId, metadata: { owedIncludingThis: credit.owedIncludingThis, limit: credit.limit, notes: decisionNotes?.trim() || undefined } });
+  }
 
   try {
     // Independent lookups for the email, run in parallel.
@@ -4243,12 +4311,13 @@ export async function sendApprovalReminder(jobCardId: string): Promise<void> {
     select: {
       status: true,
       jobNumber: true,
-      customer: { select: { fullName: true, email: true } },
+      customer: { select: { fullName: true, email: true, customerType: true } },
       vehicle: { select: { make: true, model: true } },
       estimate: {
         select: {
           id: true,
           customerNotifiedAt: true,
+          customerApprovedAt: true,
           ...ESTIMATE_TOTALS_SELECT,
         },
       },
@@ -4260,7 +4329,8 @@ export async function sendApprovalReminder(jobCardId: string): Promise<void> {
   }
 
   const total = jobCardTotals(jobCard.estimate, billingOf(jobCard)).total;
-  const minimumDeposit = depositOf(total, MINIMUM_DEPOSIT_FRACTION);
+  // The deposit for this customer (the one rule; none for an organisation or when switched off).
+  const deposit = depositDueOn(total, billingOf(jobCard), String(jobCard.customer.customerType));
   const dueDate = addWorkingDays(jobCard.estimate.customerNotifiedAt, APPROVAL_DEADLINE_WORKING_DAYS);
   const formatNaira = (value: number) => `₦${value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const websiteUrl = websiteBaseUrl();
@@ -4289,6 +4359,10 @@ export async function sendApprovalReminder(jobCardId: string): Promise<void> {
   const reminderNumber = await prisma.auditLog.count({
     where: { entityId: jobCardId, action: 'approval.reminder_sent' },
   });
+  // Not answered yet: a fresh approval link (the older one stops working).
+  const approvalUrl = jobCard.estimate.customerApprovedAt
+    ? null
+    : await issueApprovalLink(jobCard.estimate.id, user.id).then((l) => approvalLinkUrl(websiteUrl, l.token)).catch((err) => { logFailure('Failed to make the estimate approval link', jobCardId, err); return null; });
 
   await sendEmail(
     jobCard.customer.email,
@@ -4298,8 +4372,9 @@ export async function sendApprovalReminder(jobCardId: string): Promise<void> {
       jobNumber: jobCard.jobNumber,
       vehicleDescription: [jobCard.vehicle.make, jobCard.vehicle.model].filter(Boolean).join(' ') || 'Vehicle',
       totalEstimate: formatNaira(total),
-      minimumDepositAmount: formatNaira(minimumDeposit),
-      depositPercent: Math.round(MINIMUM_DEPOSIT_FRACTION * 100),
+      minimumDepositAmount: deposit.amount > 0 ? formatNaira(deposit.amount) : null,
+      depositPercent: Math.round(deposit.fraction * 100),
+      approvalUrl,
       dueDate: dueDate.toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Africa/Lagos' }),
       reminderNumber,
       dashboardUrl: `${customerLinks(websiteUrl).jobCard(jobCardId)}`,

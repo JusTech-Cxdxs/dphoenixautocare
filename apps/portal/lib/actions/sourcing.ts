@@ -22,7 +22,8 @@ import { claimed as claimedOrStale, lockExisting, lockRows, StaleStateError } fr
 import { retryOnNumberClash } from '@/lib/integrity-core';
 import { issuePartWarrantiesForSlip } from './warranty';
 import { pluralize } from '@/lib/utils/pluralize';
-import { MINIMUM_DEPOSIT_FRACTION } from '@/lib/workshop-constants';
+import { depositFractionFor, depositOf, paidInFull } from '@/lib/estimate-billing';
+import { depositSettingsOfBranch } from '@/lib/customer-approval';
 import { replayQuantityFifo, planQuantityRelease } from '@/lib/inventory/quantity-fifo';
 import { loadQuantityTraces, sourcesForReleases } from '@/lib/inventory/quantity-trace';
 import { requireUser, requireEligibleManager, listEligibleFinanceOfficersForBranch, listEligibleManagersForBranch } from './workshop';
@@ -630,7 +631,7 @@ export async function requestPartRequestSlip(jobCardId: string): Promise<{ id: s
     throw new SourcingActionError('Job Card not found.');
   }
   if (!SOURCEABLE_STATUSES.includes(jobCard.status as (typeof SOURCEABLE_STATUSES)[number])) {
-    throw new SourcingActionError("This Job Card isn't far enough along to request parts yet — it needs to be at least In Progress (70% paid).");
+    throw new SourcingActionError("This Job Card isn't far enough along to request parts yet — it needs to be at least In Progress (the customer has approved the estimate).");
   }
   // Built and created with the Job Card locked: a double click (or two
   // people) can't raise two requests for the same lines, which would reserve
@@ -722,7 +723,8 @@ export async function requestPartRequestSlip(jobCardId: string): Promise<{ id: s
 
 /**
  * Whether a Vehicle Service may source parts: estimate approved, customer
- * notified, and the 70% deposit recorded. Status alone isn't enough, since
+ * notified, and the deposit recorded (depositFractionFor; with no deposit,
+ * a first payment). Status alone isn't enough, since
  * services moved to IN_SERVICE by hand before the deposit rule existed would
  * otherwise qualify.
  */
@@ -731,6 +733,8 @@ async function isVehicleServiceEligibleToSource(vehicleServiceId: string): Promi
     where: { id: vehicleServiceId },
     select: {
       status: true,
+      branchId: true,
+      customer: { select: { customerType: true } },
       serviceEstimate: { select: { status: true, customerNotifiedAt: true, lineItems: { select: { amount: true } } } },
       payments: { select: { amount: true } },
     },
@@ -740,8 +744,8 @@ async function isVehicleServiceEligibleToSource(vehicleServiceId: string): Promi
   if (!estimate || estimate.status !== 'MANAGER_APPROVED' || !estimate.customerNotifiedAt) return false;
   const total = estimate.lineItems.reduce((sum: number, li: { amount: unknown }) => sum + Number(li.amount ?? 0), 0);
   const paid = service.payments.reduce((sum: number, p: { amount: unknown }) => sum + Number(p.amount ?? 0), 0);
-  const minimumDeposit = Math.round(total * MINIMUM_DEPOSIT_FRACTION * 100) / 100;
-  return total > 0 && paid >= minimumDeposit;
+  const minimumDeposit = depositOf(total, depositFractionFor(await depositSettingsOfBranch(service.branchId), String(service.customer.customerType)));
+  return total > 0 && paid > 0 && paidInFull(paid, minimumDeposit);
 }
 
 /** Vehicle Service version of getJobCardSourcingNeeds(). */
@@ -822,7 +826,7 @@ export async function requestServiceEstimatePartRequestSlip(serviceEstimateId: s
   }
   // See isVehicleServiceEligibleToSource: the deposit chain, not status alone.
   if (!(await isVehicleServiceEligibleToSource(estimate.vehicleServiceId))) {
-    throw new SourcingActionError('Parts can only be requested once the customer has been notified and the 70% deposit recorded.');
+    throw new SourcingActionError('Parts can only be requested once the customer has been notified and the deposit (or, with no deposit, a first payment) recorded.');
   }
   // Same as requestPartRequestSlip: never two requests for the same lines.
   const { slip, requestableLines, referenceNumber } = await retryOnNumberClash('referenceNumber', () => prisma.$transaction(async (tx) => {
@@ -1457,7 +1461,7 @@ export async function requestExternalProcurementBatch(jobCardId: string): Promis
     throw new SourcingActionError('Job Card not found.');
   }
   if (!SOURCEABLE_STATUSES.includes(jobCard.status as (typeof SOURCEABLE_STATUSES)[number])) {
-    throw new SourcingActionError("This Job Card isn't far enough along to request procurement yet — it needs to be at least In Progress (70% paid).");
+    throw new SourcingActionError("This Job Card isn't far enough along to request procurement yet — it needs to be at least In Progress (the customer has approved the estimate).");
   }
   // Built and created with the Job Card locked: a double click can never
   // raise two requests for the same lines (which Finance would pay twice).

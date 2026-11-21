@@ -25,7 +25,7 @@ test('the letterhead: only its own fields, the portal’s logo', () => {
   assert.equal(head.logoUrl, 'https://portal.example/images/logo/logo.png');
 });
 
-test('a Job Card estimate: covered lines are shown but never charged; three figures; the 70% deposit; ₦ in the PDF', () => {
+test('a Job Card estimate: covered lines are shown but never charged; three figures; the deposit only when one applies (70% here); ₦ in the PDF', () => {
   const lines = [
     { type: 'STORE_PART', description: 'Oil filter', quantity: 2, amount: '5000.00', unitOfMeasure: 'piece' },
     { type: 'EXTERNAL_JOB', description: 'Machining', quantity: 1, amount: 2500, unitOfMeasure: null },
@@ -33,8 +33,13 @@ test('a Job Card estimate: covered lines are shown but never charged; three figu
     { type: 'LABOUR', description: 'Warranty labour', quantity: 1, amount: 9000, unitOfMeasure: null, billTo: 'WARRANTY', coveringWarranty: { warrantyNumber: 'WR-1' } },
     { type: 'SUNDRY', description: 'Rags', quantity: 1, amount: 500, unitOfMeasure: null },
   ];
-  assert.deepEqual(jobEstimateTotals(lines), { services: 7500, labour: 3000, sundry: 500, discounts: 0, vatRate: 0, vatAmount: 0, total: 11000, minimumDeposit: 7700 });
-  const p = jobEstimatePdfProps({ letterhead: head, bank, jobNumber: 'JC-2026-000001', customer, vehicle, lineItems: lines });
+  // A deposit switched on at 70% (depositFractionFor gives 0.7 for an individual).
+  assert.deepEqual(jobEstimateTotals(lines, { depositFraction: 0.7 }), { services: 7500, labour: 3000, sundry: 500, discounts: 0, vatRate: 0, vatAmount: 0, total: 11000, minimumDeposit: 7700, depositPercent: 70 });
+  // No deposit (the default, and always for an organisation): no deposit box at all.
+  const none = jobEstimatePdfProps({ letterhead: head, bank, jobNumber: 'JC-2026-000001', customer, vehicle, lineItems: lines });
+  assert.equal(none.minimumDepositAmount, null);
+  assert.equal(none.depositPercent, null);
+  const p = jobEstimatePdfProps({ letterhead: head, bank, jobNumber: 'JC-2026-000001', customer, vehicle, lineItems: lines, billing: { depositFraction: 0.7 } });
   assert.equal(p.totalAmount, '₦11,000.00');
   assert.equal(p.minimumDepositAmount, '₦7,700.00');
   assert.deepEqual([p.servicesSubtotal, p.labourSubtotal, p.sundrySubtotal], ['₦7,500.00', '₦3,000.00', '₦500.00']);
@@ -47,7 +52,7 @@ test('a Job Card estimate: covered lines are shown but never charged; three figu
   assert.ok(!('type' in p.lineItems[0]!), 'the internal line types never reach the customer');
   assert.equal(nairaForPdf(0), '₦0.00');
   // A discount and VAT: the same figures as the shared calculation (subtotal − discount, then 7.5%).
-  const withBilling = jobEstimatePdfProps({ letterhead: head, bank, jobNumber: 'JC-2026-000001', customer, vehicle, lineItems: lines, billing: { discountAmount: 1000, vat: { vatEnabled: true, vatRate: '7.5' } } });
+  const withBilling = jobEstimatePdfProps({ letterhead: head, bank, jobNumber: 'JC-2026-000001', customer, vehicle, lineItems: lines, billing: { discountAmount: 1000, vat: { vatEnabled: true, vatRate: '7.5' }, depositFraction: 0.7 } });
   assert.equal(withBilling.discountAmount, '−₦1,000.00');
   assert.equal(withBilling.vatLabel, 'VAT (7.5%)');
   assert.equal(withBilling.vatAmount, '₦750.00');
@@ -57,8 +62,9 @@ test('a Job Card estimate: covered lines are shown but never charged; three figu
 
 test('a Vehicle Service estimate: everything but labour and sundry is Parts & Services; its own label; the year on the vehicle', () => {
   const lines = [{ type: 'STORE_PART', description: 'Filter', quantity: '1', amount: 4000, unitOfMeasure: null }, { type: 'INTERNAL_JOB', description: 'Wash', quantity: 1, amount: 1000, unitOfMeasure: null }, { type: 'LABOUR', description: 'Service', quantity: 1, amount: 5000, unitOfMeasure: 'hour' }];
-  assert.deepEqual(serviceEstimateTotals(lines), { services: 5000, labour: 5000, sundry: 0, total: 10000, minimumDeposit: 7000 });
-  const p = serviceEstimatePdfProps({ letterhead: head, bank, serviceNumber: 'SV-2026-000009', customer, vehicle, lineItems: lines });
+  assert.deepEqual(serviceEstimateTotals(lines, 0.7), { services: 5000, labour: 5000, sundry: 0, total: 10000, minimumDeposit: 7000 });
+  assert.equal(serviceEstimateTotals(lines).minimumDeposit, 0, 'no deposit unless one applies');
+  const p = serviceEstimatePdfProps({ letterhead: head, bank, serviceNumber: 'SV-2026-000009', customer, vehicle, lineItems: lines, depositFraction: 0.7 });
   assert.equal(p.referenceLabel, 'VEHICLE SERVICE');
   assert.equal(p.vehicleDescription, '2024 Isuzu NQR');
   assert.equal(p.sundrySubtotal, null);

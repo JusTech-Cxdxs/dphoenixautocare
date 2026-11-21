@@ -24,7 +24,7 @@ import { InspectionPdf } from '@/lib/pdf/inspection-pdf';
 import { inspectionPdfProps, letterhead, serviceEstimatePdfProps } from '@/lib/pdf/document-props';
 import { pluralize } from '@/lib/utils/pluralize';
 import { formatDateTime } from '@/lib/utils/format-date';
-import { MINIMUM_DEPOSIT_FRACTION } from '@/lib/workshop-constants';
+import { depositFractionFor, depositOf } from '@/lib/estimate-billing';
 import { scheduleResolution } from '@/lib/enyo/predict/lines';
 import { scheduleDuration } from '@/lib/enyo/ml/models';
 import { customerLinks } from '@/lib/customer-links-core';
@@ -764,7 +764,7 @@ export async function notifyCustomerOfApprovedServiceEstimate(estimateId: string
           id: true,
           serviceNumber: true,
           createdById: true,
-          customer: { select: { fullName: true, email: true, address: true } },
+          customer: { select: { fullName: true, email: true, address: true, customerType: true } },
           vehicle: { select: { make: true, model: true, year: true, plateNumber: true, chassisNumber: true } },
           branch: {
             select: {
@@ -772,7 +772,7 @@ export async function notifyCustomerOfApprovedServiceEstimate(estimateId: string
               address: true,
               hotlines: true,
               email: true,
-              businessUnit: { select: { organisation: { select: { name: true, legalName: true, hqAddress: true, poBox: true, rcNumber: true, hotlines: true, website: true, email: true } } } },
+              businessUnit: { select: { organisation: { select: { name: true, legalName: true, hqAddress: true, poBox: true, rcNumber: true, hotlines: true, website: true, email: true, depositRequired: true, depositPercent: true } } } },
             },
           },
           inspection: {
@@ -829,7 +829,9 @@ export async function notifyCustomerOfApprovedServiceEstimate(estimateId: string
       else if (li.type === 'SUNDRY') sundryTotal += amount;
       else servicesTotal += amount;
     }
-    const minimumDepositForEmail = Math.round(total * MINIMUM_DEPOSIT_FRACTION * 100) / 100;
+    // The deposit for this customer: the one rule (none when switched off, never for an organisation).
+    const depositFraction = depositFractionFor(estimate.vehicleService.branch.businessUnit.organisation, String(estimate.vehicleService.customer.customerType));
+    const minimumDepositForEmail = depositOf(total, depositFraction);
     // Payment reference: number, vehicle, plate (same as Job Cards).
     const paymentRemarkSuggestion = [estimate.vehicleService.serviceNumber, vehicleDescription, estimate.vehicleService.vehicle.plateNumber]
       .filter(Boolean)
@@ -853,8 +855,8 @@ export async function notifyCustomerOfApprovedServiceEstimate(estimateId: string
         labourSubtotal: labourTotal > 0 ? formatNaira(labourTotal) : undefined,
         sundrySubtotal: sundryTotal > 0 ? formatNaira(sundryTotal) : undefined,
         totalAmount: formatNaira(total),
-        minimumDepositAmount: formatNaira(minimumDepositForEmail),
-        depositPercent: Math.round(MINIMUM_DEPOSIT_FRACTION * 100),
+        minimumDepositAmount: minimumDepositForEmail > 0 ? formatNaira(minimumDepositForEmail) : null,
+        depositPercent: Math.round(depositFraction * 100),
         ...(await bankDetailsFor((await prisma.vehicleService.findUnique({ where: { id: estimate.vehicleService.id }, select: { branchId: true } }))?.branchId)),
         paymentRemarkSuggestion,
         dashboardUrl: `${customerLinks(websiteUrl).service(estimate.vehicleService.id)}`,
@@ -877,6 +879,7 @@ export async function notifyCustomerOfApprovedServiceEstimate(estimateId: string
               customer: estimate.vehicleService.customer,
               vehicle: estimate.vehicleService.vehicle,
               lineItems: estimate.lineItems,
+              depositFraction,
             })),
           );
           const attachments: { filename: string; content: Buffer; contentType: string }[] = [

@@ -212,7 +212,7 @@ const inputClass = 'w-full rounded-[var(--ejo-radius-md)] border border-[var(--e
  * printed on invoices, and when a discount on an estimate needs the Manager.
  * Saved on its own, so changing a rate never touches the printed identity.
  */
-function BillingAndTax({ organisation, isEditing }: { organisation: { id: string; vatEnabled: boolean; vatRate: unknown; vatNumber: string | null; discountApprovalPercent: number | null }; isEditing: boolean }) {
+function BillingAndTax({ organisation, isEditing }: { organisation: { id: string; vatEnabled: boolean; vatRate: unknown; vatNumber: string | null; discountApprovalPercent: number | null; depositRequired: boolean; depositPercent: number }; isEditing: boolean }) {
   const rate = Number(organisation.vatRate);
   return (
     <section className="mt-8 max-w-xl" aria-labelledby="billing-and-tax">
@@ -243,6 +243,17 @@ function BillingAndTax({ organisation, isEditing }: { organisation: { id: string
             <input id="discountApprovalPercent" name="discountApprovalPercent" type="number" min="0" max="100" step="1" defaultValue={organisation.discountApprovalPercent ?? ''} placeholder="Blank: every discount needs the Manager" className={inputClass} />
             <p className="mt-1 text-xs text-[var(--ejo-text-muted)]">A percentage of the customer&apos;s subtotal. Leave it blank and the Manager approves every discount on an estimate.</p>
           </div>
+          <div className="space-y-2 border-t border-[var(--ejo-border)] pt-4">
+            <label className="flex items-center gap-2 text-sm text-[var(--ejo-text)]">
+              <input type="checkbox" name="depositRequired" defaultChecked={organisation.depositRequired} />
+              Require a deposit before work starts (individual customers only)
+            </label>
+            <div className="max-w-[12rem]">
+              <label htmlFor="depositPercent" className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Deposit (%)</label>
+              <input id="depositPercent" name="depositPercent" type="number" min="1" max="100" step="1" defaultValue={organisation.depositPercent} className={inputClass} />
+            </div>
+            <p className="text-xs text-[var(--ejo-text-muted)]">Off: the customer&apos;s approval (by link, in the portal or by phone) starts the work. On: an individual customer also pays this share of the estimate first. Organisations (company and fleet customers) never pay a deposit.</p>
+          </div>
           <div className="flex gap-2">
             <SubmitButton label="Save Billing & Tax" pendingLabel="Saving…" className="rounded-[var(--ejo-radius-md)] bg-[var(--ejo-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90" />
             <LoadingLink href="/organisation" className="inline-flex items-center rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] px-4 py-2 text-sm font-medium text-[var(--ejo-text)] hover:bg-[var(--ejo-bg)]">
@@ -264,6 +275,10 @@ function BillingAndTax({ organisation, isEditing }: { organisation: { id: string
             <div className="col-span-2">
               <dt className="text-xs font-medium text-[var(--ejo-text-muted)]">Discounts above this % need the Manager</dt>
               <dd className="mt-0.5 text-sm text-[var(--ejo-text)]">{organisation.discountApprovalPercent != null ? `${organisation.discountApprovalPercent}% of the customer's subtotal` : 'Every discount needs the Manager'}</dd>
+            </div>
+            <div className="col-span-2">
+              <dt className="text-xs font-medium text-[var(--ejo-text-muted)]">Require a deposit before work starts (individual customers only)</dt>
+              <dd className="mt-0.5 text-sm text-[var(--ejo-text)]">{organisation.depositRequired ? `Yes, ${organisation.depositPercent}% of the estimate` : 'No — the customer’s approval starts the work'}</dd>
             </div>
           </dl>
           <LoadingLink

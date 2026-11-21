@@ -8,7 +8,11 @@ import { RoadTestsPanel } from '@/components/RoadTestsPanel';
 import { listRoadTestsFor } from '@/lib/actions/security';
 import { securityActionDetail } from '@/lib/security-labels';
 import { LoadingLink } from '@/components/LoadingLink';
-import { depositOf, vatIsFixed, discountNeedsManager, discountPercent, isCustomerLine, jobCardTotals, paidInFull } from '@/lib/estimate-billing';
+import { depositDueOn, vatIsFixed, discountNeedsManager, discountPercent, isCustomerLine, jobCardTotals, paidInFull } from '@/lib/estimate-billing';
+import { creditStanding } from '@/lib/credit';
+import { APPROVED_VIA_LABEL } from '@/lib/customer-approval';
+import { ApprovalLinkPanel } from '@/components/ApprovalLinkPanel';
+import { recordCustomerApprovalByPhoneFormAction } from '@/lib/actions/customer-approval-form-handlers';
 import { canIssueInvoices, getJobCardInvoice } from '@/lib/actions/invoices';
 import { emailInvoiceFormAction, issueInvoiceFormAction } from '@/lib/actions/invoices-form-handlers';
 import { getJobCardBilling } from '@/lib/actions/estimate-billing';
@@ -32,7 +36,7 @@ import { LikelyLinesCard } from '@/components/enyo/LikelyLinesCard';
 import { Suspense } from 'react';
 import { EstimateLinesTable, EstimateLineEditLink, EstimateLineRemoveButton, EstimateLineEditor, type EstimateLineView } from '@/components/EstimateLinesTable';
 import { requestStoreMatchingFormAction } from '@/lib/actions/store-form-handlers';
-import { COMMON_ESTIMATE_LINE_DESCRIPTIONS, MINIMUM_DEPOSIT_FRACTION } from '@/lib/workshop-constants';
+import { COMMON_ESTIMATE_LINE_DESCRIPTIONS } from '@/lib/workshop-constants';
 import { assignTechnicianFormAction, approveJobCardFormAction, rejectJobCardFormAction, acceptTechnicianAssignmentFormAction, rejectTechnicianAssignmentFormAction, reassignSupervisorFormAction, updateEstimateLineItemFormAction, deleteEstimateLineItemFormAction, notifySupervisorAboutEstimateFormAction, notifyTechnicianAboutEstimateFormAction, submitEstimateForValidationFormAction, approveEstimateFormAction, approveEstimateAsManagerFormAction, setEstimateDiscountFormAction, setEstimateLineDiscountFormAction, returnEstimateForChangesFormAction, notifyCustomerOfApprovedEstimateFormAction, recordPaymentFormAction, requestJobCardCancellationFormAction, approveCancellationRequestFormAction, declineCancellationRequestFormAction, requestJobCardCloseFormAction, approveCloseRequestFormAction, declineCloseRequestFormAction, updateJobCardStatusFormAction } from '@/lib/actions/workshop-form-handlers';
 import { formatDateOnly, formatDateTime } from '@/lib/utils/format-date';
 import { SubmitButton } from '@/components/SubmitButton';
@@ -106,6 +110,10 @@ const AUDIT_ACTION_LABEL: Record<string, string> = {
   'estimate.nudge_to_supervisor': 'Technician notified supervisor about estimate',
   'payment.recorded': 'Payment recorded',
   'payment.approved': 'Payment approved — work can proceed',
+  'estimate.customer_approved': 'The customer approved the estimate',
+  'estimate.customer_declined': 'The customer declined the estimate',
+  'estimate.approval_link_sent': 'Approval link sent to the customer',
+  'credit.closed_over_limit': 'Closed on credit over the credit limit (Manager)',
   'estimate.discount_set': 'Discount given on the estimate',
   'estimate.discount_removed': 'Discount on the estimate removed',
   'estimate.line_discount_set': 'Discount given on a line',
@@ -309,7 +317,7 @@ const ESTIMATE_TYPES = (['STORE_PART', 'EXTERNAL_PART', 'EXTERNAL_JOB', 'INTERNA
 const PAYMENT_STATUS_LABEL: Record<string, string> = {
   AWAITING_PAYMENT: 'Awaiting Payment',
   PARTIAL: 'Partial Payment',
-  DEPOSIT_MET: 'Minimum Met — Balance Pending',
+  DEPOSIT_MET: 'Deposit Met — Balance Pending',
   PAID_IN_FULL: 'Payment Completed',
   REFUND_DUE: 'Cancelled — Refund Due',
   REFUNDED: 'Cancelled — Refunded',
@@ -341,7 +349,7 @@ function formatNaira(value: unknown): string {
 /** One plain line: what is happening at this stage. */
 const STAGE_HINT: Record<string, string> = {
   CHECKED_IN: 'Vehicle received — the estimate is being prepared.',
-  AWAITING_CUSTOMER_APPROVAL: 'Estimate sent — waiting on the customer and their deposit.',
+  AWAITING_CUSTOMER_APPROVAL: 'Estimate sent — waiting on the customer’s approval (and their deposit, when one applies).',
   IN_PROGRESS: 'Work is under way.',
   AWAITING_PARTS: 'Work paused — waiting on parts.',
   QUALITY_CHECK: 'Work done — being checked (inspection and road test) before sign-off.',
@@ -470,7 +478,10 @@ export default async function JobCardDetailPage({
   // calculation (@ejo/utils/billing), as in every document and payment check.
   const billingSettings = billing?.settings ?? null;
   const estimateTotal = jobCardTotals(estimate, billingSettings).total;
-  const minimumDeposit = depositOf(estimateTotal, MINIMUM_DEPOSIT_FRACTION);
+  // The deposit before work starts: the one rule (none when switched off, never for an organisation).
+  const deposit = depositDueOn(estimateTotal, jobCard.branch.businessUnit.organisation, jobCard.customer.customerType);
+  const minimumDeposit = deposit.amount;
+  const depositPct = Math.round(deposit.fraction * 100);
   // The same figures on the lines as shown (a draft Store Part line follows its part's price).
   const liveTotals = jobCardTotals(estimate ? { discountAmount: estimate.discountAmount, vatRate: estimate.vatRate, lineItems: estimateLineItems.map((li: (typeof estimateLineItems)[number]) => ({ amount: getLiveLineAmount(li), billTo: li.billTo, discountAmount: li.discountAmount })) } : null, billingSettings);
   const discountForManager = Boolean(estimate && !estimate.discountApprovedAt && discountNeedsManager(liveTotals, billingSettings?.discountApprovalPercent ?? null));
@@ -486,7 +497,7 @@ export default async function JobCardDetailPage({
       ? 'AWAITING_PAYMENT'
       : estimateTotal > 0 && paidInFull(paymentsTotal, estimateTotal)
         ? 'PAID_IN_FULL'
-        : estimateTotal > 0 && paidInFull(paymentsTotal, minimumDeposit)
+        : estimateTotal > 0 && minimumDeposit > 0 && paidInFull(paymentsTotal, minimumDeposit)
           ? 'DEPOSIT_MET'
           : 'PARTIAL';
   // Cancelled is terminal; the only step left is handing the vehicle back.
@@ -499,6 +510,13 @@ export default async function JobCardDetailPage({
   // CLOSED is never offered here; it goes through the close request flow.
   const isPaidInFull = paidInFull(paymentsTotal, estimateTotal);
   const outstanding = Math.max(0, Math.round((estimateTotal - paymentsTotal) * 100) / 100);
+  // An organisation on credit leaves with a balance once invoiced, within its
+  // credit limit; a Job Card a Manager has closed has had that decision.
+  const credit = !isPaidInFull && !isCancelled && jobCard.customer.customerType === 'ORGANIZATION' ? await creditStanding(id, outstanding) : null;
+  const mayLeaveOnCredit = Boolean(credit?.onCredit && (jobCard.status === 'CLOSED' || credit.withinLimit));
+  // The customer's own answer to the estimate (approved by link, portal, phone or at the counter; or declined).
+  const awaitingAnswer = jobCard.status === 'AWAITING_CUSTOMER_APPROVAL' && estimate?.status === 'MANAGER_APPROVED' && Boolean(estimate.customerNotifiedAt) && !estimate.customerApprovedAt;
+  const mayTakeAnswer = isMasterAdmin || isCreator || isApprover || isEligibleManager || (await can('workshop.customer.notify', { branchId: jobCard.branchId })).allowed;
   // Next steps for this viewer's role. Master Admin sees the normal steps;
   // the override dropdown is separate. Handing a cancelled vehicle back is
   // a front-desk step (the server checks the same).
@@ -518,7 +536,7 @@ export default async function JobCardDetailPage({
         isSupervisor: isApprover,
         isAssignedTechnician,
         isEligibleManager,
-      }).filter((s) => s !== 'CHECKED_OUT' || isPaidInFull);
+      }).filter((s) => s !== 'CHECKED_OUT' || isPaidInFull || mayLeaveOnCredit);
 
   const canRoadTest = await canRequestRoadTestOn('JOB_CARD', jobCard.id);
   return (
@@ -536,6 +554,11 @@ export default async function JobCardDetailPage({
       {status === 'estimate_returned' ? (
         <div className="mb-6 mt-4 max-w-xl">
           <FormFeedbackBanner kind="success" message="Sent back to the supervisor. The estimate can be edited again and needs the supervisor's approval before it returns to you." />
+        </div>
+      ) : null}
+      {status === 'customer_approved' || status === 'customer_approved_started' ? (
+        <div className="mb-6 mt-4 max-w-xl">
+          <FormFeedbackBanner kind="success" message={status === 'customer_approved_started' ? 'The customer’s approval is recorded and the Job Card is In Progress — the work can start.' : 'The customer’s approval is recorded. The work starts once the deposit is recorded under Payments.'} />
         </div>
       ) : null}
       {status === 'bill_to_set' ? (
@@ -1195,6 +1218,42 @@ export default async function JobCardDetailPage({
                 Customer notified on {formatDateTime(estimate.customerNotifiedAt)}.
               </p>
             ) : null}
+            {estimate?.status === 'MANAGER_APPROVED' && estimate.customerNotifiedAt ? (
+              <div className="mt-3 space-y-3" data-testid="customer-approval">
+                {estimate.customerApprovedAt ? (
+                  <p className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-success)]/40 bg-[var(--ejo-success)]/10 px-3 py-2 text-xs text-[var(--ejo-text)]">
+                    <span className="font-medium">Approved by the customer</span> — {APPROVED_VIA_LABEL[estimate.customerApprovedVia ?? ''] ?? 'recorded'}
+                    {estimate.customerApprovedVia === 'PHONE' && estimate.customerApprovedByStaff ? ` (taken by ${estimate.customerApprovedByStaff.fullName})` : ''} on {formatDateTime(estimate.customerApprovedAt)}.
+                    {estimate.customerApprovalNote ? ` ${estimate.customerApprovalNote}` : ''}
+                    {jobCard.status === 'AWAITING_CUSTOMER_APPROVAL' && minimumDeposit > 0 ? ` The work starts once the deposit (${formatNaira(minimumDeposit)}) is recorded.` : ''}
+                  </p>
+                ) : estimate.customerDeclinedAt ? (
+                  <div className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-warning)]/40 bg-[var(--ejo-warning)]/10 px-3 py-2 text-xs text-[var(--ejo-text)]" data-testid="customer-declined">
+                    <p><span className="font-medium">Declined</span> on {formatDateTime(estimate.customerDeclinedAt)}{estimate.customerDeclineNote ? `: ${estimate.customerDeclineNote}` : '.'}</p>
+                    <p className="mt-1 text-[var(--ejo-text-muted)]">Next: call the customer. If they change their mind, record their approval by phone below or send a new approval link. To stop the job, request a cancellation.</p>
+                  </div>
+                ) : awaitingAnswer ? (
+                  <p className="text-xs text-[var(--ejo-text-muted)]">Waiting for the customer to approve — by the link in their email, in the customer portal, or by phone.</p>
+                ) : null}
+                {awaitingAnswer && mayTakeAnswer && !isCancelled ? (
+                  <>
+                    <ApprovalLinkPanel jobCardId={jobCard.id} />
+                    <details className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2">
+                      <summary className="cursor-pointer text-xs font-medium text-[var(--ejo-text)]">Customer approved by phone</summary>
+                      <form action={recordCustomerApprovalByPhoneFormAction} className="mt-2 space-y-2">
+                        <FormPendingOverlay />
+                        <input type="hidden" name="jobCardId" value={jobCard.id} />
+                        <label htmlFor="jc-spoke-with" className="block text-xs font-medium text-[var(--ejo-text-muted)]">Who did you speak with?</label>
+                        <input id="jc-spoke-with" name="spokeWith" required minLength={2} maxLength={120} defaultValue={jobCard.customer.fullName} className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] px-2 py-2 text-xs text-[var(--ejo-text)]" />
+                        <input name="note" maxLength={500} placeholder="Note (optional), e.g. the time of the call" className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] px-2 py-2 text-xs text-[var(--ejo-text)]" />
+                        <p className="text-[11px] text-[var(--ejo-text-muted)]">Recorded with your name. {minimumDeposit > 0 ? `The work starts once the deposit (${formatNaira(minimumDeposit)}) is paid.` : 'No deposit applies, so the Job Card moves to In Progress at once.'}</p>
+                        <SubmitButton label="Record approval by phone" pendingLabel="Recording…" className="rounded-[var(--ejo-radius-md)] bg-[var(--ejo-success)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90" />
+                      </form>
+                    </details>
+                  </>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           {billing ? <JobCardBillingPanel jobCardId={jobCard.id} billing={billing} /> : null}
@@ -1252,7 +1311,7 @@ export default async function JobCardDetailPage({
             />
           ) : null}
 
-          {payments.length > 0 || jobCard.status === 'AWAITING_CUSTOMER_APPROVAL' ? (
+          {payments.length > 0 || jobCard.status === 'AWAITING_CUSTOMER_APPROVAL' || (credit?.onCredit && Boolean(invoice)) ? (
             <div className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-[var(--ejo-text)]">Payments</h2>
@@ -1299,11 +1358,15 @@ export default async function JobCardDetailPage({
                 <p className="mt-4 border-t border-[var(--ejo-border)] pt-4 text-xs font-medium text-[var(--ejo-success)]">
                   Paid in full — nothing further to record.
                 </p>
-              ) : ['AWAITING_CUSTOMER_APPROVAL', 'IN_PROGRESS', 'AWAITING_PARTS', 'QUALITY_CHECK', 'COMPLETED', 'READY_FOR_COLLECTION'].includes(jobCard.status) && isEligibleFinance ? (
+              ) : (['AWAITING_CUSTOMER_APPROVAL', 'IN_PROGRESS', 'AWAITING_PARTS', 'QUALITY_CHECK', 'COMPLETED', 'READY_FOR_COLLECTION'].includes(jobCard.status) || (['CLOSED', 'CHECKED_OUT'].includes(jobCard.status) && Boolean(invoice))) && isEligibleFinance ? (
                 <>
                   <p className="mt-4 border-t border-[var(--ejo-border)] pt-4 text-xs text-[var(--ejo-text-muted)]">
-                    Once payments reach the 70% minimum deposit, the Job Card moves to In Progress automatically.
-                    Pick a suggested amount or choose &quot;Other&quot; to enter a different one.
+                    {jobCard.status !== 'AWAITING_CUSTOMER_APPROVAL'
+                      ? 'Record payments towards the balance as they come in.'
+                      : minimumDeposit > 0
+                        ? `Paying the ${depositPct}% deposit (${formatNaira(minimumDeposit)}) counts as the customer’s approval, and the Job Card moves to In Progress.`
+                        : 'No deposit applies. A payment here counts as the customer’s approval, and the Job Card moves to In Progress.'}
+                    {' '}Pick a suggested amount or choose &quot;Other&quot; to enter a different one.
                   </p>
                   <form key={payments.length} action={recordPaymentFormAction} className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <IdempotencyKey />
@@ -1314,7 +1377,7 @@ export default async function JobCardDetailPage({
                         paymentsTotal > 0
                           ? [{ key: 'REMAINING', label: `Remaining balance (${formatNaira(outstanding)})`, value: outstanding.toFixed(2) }]
                           : [
-                              { key: 'SEVENTY_PERCENT', label: `70% deposit (${formatNaira(minimumDeposit)})`, value: minimumDeposit.toFixed(2) },
+                              ...(minimumDeposit > 0 ? [{ key: 'DEPOSIT', label: `${depositPct}% deposit (${formatNaira(minimumDeposit)})`, value: minimumDeposit.toFixed(2) }] : []),
                               { key: 'FULL', label: `Full payment (${formatNaira(estimateTotal)})`, value: estimateTotal.toFixed(2) },
                             ]
                       }
@@ -1589,14 +1652,18 @@ export default async function JobCardDetailPage({
             ) : null}
             {jobCard.status === 'AWAITING_CUSTOMER_APPROVAL' ? (
               <p className="mt-3 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-xs text-[var(--ejo-text)]">
-                Moves to In Progress by itself once the 70% deposit ({formatNaira(minimumDeposit)}) is recorded under Payments.
+                {minimumDeposit > 0
+                  ? `Moves to In Progress by itself once the customer approves and the ${depositPct}% deposit (${formatNaira(minimumDeposit)}) is recorded under Payments.`
+                  : 'Moves to In Progress by itself as soon as the customer approves — by link, in the portal, by phone, or by paying at the counter.'}
               </p>
             ) : null}
             {jobCard.status === 'READY_FOR_COLLECTION' && !pendingCloseRequest ? (
               <p className="mt-3 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-xs text-[var(--ejo-text)]">
                 {isPaidInFull
                   ? 'Next: request the close below — a Manager approves it, then the vehicle can be checked out.'
-                  : `Next: collect the balance (${formatNaira(outstanding)}), then request the close.`}
+                  : credit?.onCredit
+                    ? `On credit: ${formatNaira(outstanding)} goes on the invoice${credit.paymentTermsDays ? ` (due in ${credit.paymentTermsDays} days)` : ''}. Request the close below.${credit.withinLimit ? '' : ' It takes the organisation over its credit limit, so only a Manager can close it.'}`
+                    : `Next: collect the balance (${formatNaira(outstanding)}), then request the close.`}
               </p>
             ) : null}
             {jobCard.status === 'READY_FOR_COLLECTION' && pendingCloseRequest ? (
@@ -1628,9 +1695,11 @@ export default async function JobCardDetailPage({
                     <p className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-warning)]/40 bg-[var(--ejo-warning)]/10 px-3 py-2 text-xs text-[var(--ejo-text)]">
                       {formatNaira(paymentsTotal - refundedTotal)} must be refunded (see Refunds) before the vehicle can be handed back.
                     </p>
-                  ) : !isCancelled && !isPaidInFull ? (
+                  ) : !isCancelled && !isPaidInFull && !mayLeaveOnCredit ? (
                     <p className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-warning)]/40 bg-[var(--ejo-warning)]/10 px-3 py-2 text-xs text-[var(--ejo-text)]">
-                      Payment must be completed in full before check-out — {formatNaira(outstanding)} outstanding.
+                      {credit?.onCredit
+                        ? `${formatNaira(outstanding)} outstanding takes the organisation to ${formatNaira(credit.owedIncludingThis)} unpaid, over its credit limit of ${formatNaira(credit.limit ?? 0)}. Record a payment first, or a Manager can close it over the limit.`
+                        : `Payment must be completed in full before check-out — ${formatNaira(outstanding)} outstanding.`}
                     </p>
                   ) : (
                     <form action={updateJobCardStatusFormAction} className="space-y-2">
@@ -1646,6 +1715,9 @@ export default async function JobCardDetailPage({
                         defaultValue={jobCard.customer.fullName}
                         className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]"
                       />
+                      {!isCancelled && !isPaidInFull && mayLeaveOnCredit ? (
+                        <p className="text-[11px] text-[var(--ejo-text-muted)]">On credit: {formatNaira(outstanding)} stays on the invoice{credit?.paymentTermsDays ? `, due ${credit.paymentTermsDays} days from its date` : ''}.</p>
+                      ) : null}
                       <SubmitButton
                         label={isCancelled ? 'Hand vehicle back' : 'Check out vehicle'}
                         pendingLabel="Checking out…"
@@ -1861,6 +1933,17 @@ export default async function JobCardDetailPage({
                   <FormPendingOverlay />
                   <input type="hidden" name="jobCardId" value={jobCard.id} />
                   <input type="hidden" name="requestId" value={pendingCloseRequest.id} />
+                  {credit?.onCredit ? (
+                    <div className={`rounded-[var(--ejo-radius-md)] border px-3 py-2 text-xs text-[var(--ejo-text)] ${credit.withinLimit ? 'border-[var(--ejo-info)]/40 bg-[var(--ejo-info)]/10' : 'border-[var(--ejo-warning)]/40 bg-[var(--ejo-warning)]/10'}`} data-testid="close-on-credit">
+                      <p>On credit: {formatNaira(outstanding)} stays on the invoice. {credit.companyName ?? 'The organisation'} would owe {formatNaira(credit.owedIncludingThis)}{credit.limit !== null ? ` against a credit limit of ${formatNaira(credit.limit)}` : ''}.</p>
+                      {!credit.withinLimit ? (
+                        <label className="mt-2 flex items-center gap-2 font-medium">
+                          <input type="checkbox" name="overCreditLimit" required />
+                          Close over the credit limit
+                        </label>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <input
                     name="decisionNotes"
                     placeholder="Note (optional)"

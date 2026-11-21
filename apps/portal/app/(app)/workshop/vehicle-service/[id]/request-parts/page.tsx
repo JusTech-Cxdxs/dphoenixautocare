@@ -57,7 +57,7 @@ export default async function VehicleServiceRequestPartsPage({
       {!sourcingNeeds.isEligibleToSource ? (
         <p className="text-sm text-[var(--ejo-text-muted)]">
           This Vehicle Service isn&apos;t far enough along to request parts yet — the customer must have been notified
-          and the 70% deposit recorded first.
+          and the deposit (when one applies) or a first payment recorded.
         </p>
       ) : requestableLines.length === 0 ? (
         <p className="text-sm text-[var(--ejo-text-muted)]">

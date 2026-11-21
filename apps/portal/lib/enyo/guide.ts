@@ -108,18 +108,20 @@ export const GUIDE: GuideEntry[] = [
     keywords: ['notify', 'customer', 'send estimate', 'tell customer', 'email customer', 'approval'],
     steps: [
       'Open the Job Card once the Manager has approved the estimate.',
-      'In the Estimate section, press "Notify customer". The customer is emailed the estimate.',
-      'The Job Card moves to Awaiting Customer Approval until the 70% deposit is paid.',
+      'In the Estimate section, press "Notify customer". The customer is emailed the estimate with a secure link to approve or decline it.',
+      'The Job Card moves to Awaiting Customer Approval until the customer approves (by the link, in the customer portal, or by phone: "Customer approved by phone") and pays the deposit, when the organisation asks for one.',
+      'To send the link again, or share it on WhatsApp, press "Send approval link".',
     ],
   },
   {
     id: 'job-card-payment', title: 'Record a payment on a Job Card', page: '/workshop/job-cards', needs: WORKSHOP, does: ['workshop.payment.record'], who: 'Finance',
-    keywords: ['payment', 'pay', 'deposit', 'balance', 'money', 'cash', 'transfer', 'receipt', 'takings', '70%'],
+    keywords: ['payment', 'pay', 'deposit', 'balance', 'money', 'cash', 'transfer', 'receipt', 'takings', 'credit'],
     steps: [
       'Open the Job Card and go to Payments.',
-      'Enter the amount (the suggestions fill in the 70% deposit, the full amount or the remaining balance) and choose Bank transfer or Cash.',
+      'Enter the amount (the suggestions fill in the deposit when one applies, the full amount or the remaining balance) and choose Bank transfer or Cash.',
       'Add the transfer reference or receipt number in the notes, then press "Record payment".',
-      'When payments reach the 70% deposit, the Job Card moves to In Progress by itself.',
+      'While the estimate waits for the customer, paying at the counter counts as their approval: the deposit when one applies, otherwise any payment. The Job Card then moves to In Progress by itself.',
+      'An organisation on credit can leave with a balance once its invoice is issued; record its payments here until it is paid.',
     ],
   },
   {

@@ -6,7 +6,7 @@ import { friendlyError } from '@/lib/errors';
 import { findOrCreateCustomer } from './workshop';
 import {
   updateCustomer, setCustomerPortalAccess, sendCustomerSetPasswordLink, addCustomerAddress, updateCustomerAddress, removeCustomerAddress,
-  addCustomerContact, updateCustomerContact, removeCustomerContact, addCustomerNote, setCustomerNotePinned, deleteCustomerNote,
+  addCustomerContact, updateCustomerContact, removeCustomerContact, addCustomerNote, setCustomerNotePinned, deleteCustomerNote, setCustomerCreditTerms,
 } from './crm';
 
 /** <form action> wrappers for the Customers (CRM) pages. */
@@ -129,4 +129,17 @@ export async function customerNoteFormAction(f: FormData) {
     back(path, err, 'Could not save the note.');
   }
   done(path, `note_${op}`);
+}
+
+/** Credit terms for an organisation customer (Finance or a Manager). */
+export async function customerCreditTermsFormAction(f: FormData): Promise<void> {
+  const id = str(f, 'customerId');
+  const days = str(f, 'paymentTermsDays');
+  const limit = str(f, 'creditLimit').replace(/[,\s₦]/g, '');
+  try {
+    await setCustomerCreditTerms(id, { paymentTermsDays: days === '' ? null : Number(days), creditLimit: limit === '' ? null : Number(limit) });
+  } catch (err) {
+    back(page(id), err, 'Could not save the credit terms.');
+  }
+  done(page(id), Number(days) > 0 ? 'credit_saved' : 'credit_removed');
 }

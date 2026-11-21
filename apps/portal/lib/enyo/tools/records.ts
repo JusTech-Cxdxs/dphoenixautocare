@@ -16,7 +16,8 @@ import { listRefunds } from '@/lib/actions/refunds';
 import { getCustomer360, searchCrmCustomers } from '@/lib/actions/crm';
 import { listPartsFittedToVehicle } from '@/lib/actions/vehicle-history';
 import { BILL_TO_LABEL, billingOf, billingSplit, jobCardTotals, type BillTo } from '@/lib/estimate-billing';
-import { MINIMUM_DEPOSIT_FRACTION } from '@/lib/workshop-constants';
+import { depositFractionFor } from '@/lib/estimate-billing';
+import { depositSettingsOfBranch } from '@/lib/customer-approval';
 import { nextStep, paymentPosition } from '../next-step';
 import { day, money, nothing, ok, r2, refused, STATUS_WORDS, text } from '../tool-helpers';
 import type { StaffTool } from '../types';
@@ -93,7 +94,9 @@ export const recordTools: StaffTool[] = [
       const paidIn = r2(jc.payments.reduce((s: number, p: { amount: unknown }) => s + Number(p.amount), 0));
       const refunded = r2(jc.refunds.reduce((s: number, x: { amount: unknown }) => s + Number(x.amount), 0));
       const netPaid = r2(paidIn - refunded);
-      const pos = paymentPosition(owes, netPaid, MINIMUM_DEPOSIT_FRACTION);
+      // The deposit share for this customer: the one rule (none when switched off, never for an organisation).
+      const depositFraction = depositFractionFor(billingOf(jc), jc.customer.customerType);
+      const pos = paymentPosition(owes, netPaid, depositFraction);
       const complaints = jc.complaints.length ? jc.complaints.map((c: { description: string }) => c.description) : jc.complaint ? [jc.complaint] : [];
       const href = `/workshop/job-cards/${jc.id}`;
       return ok({
@@ -123,10 +126,10 @@ export const recordTools: StaffTool[] = [
               notChargedToCustomer: split.covered,
             }
           : null,
-        payments: { paidIn, refunded, netPaid, balance: pos.balance, position: pos.label, minimumDeposit: r2(owes * MINIMUM_DEPOSIT_FRACTION) },
+        payments: { paidIn, refunded, netPaid, balance: pos.balance, position: pos.label, minimumDeposit: r2(owes * depositFraction), customerApproved: Boolean(jc.estimate?.customerApprovedAt) },
         nextStep: nextStep({
           kind: 'JC', status: jc.status, approvalStatus: jc.approvalStatus, hasTechnician: Boolean(jc.assignedTechnicianId), technicianAccepted: jc.technicianAcceptanceStatus ?? null,
-          estimateStatus: jc.estimate?.status ?? null, customerNotified: Boolean(jc.estimate?.customerNotifiedAt), total: owes, paid: netPaid, depositFraction: MINIMUM_DEPOSIT_FRACTION,
+          estimateStatus: jc.estimate?.status ?? null, customerNotified: Boolean(jc.estimate?.customerNotifiedAt), total: owes, paid: netPaid, depositFraction, customerApproved: Boolean(jc.estimate?.customerApprovedAt),
         }),
         ...(jc.escalatedFromVehicleService ? { escalatedFrom: { number: jc.escalatedFromVehicleService.serviceNumber, href: `/workshop/vehicle-service/${jc.escalatedFromVehicleService.id}` } } : {}),
       }, [{ label: jc.jobNumber, href }]);
@@ -157,7 +160,8 @@ export const recordTools: StaffTool[] = [
       const paidIn = r2(payments.reduce((s: number, p: { amount: unknown }) => s + Number(p.amount), 0));
       const refunded = r2(refunds.reduce((s: number, x: { amount: unknown }) => s + Number(x.amount), 0));
       const netPaid = r2(paidIn - refunded);
-      const pos = paymentPosition(total, netPaid, MINIMUM_DEPOSIT_FRACTION);
+      const depositFraction = depositFractionFor(await depositSettingsOfBranch(sv.branchId), sv.customer.customerType);
+      const pos = paymentPosition(total, netPaid, depositFraction);
       const href = `/workshop/vehicle-service/${sv.id}`;
       const asked = sv.complaints.length ? sv.complaints.map((c: { description: string }) => c.description) : sv.customerComplaint ? [sv.customerComplaint] : [];
       return ok({
@@ -181,7 +185,7 @@ export const recordTools: StaffTool[] = [
         nextServiceDue: sv.nextServiceDueDate || sv.nextServiceDueOdometer ? { date: day(sv.nextServiceDueDate), odometer: sv.nextServiceDueOdometer } : null,
         nextStep: nextStep({
           kind: 'SV', status: sv.status, approvalStatus: sv.approvalStatus, hasTechnician: Boolean(sv.assignedTechnicianId), technicianAccepted: sv.technicianAcceptanceStatus ?? null,
-          estimateStatus: estimate?.status ?? null, customerNotified: Boolean(estimate?.customerNotifiedAt), total, paid: netPaid, depositFraction: MINIMUM_DEPOSIT_FRACTION,
+          estimateStatus: estimate?.status ?? null, customerNotified: Boolean(estimate?.customerNotifiedAt), total, paid: netPaid, depositFraction,
         }),
         ...(sv.escalatedToJobCard ? { escalatedTo: { number: sv.escalatedToJobCard.jobNumber, href: `/workshop/job-cards/${sv.escalatedToJobCard.id}` } } : {}),
       }, [{ label: sv.serviceNumber, href }]);

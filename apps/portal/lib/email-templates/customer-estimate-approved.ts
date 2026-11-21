@@ -1,4 +1,4 @@
-import { renderEmailLayout, html, greeting, para, details, moneyTable, highlight, sectionTitle, strong, vehicleLabel, type MoneyTotal } from './layout';
+import { renderEmailLayout, html, greeting, para, details, moneyTable, highlight, primaryButton, sectionTitle, strong, vehicleLabel, type MoneyTotal } from './layout';
 import { pluralizeWord } from '../utils/pluralize';
 
 export type CustomerEstimateApprovedEmailOptions = {
@@ -17,9 +17,12 @@ export type CustomerEstimateApprovedEmailOptions = {
   vatLabel?: string;
   vatAmount?: string;
   totalAmount: string;
-  minimumDepositAmount: string;
+  /** The deposit due before work starts; omitted (or null) when none applies. */
+  minimumDepositAmount?: string | null;
   /** The deposit as a percentage of the total, e.g. 70. */
   depositPercent?: number;
+  /** The customer's secure link to approve or decline online (Job Cards). */
+  approvalUrl?: string | null;
   bankName: string;
   accountName: string;
   accountNumber: string;
@@ -53,10 +56,13 @@ export function renderCustomerEstimate(o: Omit<CustomerEstimateApprovedEmailOpti
     { label: 'Total', amount: o.totalAmount, emphasis: true },
   ].filter((t): t is MoneyTotal => Boolean(t));
   const depositCaption = o.depositPercent ? `Deposit to start work (${o.depositPercent}%)` : 'Deposit to start work';
+  const deposit = o.minimumDepositAmount || null;
 
   const bodyHtml = html`
     ${greeting(o.customerName)}
-    ${para(html`The estimate for your ${vehicle} is ready for you to review. Work starts as soon as we have received the deposit shown below.`)}
+    ${para(deposit
+      ? html`The estimate for your ${vehicle} is ready for you to review. Work starts once you approve it and we have received the deposit shown below.`
+      : html`The estimate for your ${vehicle} is ready for you to review. Work starts as soon as you approve it.`)}
     ${details([
       [o.recordLabel, o.recordNumber],
       ['Vehicle', vehicle],
@@ -70,7 +76,10 @@ export function renderCustomerEstimate(o: Omit<CustomerEstimateApprovedEmailOpti
           amount: li.amount,
         })), totals)
       : moneyTable([], totals)}
-    ${highlight(depositCaption, o.minimumDepositAmount, 'Pay this amount or more to start the work. The balance is due before collection.', 'warning')}
+    ${deposit ? highlight(depositCaption, deposit, 'Pay this amount or more to start the work. The balance is due before collection.', 'warning') : ''}
+    ${o.approvalUrl ? sectionTitle('Approve or decline online') : ''}
+    ${o.approvalUrl ? para('Use the secure link below to approve the estimate or tell us you do not want the work. It works once, for 7 days. You can also reply in your customer portal or call the branch.') : ''}
+    ${o.approvalUrl ? primaryButton('Approve or decline online', o.approvalUrl) : ''}
     ${sectionTitle('How to pay')}
     ${para(html`${strong('Bank transfer.')} Use the payment reference below so we can match your payment to this ${o.recordLabel}.`)}
     ${details([
@@ -83,7 +92,7 @@ export function renderCustomerEstimate(o: Omit<CustomerEstimateApprovedEmailOpti
     ${para('Once a transfer is made, it can take a short while for the branch to confirm it. You will receive an email as soon as your payment is recorded.', 'small')}`;
 
   return renderEmailLayout({
-    previewText: `Estimate total ${o.totalAmount}. Deposit of ${o.minimumDepositAmount} to start work on your ${vehicle}.`,
+    previewText: deposit ? `Estimate total ${o.totalAmount}. Deposit of ${deposit} to start work on your ${vehicle}.` : `Estimate total ${o.totalAmount} for your ${vehicle}. Approve it and we start the work.`,
     companyName: o.companyName,
     logoUrl: o.logoUrl,
     orgContext: [o.branchName],

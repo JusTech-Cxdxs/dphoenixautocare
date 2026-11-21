@@ -71,7 +71,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px', marginTop: '20px' }}>
         <Field label="BILL TO" value={billToName(c)} sub={[isCompany ? `Attn: ${c.fullName}` : null, c.phone, c.email, c.address]} />
-        <Field label="INVOICE DATE" value={invoiceDate(inv.issuedAt)} sub={[`Job Card ${inv.jobCard.jobNumber}`, vatRate > 0 && inv.vatNumber ? `Tax ID (TIN): ${inv.vatNumber}` : null]} />
+        <Field label="INVOICE DATE" value={invoiceDate(inv.issuedAt)} sub={[`Job Card ${inv.jobCard.jobNumber}`, inv.dueDate ? `Payment due by ${invoiceDate(inv.dueDate)}` : null, vatRate > 0 && inv.vatNumber ? `Tax ID (TIN): ${inv.vatNumber}` : null]} />
         <Field label="VEHICLE" value={[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehicle'} sub={[vehicle.chassisNumber ? `VIN / chassis ${vehicle.chassisNumber}` : null]} />
         <Field label="PLATE NO. / MILEAGE" value={[vehicle.plateNumber ?? '—', inv.jobCard.mileageAtCheckIn != null ? `${inv.jobCard.mileageAtCheckIn.toLocaleString('en-NG')} km` : null].filter(Boolean).join(' · ')} />
       </div>
@@ -116,6 +116,7 @@ export default async function PrintInvoicePage({ params }: { params: Promise<{ i
       {balance > 0 ? (
         <div style={{ marginTop: '16px', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '12px 16px', fontSize: '12px' }}>
           <div style={{ fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>HOW TO PAY</div>
+          {inv.dueDate ? <div style={{ fontWeight: 700, marginBottom: '4px' }}>Payment due by {invoiceDate(inv.dueDate)}</div> : null}
           <div>Bank: {bank.bankName}</div>
           <div>Account Name: {bank.accountName}</div>
           <div>Account Number: {bank.accountNumber}</div>

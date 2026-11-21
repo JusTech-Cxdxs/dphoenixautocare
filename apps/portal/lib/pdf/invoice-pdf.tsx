@@ -94,6 +94,7 @@ export function InvoicePdf(props: InvoicePdfProps) {
             <Text style={styles.docTitle}>Invoice</Text>
             <Text style={styles.docRef}>{props.invoiceNumber}</Text>
             <Text style={styles.docDate}>{props.issuedOnLabel}</Text>
+            {props.dueOnLabel ? <Text style={styles.docDate}>Payment due by {props.dueOnLabel}</Text> : null}
           </View>
         </View>
 
@@ -186,6 +187,7 @@ export function InvoicePdf(props: InvoicePdfProps) {
             <Text style={styles.totalLabel}>Balance due</Text>
             <Text style={styles.totalValue}>{props.balanceDue}</Text>
           </View>
+          {props.dueOnLabel ? <Text style={styles.note}>Payment due by {props.dueOnLabel}.</Text> : null}
           {props.discountReason ? <Text style={styles.note}>Discount: {props.discountReason}</Text> : null}
         </View>
 

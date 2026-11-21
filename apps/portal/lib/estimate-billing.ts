@@ -4,9 +4,9 @@
  * close requests, reminders, emails, the Job Card page and print). A line
  * with no bill-to (older data) is the customer's.
  */
-import { billingTotals, vatSettingFor, type BillingLine, type BillingTotals, type VatSetting } from '@ejo/utils/billing';
+import { billingTotals, depositFractionFor, depositOf, vatSettingFor, type BillingLine, type BillingTotals, type DepositSetting, type VatSetting } from '@ejo/utils/billing';
 
-export { vatIsFixed, vatSettingFor, billingTotals, balanceDue, depositOf, discountNeedsManager, discountPercent, paidInFull, toKobo, type BillingTotals, type VatSetting } from '@ejo/utils/billing';
+export { vatIsFixed, vatSettingFor, billingTotals, balanceDue, depositOf, depositFractionFor, depositPercentOf, paymentApproves, workMayStart, discountNeedsManager, discountPercent, paidInFull, toKobo, type BillingTotals, type DepositSetting, type VatSetting } from '@ejo/utils/billing';
 
 export type BillTo = 'CUSTOMER' | 'WARRANTY' | 'GOODWILL' | 'INTERNAL';
 
@@ -29,13 +29,13 @@ export function customerTotal(lines: { amount: unknown; billTo?: string | null; 
 }
 
 /** The organisation's billing switches, selected wherever a total is worked out. */
-export const BILLING_SETTINGS_SELECT = { vatEnabled: true, vatRate: true, vatNumber: true, discountApprovalPercent: true } as const;
+export const BILLING_SETTINGS_SELECT = { vatEnabled: true, vatRate: true, vatNumber: true, discountApprovalPercent: true, depositRequired: true, depositPercent: true } as const;
 /** The same, reached from a Job Card (its branch's organisation). */
 export const JOB_CARD_BILLING_SELECT = { branch: { select: { businessUnit: { select: { organisation: { select: BILLING_SETTINGS_SELECT } } } } } } as const;
 /** The estimate fields every total needs. */
 export const ESTIMATE_TOTALS_SELECT = { discountAmount: true, vatRate: true, lineItems: { select: { amount: true, billTo: true, discountAmount: true } } } as const;
 
-export type BillingSettings = VatSetting & { vatNumber?: string | null; discountApprovalPercent?: number | null };
+export type BillingSettings = VatSetting & DepositSetting & { vatNumber?: string | null; discountApprovalPercent?: number | null };
 type EstimateForTotals = { discountAmount?: unknown; vatRate?: unknown; lineItems: readonly BillingLine[] } | null | undefined;
 
 /** The organisation's settings from a Job Card selected with JOB_CARD_BILLING_SELECT. */
@@ -69,4 +69,14 @@ export function coveredLabel(billTo: string | null | undefined, warrantyNumber?:
   if (billTo === 'GOODWILL') return 'Goodwill — not charged';
   if (billTo === 'INTERNAL') return 'Internal — not charged';
   return '';
+}
+
+/**
+ * The deposit due before work starts on this total, for this customer: the
+ * one rule (depositFractionFor) — 0 when the organisation has the deposit
+ * switched off and always 0 for an organisation customer.
+ */
+export function depositDueOn(total: number, settings: DepositSetting | null | undefined, customerType: string | null | undefined): { fraction: number; amount: number } {
+  const fraction = depositFractionFor(settings, customerType);
+  return { fraction, amount: depositOf(total, fraction) };
 }

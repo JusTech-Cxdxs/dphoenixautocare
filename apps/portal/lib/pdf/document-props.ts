@@ -9,8 +9,7 @@
  * never the internal line types. On a Job Card, lines covered by warranty,
  * goodwill or the business are never charged, and show what covers them.
  */
-import { BILL_TO_LABEL, billingTotals, coveredLabel, depositOf, isCustomerLine, type BillTo, type VatSetting } from '../estimate-billing';
-import { MINIMUM_DEPOSIT_FRACTION } from '../workshop-constants';
+import { BILL_TO_LABEL, billingTotals, coveredLabel, depositOf, depositPercentOf, isCustomerLine, type BillTo, type VatSetting } from '../estimate-billing';
 import { pluralizeWord } from '../utils/pluralize';
 import type { EstimatePdfProps, InspectionPdfProps, InvoicePdfProps } from './document-types';
 
@@ -30,7 +29,8 @@ export function letterhead(org: Org, branch: Branch, portalUrl: string): Letterh
 
 /** PDFs embed Noto Sans (lib/pdf/fonts.ts), which has the ₦, so money reads as it does on screen. */
 export const nairaForPdf = (value: number) => `₦${value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-export const minimumDepositOf = (total: number) => depositOf(total, MINIMUM_DEPOSIT_FRACTION);
+/** The deposit on a total at the fraction the one rule gave (depositFractionFor); 0 = none. */
+export const minimumDepositOf = (total: number, depositFraction = 0) => depositOf(total, depositFraction);
 
 type Vehicle = { make: string | null; model: string | null; year?: number | null; plateNumber: string | null; chassisNumber: string | null };
 type Customer = { fullName: string; address: string | null };
@@ -38,8 +38,12 @@ type Customer = { fullName: string; address: string | null };
 const JOB_SERVICES = new Set(['STORE_PART', 'EXTERNAL_PART', 'EXTERNAL_JOB', 'INTERNAL_JOB']);
 export type JobEstimateLine = { type: string; description: string; quantity: unknown; amount: unknown; unitOfMeasure: string | null; billTo?: string | null; discountAmount?: unknown; coveringWarranty?: { warrantyNumber: string } | null };
 
-/** The estimate-level money a Job Card total needs beside its lines: its discount and the organisation's VAT. */
-export type JobEstimateBilling = { discountAmount?: unknown; vat?: VatSetting | null };
+/**
+ * The estimate-level money a Job Card total needs beside its lines: its
+ * discount, the organisation's VAT, and the deposit share for this customer
+ * (depositFractionFor; 0 or left out = no deposit).
+ */
+export type JobEstimateBilling = { discountAmount?: unknown; vat?: VatSetting | null; depositFraction?: number };
 
 /**
  * A Job Card estimate's customer figures: only lines the customer pays
@@ -59,7 +63,7 @@ export function jobEstimateTotals(lines: { type: string; amount: unknown; billTo
   return {
     services: Math.round(services * 100) / 100, labour: Math.round(labour * 100) / 100, sundry: Math.round(sundry * 100) / 100,
     discounts: Math.round((t.lineDiscounts + t.discountAmount) * 100) / 100, vatRate: t.vatRate, vatAmount: t.vatAmount,
-    total: t.total, minimumDeposit: minimumDepositOf(t.total),
+    total: t.total, minimumDeposit: minimumDepositOf(t.total, billing.depositFraction ?? 0), depositPercent: depositPercentOf(billing.depositFraction ?? 0),
   };
 }
 
@@ -90,7 +94,9 @@ export function jobEstimatePdfProps(p: { letterhead: Letterhead; bank: Bank; job
     vatLabel: t.vatRate > 0 ? vatLabel(t.vatRate) : null,
     vatAmount: t.vatRate > 0 ? nairaForPdf(t.vatAmount) : null,
     totalAmount: nairaForPdf(t.total),
-    minimumDepositAmount: nairaForPdf(t.minimumDeposit),
+    // No deposit box when none applies (deposit switched off, or an organisation customer).
+    minimumDepositAmount: t.minimumDeposit > 0 ? nairaForPdf(t.minimumDeposit) : null,
+    depositPercent: t.minimumDeposit > 0 ? t.depositPercent : null,
     ...p.bank,
     // Payment reference: number, vehicle, plate.
     paymentRemarkSuggestion: [p.jobNumber, vehicleDescription, p.vehicle.plateNumber].filter(Boolean).join(' '),
@@ -100,7 +106,7 @@ export function jobEstimatePdfProps(p: { letterhead: Letterhead; bank: Bank; job
 export type ServiceEstimateLine = { type: string; description: string; quantity: unknown; amount: unknown; unitOfMeasure: string | null };
 
 /** A Vehicle Service estimate's customer figures: Labour, Sundry, and everything else as Parts & Services. */
-export function serviceEstimateTotals(lines: { type: string; amount: unknown }[]) {
+export function serviceEstimateTotals(lines: { type: string; amount: unknown }[], depositFraction = 0) {
   let services = 0, labour = 0, sundry = 0;
   for (const li of lines) {
     const amount = Number(li.amount ?? 0);
@@ -109,13 +115,13 @@ export function serviceEstimateTotals(lines: { type: string; amount: unknown }[]
     else services += amount;
   }
   const total = lines.reduce((sum, li) => sum + Number(li.amount ?? 0), 0);
-  return { services, labour, sundry, total, minimumDeposit: minimumDepositOf(total) };
+  return { services, labour, sundry, total, minimumDeposit: minimumDepositOf(total, depositFraction) };
 }
 
 const serviceVehicle = (v: Vehicle) => [v.year, v.make, v.model].filter(Boolean).join(' ') || [v.make, v.model].filter(Boolean).join(' ') || 'Vehicle';
 
-export function serviceEstimatePdfProps(p: { letterhead: Letterhead; bank: Bank; serviceNumber: string; customer: Customer; vehicle: Vehicle; lineItems: ServiceEstimateLine[] }): EstimatePdfProps {
-  const t = serviceEstimateTotals(p.lineItems);
+export function serviceEstimatePdfProps(p: { letterhead: Letterhead; bank: Bank; serviceNumber: string; customer: Customer; vehicle: Vehicle; lineItems: ServiceEstimateLine[]; depositFraction?: number }): EstimatePdfProps {
+  const t = serviceEstimateTotals(p.lineItems, p.depositFraction ?? 0);
   return {
     ...p.letterhead,
     jobNumber: p.serviceNumber,
@@ -135,7 +141,8 @@ export function serviceEstimatePdfProps(p: { letterhead: Letterhead; bank: Bank;
     labourSubtotal: t.labour > 0 ? nairaForPdf(t.labour) : null,
     sundrySubtotal: t.sundry > 0 ? nairaForPdf(t.sundry) : null,
     totalAmount: nairaForPdf(t.total),
-    minimumDepositAmount: nairaForPdf(t.minimumDeposit),
+    minimumDepositAmount: t.minimumDeposit > 0 ? nairaForPdf(t.minimumDeposit) : null,
+    depositPercent: t.minimumDeposit > 0 ? depositPercentOf(p.depositFraction ?? 0) : null,
     ...p.bank,
     paymentRemarkSuggestion: [p.serviceNumber, [p.vehicle.make, p.vehicle.model].filter(Boolean).join(' ') || 'Vehicle', p.vehicle.plateNumber].filter(Boolean).join(' '),
   };
@@ -191,6 +198,8 @@ export function invoicePdfProps(p: {
   bank: Bank;
   invoiceNumber: string;
   issuedOnLabel: string;
+  /** "Payment due by …" for an organisation on credit; null = due before collection. */
+  dueOnLabel?: string | null;
   jobNumber: string;
   customer: { name: string; contact: string | null; address: string | null };
   vehicle: Vehicle & { mileage: number | null };
@@ -207,6 +216,7 @@ export function invoicePdfProps(p: {
     ...p.letterhead,
     invoiceNumber: p.invoiceNumber,
     issuedOnLabel: p.issuedOnLabel,
+    dueOnLabel: p.dueOnLabel ?? null,
     jobNumber: p.jobNumber,
     customerName: p.customer.name,
     customerContact: p.customer.contact,

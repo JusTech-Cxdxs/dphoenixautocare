@@ -142,7 +142,7 @@ test('the rate is fixed in the approving update and cleared when the estimate is
   const ws = read('lib/actions/workshop.ts');
   const manager = body(ws, 'approveEstimateAsManager');
   assert.match(manager, /status: 'MANAGER_APPROVED', managerApprovedAt: approvedAt, managerApprovedById: user\.id,[\s\S]{0,200}vatRate: settings\.vatEnabled \? Number\(settings\.vatRate\) : 0,/);
-  assert.match(body(ws, 'returnEstimateForChanges'), /data: \{ status: 'SUBMITTED', approvedAt: null, approvedById: null, vatRate: null \}/);
+  assert.match(body(ws, 'returnEstimateForChanges'), /data: \{ status: 'SUBMITTED', approvedAt: null, approvedById: null, vatRate: null, \.\.\.CLEARED_CUSTOMER_ANSWER \}/);
   // Nothing else moves an approved estimate back to be edited.
   assert.equal([...ws.matchAll(/status: '(APPROVED|MANAGER_APPROVED)' \},\s*(?:\/\/[^\n]*\n\s*)?data: \{ status: '(DRAFT|SUBMITTED)'/g)].length, 1);
   assert.match(read('lib/estimate-billing.ts'), /vat: vatSettingFor\(estimate, settings\)/);
@@ -165,7 +165,7 @@ test('the calculation lives in @ejo/utils, has no imports, and both apps use it'
   assert.match(read('lib/estimate-billing.ts'), /from '@ejo\/utils\/billing'/);
   assert.match(read('lib/estimate-billing.ts'), /export function jobCardTotals\([\s\S]{0,200}billingTotals\(/);
   const website = readRepo('apps/website/lib/customer-portal/format.ts');
-  assert.match(website, /import \{[^}]*billingTotals[^}]*\} from '@ejo\/utils'/);
+  assert.match(website, /import \{[^}]*billingTotals[^}]*\} from '@ejo\/utils(\/billing)?'/);
   assert.match(website.slice(website.indexOf('export function moneyFor')), /billingTotals\(/);
 });
 
@@ -182,7 +182,7 @@ test('the estimate page, prints, PDF, emails and payment checks all go through i
   assert.match(read('app/print/job-cards/[id]/page.tsx'), /jobCardTotals\(jobCard\.estimate, billingOf\(jobCard\)\)/);
   for (const f of ['lib/actions/refunds.ts', 'lib/actions/security.ts', 'lib/actions/estimate-billing.ts']) assert.match(read(f), /jobCardTotals\(/, f);
   // The Vehicle Service estimate (switched off for new work) keeps its own maths.
-  assert.match(read('lib/pdf/document-props.ts'), /export function serviceEstimateTotals\(lines: \{ type: string; amount: unknown \}\[\]\) \{/);
+  assert.match(read('lib/pdf/document-props.ts'), /export function serviceEstimateTotals\(lines: \{ type: string; amount: unknown \}\[\], depositFraction = 0\) \{/);
 });
 
 // ── 3. The wiring ────────────────────────────────────────────────────

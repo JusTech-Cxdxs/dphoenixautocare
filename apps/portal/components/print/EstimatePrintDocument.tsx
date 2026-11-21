@@ -88,7 +88,9 @@ const ESTIMATE_AUDIT_LABEL: Record<string, string> = {
   'service_estimate.customer_notified': 'Customer notified of approved estimate',
   'service_estimate.cancelled': 'Estimate cancelled',
   'payment.recorded': 'Payment recorded',
-  'payment.approved': 'Minimum deposit met — work can proceed',
+  'payment.approved': 'Approved by the customer, any deposit paid — work can proceed',
+  'estimate.customer_approved': 'The customer approved the estimate',
+  'estimate.customer_declined': 'The customer declined the estimate',
 };
 
 export function isEstimateAuditAction(action: string): boolean {
@@ -148,8 +150,8 @@ function SectionTitle({ children }: { children: string }) {
  *
  * Customer Copy — exactly what the customer already receives by email
  * and as the attached PDF: line items with no internal type, the three
- * plain customer subtotals, total, the 70% minimum deposit, both ways
- * to pay, and the payment reference.
+ * plain customer subtotals, total, the deposit when one applies
+ * (depositFractionFor), both ways to pay, and the payment reference.
  *
  * Organisation Copy — everything above, plus the internal detail: the
  * Type and Entered By columns, per-type subtotals, the people involved,
@@ -204,6 +206,7 @@ export function EstimatePrintDocument({
   payments: EstimatePrintPayment[];
   auditEntries: EstimatePrintAuditEntry[];
   bank: { bankName: string; accountName: string; accountNumber: string };
+  /** The deposit share for this customer (depositFractionFor); 0 = no deposit box. */
   minimumDepositFraction: number;
   paymentReference: string;
   billing?: EstimatePrintBilling;
@@ -378,13 +381,20 @@ export function EstimatePrintDocument({
         </tbody>
       </table>
 
-      <div style={{ marginTop: '16px', backgroundColor: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: '8px', padding: '12px 16px' }}>
-        <div style={{ fontSize: '10px', fontWeight: 700, color: '#B45309', letterSpacing: '0.04em' }}>
-          MINIMUM DEPOSIT REQUIRED ({Math.round(minimumDepositFraction * 100)}%)
+      {minimumDeposit > 0 ? (
+        <div style={{ marginTop: '16px', backgroundColor: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: '8px', padding: '12px 16px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, color: '#B45309', letterSpacing: '0.04em' }}>
+            DEPOSIT BEFORE WORK STARTS ({Math.round(minimumDepositFraction * 100)}%)
+          </div>
+          <div style={{ fontSize: '16px', fontWeight: 700, marginTop: '2px' }}>{formatNaira(minimumDeposit)}</div>
+          <div style={{ fontSize: '11px', color: '#78350F', marginTop: '4px' }}>Work begins once the estimate is approved and this deposit is received and confirmed.</div>
         </div>
-        <div style={{ fontSize: '16px', fontWeight: 700, marginTop: '2px' }}>{formatNaira(minimumDeposit)}</div>
-        <div style={{ fontSize: '11px', color: '#78350F', marginTop: '4px' }}>Work begins once this deposit is received and confirmed.</div>
-      </div>
+      ) : (
+        <div style={{ marginTop: '16px', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '12px 16px' }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569', letterSpacing: '0.04em' }}>YOUR APPROVAL</div>
+          <div style={{ fontSize: '11px', color: '#334155', marginTop: '4px' }}>Work begins once the estimate is approved.</div>
+        </div>
+      )}
 
       <div style={{ marginTop: '14px', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '12px 16px', fontSize: '12px' }}>
         <SectionTitle>HOW TO PAY</SectionTitle>

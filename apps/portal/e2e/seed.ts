@@ -56,6 +56,9 @@ async function customerAccount(customerId: string, password: string) {
 
 async function main() {
   const org = await prisma.organisation.findUniqueOrThrow({ where: { slug: ORGANISATION_SLUG } });
+  // The workshop stories take a 70% deposit from an individual customer: the deposit switch is on for them
+  // (Organisation → Billing & tax; off by default). An organisation customer never pays one (approval-credit.spec).
+  await prisma.organisation.update({ where: { id: org.id }, data: { depositRequired: true, depositPercent: 70 } });
   const branch = await prisma.branch.findFirstOrThrow({ where: { businessUnit: { organisationId: org.id }, type: 'WORKSHOP' }, orderBy: { createdAt: 'asc' } });
   // The Store team works in the branch's store department (the D'Phoenix seed has none; made here only with E2E_INVENTORY=1).
   if (INVENTORY_ENABLED) await prisma.department.upsert({ where: { branchId_slug: { branchId: branch.id, slug: 'store' } }, update: {}, create: { branchId: branch.id, name: 'Store', slug: 'store' } });

@@ -1,7 +1,7 @@
 import { cache } from 'react';
 import { prisma, type Prisma } from '@ejo/database';
 import { serviceCycleFrom } from '@ejo/utils';
-import { vatSettingFor } from '@ejo/utils';
+import { depositFractionFor, vatSettingFor } from '@ejo/utils';
 import {
   jobCardPhase, jobCardStatus, jobCardStep, servicePhase, serviceStatus, serviceStep,
   JOB_CARD_STEPS, SERVICE_STEPS, warrantyState, type Phase, type StatusInfo, type WarrantyState,
@@ -73,6 +73,8 @@ export type ServiceItem = {
   /** A Job Card opened as a routine service (shown to the customer as "Service"). */
   isServiceJobCard: boolean;
   invoice: InvoiceRow | null;
+  /** The customer's own answer to a Job Card estimate (null on a Vehicle Service, or before they answer). */
+  answer: { approvedAt: Date | null; via: string | null; declinedAt: Date | null; declineNote: string | null } | null;
 };
 
 function latest(...dates: (Date | null | undefined)[]): Date {
@@ -88,8 +90,10 @@ export const jobCardItemSelect = {
   // The service interval (the vehicle's own, else the organisation's), for a service Job Card's next-service point.
   vehicle: { select: { ...vehicleSelect, serviceIntervalKm: true, serviceIntervalDays: true } },
   // …and the organisation's VAT switch and rate, for the total.
-  branch: { select: { name: true, businessUnit: { select: { organisation: { select: { primaryServiceIntervalKm: true, primaryServiceIntervalDays: true, vatEnabled: true, vatRate: true } } } } } },
-  estimate: { select: { customerNotifiedAt: true, discountAmount: true, vatRate: true, lineItems: { where: { billTo: 'CUSTOMER' as const }, select: { amount: true, discountAmount: true } } } },
+  // …and its deposit switch (the one rule, depositFractionFor), with the customer's type.
+  branch: { select: { name: true, businessUnit: { select: { organisation: { select: { primaryServiceIntervalKm: true, primaryServiceIntervalDays: true, vatEnabled: true, vatRate: true, depositRequired: true, depositPercent: true } } } } } },
+  customer: { select: { customerType: true } },
+  estimate: { select: { customerNotifiedAt: true, discountAmount: true, vatRate: true, customerApprovedAt: true, customerApprovedVia: true, customerDeclinedAt: true, customerDeclineNote: true, lineItems: { where: { billTo: 'CUSTOMER' as const }, select: { amount: true, discountAmount: true } } } },
   invoice: { select: { id: true, invoiceNumber: true, issuedAt: true, total: true } },
   payments: { select: paySelect, orderBy: { recordedAt: 'asc' as const } },
   refunds: { select: refundSelect, orderBy: { recordedAt: 'asc' as const } },
@@ -103,7 +107,8 @@ export const serviceItemSelect = {
   collectedAt: true, cancelledAt: true, escalatedAt: true,
   nextServiceDueDate: true, nextServiceDueOdometer: true, primaryServiceDate: true,
   vehicle: { select: vehicleSelect },
-  branch: { select: { name: true } },
+  branch: { select: { name: true, businessUnit: { select: { organisation: { select: { depositRequired: true, depositPercent: true } } } } } },
+  customer: { select: { customerType: true } },
   serviceEstimate: { select: { customerNotifiedAt: true, lineItems: { select: { amount: true } } } },
   payments: { select: paySelect, orderBy: { recordedAt: 'asc' as const } },
   refunds: { select: refundSelect, orderBy: { recordedAt: 'asc' as const } },
@@ -132,7 +137,7 @@ export function jobCardItem(jc: JobCardRow, now = new Date()): ServiceItem {
   const status = String(jc.status);
   const due = serviceJobCardDue(jc);
   const notifiedAt = jc.estimate?.customerNotifiedAt ?? null;
-  const money = moneyFor({ notified: Boolean(notifiedAt), lines: jc.estimate?.lineItems ?? [], discountAmount: jc.estimate?.discountAmount, vat: vatSettingFor(jc.estimate, jc.branch?.businessUnit.organisation), payments: jc.payments, refunds: jc.refunds });
+  const money = moneyFor({ notified: Boolean(notifiedAt), lines: jc.estimate?.lineItems ?? [], discountAmount: jc.estimate?.discountAmount, vat: vatSettingFor(jc.estimate, jc.branch?.businessUnit.organisation), depositFraction: depositFractionFor(jc.branch?.businessUnit.organisation, String(jc.customer.customerType)), payments: jc.payments, refunds: jc.refunds });
   const cancelledAt = status === 'CANCELLED' ? (jc.cancellationRequests[0]?.decidedAt ?? jc.updatedAt) : null;
   const awaitingApproval = status === 'AWAITING_CUSTOMER_APPROVAL' && Boolean(notifiedAt);
   const waitingForCollection = (status === 'READY_FOR_COLLECTION' || status === 'CLOSED') && !jc.checkedOutAt;
@@ -162,6 +167,7 @@ export function jobCardItem(jc: JobCardRow, now = new Date()): ServiceItem {
     nextServiceDueOdometer: due?.odometer ?? null,
     nextServiceFrom: due?.from ?? null,
     isServiceJobCard: jc.isService,
+    answer: jc.estimate && (jc.estimate.customerApprovedAt || jc.estimate.customerDeclinedAt) ? { approvedAt: jc.estimate.customerApprovedAt, via: jc.estimate.customerApprovedVia, declinedAt: jc.estimate.customerDeclinedAt, declineNote: jc.estimate.customerDeclineNote } : null,
     invoice: jc.invoice ? { id: jc.invoice.id, number: jc.invoice.invoiceNumber, issuedAt: jc.invoice.issuedAt, total: num(jc.invoice.total) } : null,
   };
 }
@@ -169,8 +175,9 @@ export function jobCardItem(jc: JobCardRow, now = new Date()): ServiceItem {
 export function serviceItem(vs: ServiceRow, now = new Date()): ServiceItem {
   const status = String(vs.status);
   const notifiedAt = vs.serviceEstimate?.customerNotifiedAt ?? null;
-  const money = moneyFor({ notified: Boolean(notifiedAt), lines: vs.serviceEstimate?.lineItems ?? [], payments: vs.payments, refunds: vs.refunds });
-  const awaitingApproval = status === 'CHECKED_IN' && Boolean(notifiedAt) && (money.depositDue ?? 0) > 0;
+  const money = moneyFor({ notified: Boolean(notifiedAt), lines: vs.serviceEstimate?.lineItems ?? [], depositFraction: depositFractionFor(vs.branch?.businessUnit.organisation, String(vs.customer.customerType)), payments: vs.payments, refunds: vs.refunds });
+  // Waiting for the deposit; with no deposit, for the first payment (which starts the service).
+  const awaitingApproval = status === 'CHECKED_IN' && Boolean(notifiedAt) && ((money.minDeposit ?? 0) > 0 ? (money.depositDue ?? 0) > 0 : money.netPaid <= 0);
   const waitingForCollection = (status === 'READY_FOR_COLLECTION' || status === 'CLOSED') && !vs.collectedAt;
   const readyAt = vs.readyForCollectionAt;
   return {
@@ -198,6 +205,7 @@ export function serviceItem(vs: ServiceRow, now = new Date()): ServiceItem {
     nextServiceFrom: vs.primaryServiceDate,
     isServiceJobCard: false,
     invoice: null,
+    answer: null,
   };
 }
 
@@ -359,6 +367,11 @@ export const jobCardEstimateSelect = {
   customerNotifiedAt: true,
   discountAmount: true,
   vatRate: true,
+  // The customer's own answer (approved or declined), never who took it.
+  customerApprovedAt: true,
+  customerApprovedVia: true,
+  customerDeclinedAt: true,
+  customerDeclineNote: true,
   lineItems: { where: { billTo: 'CUSTOMER' as const }, orderBy: { createdAt: 'asc' as const }, select: { ...estimateLineFields, discountAmount: true } },
 } satisfies Prisma.EstimateSelect;
 export const serviceEstimateSelect = {

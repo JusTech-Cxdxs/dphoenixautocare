@@ -62,7 +62,7 @@ export async function getMasterAnalytics(periodKey?: string, custom?: { from?: s
   const [jcs, svs, grn, claims] = await Promise.all([
     prisma.jobCard.findMany({
       where: { ...reach, OR: [{ createdAt: { gte: since } }, { status: { notIn: ['CHECKED_OUT', 'CANCELLED', 'CLOSED'] } }, { checkedOutAt: { gte: since } }, { completedAt: { gte: since } }, { closedAt: { gte: since } }, { payments: { some: { recordedAt: { gte: since } } } }, { refunds: { some: { recordedAt: { gte: since } } } }] },
-      select: { id: true, jobNumber: true, status: true, createdAt: true, completedAt: true, checkedOutAt: true, closedAt: true, customerId: true, cancellationRequests: { where: { status: 'APPROVED' }, orderBy: { decidedAt: 'desc' }, take: 1, select: { decidedAt: true } }, customer: { select: { fullName: true } }, estimate: { select: { lineItems: { select: { type: true, amount: true, billTo: true } } } }, payments: { select: { amount: true, recordedAt: true } }, refunds: { select: { amount: true, recordedAt: true } } },
+      select: { id: true, jobNumber: true, status: true, createdAt: true, completedAt: true, checkedOutAt: true, closedAt: true, customerId: true, cancellationRequests: { where: { status: 'APPROVED' }, orderBy: { decidedAt: 'desc' }, take: 1, select: { decidedAt: true } }, customer: { select: { fullName: true, customerType: true } }, invoice: { select: { dueDate: true } }, estimate: { select: { lineItems: { select: { type: true, amount: true, billTo: true } } } }, payments: { select: { amount: true, recordedAt: true } }, refunds: { select: { amount: true, recordedAt: true } } },
     }),
     prisma.vehicleService.findMany({
       where: { ...reach, OR: [{ createdAt: { gte: since } }, { status: { notIn: ['COLLECTED', 'CANCELLED', 'ESCALATED'] } }, { collectedAt: { gte: since } }, { completedAt: { gte: since } }, { closedAt: { gte: since } }, { payments: { some: { recordedAt: { gte: since } } } }, { refunds: { some: { recordedAt: { gte: since } } } }] },
@@ -118,6 +118,7 @@ export async function getMasterAnalytics(periodKey?: string, custom?: { from?: s
       lines: (j.estimate?.lineItems ?? []).map((l: { type: string; amount: unknown; billTo: string }) => ({ type: l.type, amount: num(l.amount), billTo: l.billTo })),
       partsCost: cost.get(`JC:${j.id}`) ?? 0, partsIssuedWithoutCost: uncosted.get(`JC:${j.id}`) ?? 0, subletCost: sublet.get(j.id) ?? 0,
       payments: pay(j.payments), refunds: pay(j.refunds),
+      organisation: j.customer.customerType === 'ORGANIZATION', dueDate: j.invoice?.dueDate ?? null,
     })),
     // Escalated services moved to a Job Card — counted there, not twice.
     ...svs.filter((v: (typeof svs)[number]) => v.status !== 'ESCALATED').map((v: (typeof svs)[number]) => ({

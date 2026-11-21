@@ -219,7 +219,7 @@ export async function notifyCustomer(page: Page) {
 }
 
 /** Finance records a payment using the amount picker (an option key or a typed amount). */
-export async function recordPayment(page: Page, amount: 'SEVENTY_PERCENT' | 'FULL' | 'REMAINING' | number, method: 'BANK_TRANSFER' | 'CASH' = 'BANK_TRANSFER', notes?: string) {
+export async function recordPayment(page: Page, amount: 'DEPOSIT' | 'FULL' | 'REMAINING' | number, method: 'BANK_TRANSFER' | 'CASH' = 'BANK_TRANSFER', notes?: string) {
   await test.step(`finance records a payment (${amount})`, async () => {
     const form = jcForm(page, 'Record payment');
     const picker = form.locator('select').first();
@@ -258,7 +258,7 @@ export async function jobCardReadyForEstimate(page: Page, opts: { plate: string;
 }
 
 /**
- * The whole estimate → approval → customer → 70% deposit path, so a spec
+ * The whole estimate → approval → customer → deposit path (the seed switches a 70% deposit on), so a spec
  * about something later (cancellation, parts, procurement) starts from a Job
  * Card that is In Progress.
  */
@@ -290,7 +290,7 @@ export async function jobCardInProgress(page: Page, opts: { plate: string; lines
   const number = await jobNumber(page);
   await as(page, 'finance-officer');
   await open(page, url);
-  await recordPayment(page, 'SEVENTY_PERCENT');
+  await recordPayment(page, 'DEPOSIT');
   await expectStatus(page, 'In Progress');
   return { url, id, number };
 }

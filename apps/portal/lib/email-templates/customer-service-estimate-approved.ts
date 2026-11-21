@@ -10,7 +10,8 @@ export type CustomerServiceEstimateApprovedEmailOptions = {
   labourSubtotal?: string;
   sundrySubtotal?: string;
   totalAmount: string;
-  minimumDepositAmount: string;
+  /** Omitted (or null) when no deposit applies. */
+  minimumDepositAmount?: string | null;
   /** The deposit as a percentage of the total, e.g. 70. */
   depositPercent?: number;
   bankName: string;

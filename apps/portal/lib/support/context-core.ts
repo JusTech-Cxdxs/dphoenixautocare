@@ -201,7 +201,7 @@ export function staffLoginDiagnosis(s: StaffFacts, now = new Date()): LoginDiagn
 
 const JOB_WORDS: Record<string, [string, string]> = {
   CHECKED_IN: ['Checked in', 'the vehicle is with us and being inspected; the estimate follows'],
-  AWAITING_CUSTOMER_APPROVAL: ['Waiting for your approval', 'the estimate is ready; paying the minimum deposit approves the work'],
+  AWAITING_CUSTOMER_APPROVAL: ['Waiting for your approval', 'the estimate is ready; the customer approves it with the link in our email, in the customer portal or by phone (and pays the deposit first when one is asked for)'],
   IN_PROGRESS: ['Work in progress', 'technicians are working on the vehicle'],
   AWAITING_PARTS: ['Waiting for parts', 'work carries on as soon as the part arrives; nothing is needed from the customer'],
   QUALITY_CHECK: ['Final checks', 'the work is done and being checked before hand-back'],

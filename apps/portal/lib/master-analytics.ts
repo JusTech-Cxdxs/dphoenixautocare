@@ -36,6 +36,10 @@ export type Job = {
   subletCost: number;
   payments: { at: Date; amount: number }[];
   refunds: { at: Date; amount: number }[];
+  /** An organisation (company or fleet) customer: owed on account when it left with a balance. */
+  organisation?: boolean;
+  /** Its invoice's due date (an organisation on credit); null = due before collection. */
+  dueDate?: Date | null;
 };
 export type Purchase = { at: Date; cost: number };
 export type Settlement = { at: Date; amount: number };
@@ -185,6 +189,9 @@ export function computeMasterAnalytics(input: { jobs: Job[]; purchases: Purchase
     receivableJobs: finishedOwing.length,
     aging: { d0_7: r2(aging.d0_7), d8_30: r2(aging.d8_30), d31_60: r2(aging.d31_60), d60plus: r2(aging.d60plus) },
     overpaidTotal: r2(-sum(overpaid.map((x) => x.m.owed))),
+    // Of the receivables: what organisation customers owe, and the part past its invoice's due date.
+    organisationsOwed: r2(sum(finishedOwing.filter((x) => x.j.organisation).map((x) => x.m.owed))),
+    organisationsOverdue: r2(sum(finishedOwing.filter((x) => x.j.organisation && x.j.dueDate && +x.j.dueDate < +now).map((x) => x.m.owed))),
   };
 
   // ── Weekly trend (12 weeks ending this week, Monday starts)

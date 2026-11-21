@@ -163,8 +163,8 @@ test('approving the estimate and recording a payment on a phone', async ({ page 
   // Typing an amount shows one more field; it fits too.
   await pay.locator('select').first().selectOption('OTHER');
   await formFitsPhone(pay, 'Record payment (other amount)');
-  await pay.locator('select').first().selectOption('SEVENTY_PERCENT');
-  await recordPayment(page, 'SEVENTY_PERCENT');
+  await pay.locator('select').first().selectOption('DEPOSIT');
+  await recordPayment(page, 'DEPOSIT');
   await noSidewaysScroll(page, S.url);
 });
 

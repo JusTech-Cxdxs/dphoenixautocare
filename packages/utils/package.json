@@ -6,11 +6,17 @@
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./billing": "./src/billing.ts"
+    "./billing": "./src/billing.ts",
+    "./approval-link": "./src/approval-link.ts"
   },
   "typesVersions": {
     "*": {
-      "billing": ["src/billing.ts"]
+      "billing": [
+        "src/billing.ts"
+      ],
+      "approval-link": [
+        "src/approval-link.ts"
+      ]
     }
   }
 }

@@ -10,7 +10,7 @@ export type StatusInfo = { label: string; explain: string; tone: Tone };
 
 export const JOB_CARD_STATUS: Record<string, StatusInfo> = {
   CHECKED_IN: { label: 'Checked in', tone: 'info', explain: 'Your vehicle is with us. Our team is inspecting it and preparing your estimate.' },
-  AWAITING_CUSTOMER_APPROVAL: { label: 'Waiting for your approval', tone: 'attention', explain: 'Your estimate is ready. Paying the minimum deposit approves the work so we can start.' },
+  AWAITING_CUSTOMER_APPROVAL: { label: 'Waiting for your approval', tone: 'attention', explain: 'Your estimate is ready. Approve it here, with the link in our email, or by calling us, and we can start.' },
   IN_PROGRESS: { label: 'Work in progress', tone: 'progress', explain: 'Our technicians are working on your vehicle right now.' },
   AWAITING_PARTS: { label: 'Waiting for parts', tone: 'progress', explain: 'We’re waiting for a part to arrive. Work carries on the moment it’s here — nothing is needed from you.' },
   QUALITY_CHECK: { label: 'Final checks', tone: 'progress', explain: 'The work is done and we’re checking everything carefully before handing it back.' },

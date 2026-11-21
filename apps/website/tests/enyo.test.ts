@@ -39,7 +39,8 @@ test('ownership: only the customer\'s own list is ever searched; someone else\'s
 
 test('the next step reads in the customer\'s words', () => {
   const base = { kind: 'jc' as const, awaitingApproval: false, waitingForCollection: false, balance: null, estimateReady: false };
-  assert.match(nextStepFor({ ...base, status: 'AWAITING_CUSTOMER_APPROVAL', awaitingApproval: true }), /minimum deposit/);
+  assert.match(nextStepFor({ ...base, status: 'AWAITING_CUSTOMER_APPROVAL', awaitingApproval: true }), /Approve it/);
+  assert.doesNotMatch(nextStepFor({ ...base, status: 'AWAITING_CUSTOMER_APPROVAL', awaitingApproval: true }), /minimum deposit|70%/);
   assert.match(nextStepFor({ ...base, status: 'READY_FOR_COLLECTION', waitingForCollection: true, balance: 5000 }), /Settle the balance/);
   assert.match(nextStepFor({ ...base, status: 'READY_FOR_COLLECTION', waitingForCollection: true, balance: 0 }), /collect/);
   assert.match(nextStepFor({ ...base, status: 'CHECKED_IN' }), /estimate/);

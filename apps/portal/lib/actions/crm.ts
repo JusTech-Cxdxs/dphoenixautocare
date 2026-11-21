@@ -4,7 +4,9 @@ import { prisma, Prisma } from '@ejo/database';
 import { isFiltered, matchesSource, parseSourceFilter, type SOURCE_PARAMS } from '@/lib/source-filter';
 import { importIdsFor } from '@/lib/source-filter-server';
 import { requireUser } from './workshop';
-import { allows, authorize, getPrincipal, orgWhere, reachWhere, myOrganisationId, NOT_AVAILABLE } from '@/lib/authz/server';
+import { allows, authorize, getPrincipal, orgWhere, reachWhere, myOrganisationId, NOT_AVAILABLE, refuse, refuseDuringAssist } from '@/lib/authz/server';
+import { owedOnInvoices } from '@/lib/credit';
+import { creditLimitOf, isOnCredit } from '@/lib/credit-core';
 import { writeAuditLog } from '@/lib/workshop-core';
 import { billingOf, jobCardTotals, ESTIMATE_TOTALS_SELECT, JOB_CARD_BILLING_SELECT } from '@/lib/estimate-billing';
 import { sendCustomerAccessEmail, withdrawCustomerSetPasswordLinks } from '@/lib/customer-access';
@@ -246,7 +248,7 @@ export async function getCustomer360(customerId: string) {
     where: { id: customerId, ...(await orgWhere()) },
     include: {
       createdBy: { select: { fullName: true } },
-      customerCompany: { select: { companyName: true, taxId: true } },
+      customerCompany: { select: { companyName: true, taxId: true, creditLimit: true, paymentTermsDays: true, creditApprovedAt: true, creditApprovedBy: { select: { fullName: true } } } },
       addresses: { orderBy: { createdAt: 'asc' } },
       contacts: { orderBy: { createdAt: 'asc' } },
       notes: { orderBy: [{ pinned: 'desc' }, { createdAt: 'desc' }], take: 200, include: { author: { select: { id: true, fullName: true } } } },
@@ -368,13 +370,26 @@ export async function getCustomer360(customerId: string) {
   });
   const activeWarranties = warranties.filter((w: (typeof warranties)[number]) => w.status === 'ACTIVE' && +new Date(w.endsAt) > +now).length;
 
-  const [canManage, canOpenJobs, canWarranty, canBroadcast] = await Promise.all([allows('crm.manage'), allows('workshop.job_card.create'), allows('warranty.view'), allows('notifications.broadcast.send')]);
+  const [canManage, canOpenJobs, canWarranty, canBroadcast, canCredit] = await Promise.all([allows('crm.manage'), allows('workshop.job_card.create'), allows('warranty.view'), allows('notifications.broadcast.send'), mayGrantCredit()]);
+  // An organisation customer's account: its credit terms, what it owes on its invoices now and how much is overdue.
+  const company = customer.customerCompany;
+  const account = customer.customerType === 'ORGANIZATION'
+    ? {
+        onCredit: isOnCredit(String(customer.customerType), company),
+        paymentTermsDays: company?.paymentTermsDays ?? null,
+        creditLimit: creditLimitOf(company),
+        approvedAt: company?.creditApprovedAt ?? null,
+        approvedBy: company?.creditApprovedBy?.fullName ?? null,
+        hasCompany: Boolean(company),
+        ...(await owedOnInvoices(customer.id, now)),
+      }
+    : null;
   return {
     customer: {
       id: customer.id, fullName: customer.fullName, customerType: customer.customerType, email: customer.email, phone: customer.phone, altPhone: customer.altPhone,
       address: customer.address, tags: customer.tags ?? [], isActive: customer.isActive, notifyByEmail: customer.notifyByEmail, createdAt: customer.createdAt, updatedAt: customer.updatedAt,
       customerSince: customer.customerSince, externalId: customer.externalId, externalSource: customer.externalSource, importJobId: customer.importJobId, organisationId: customer.organisationId,
-      createdBy: customer.createdBy?.fullName ?? null, company: customer.customerCompany, gaps: profileGaps(customer),
+      createdBy: customer.createdBy?.fullName ?? null, company: company ? { companyName: company.companyName, taxId: company.taxId } : null, gaps: profileGaps(customer),
     },
     portal: { hasAccount: customer.accounts.length > 0, lastSignIn, pendingLinkExpiresAt: link?.expiresAt ?? null, linkSentAt: link?.createdAt ?? null },
     addresses: customer.addresses,
@@ -392,7 +407,8 @@ export async function getCustomer360(customerId: string) {
     money: { ...money, activeWarranties },
     months,
     scope: branchId ? { branchOnly: true as const, branchName: branch?.name ?? 'your branch' } : { branchOnly: false as const, branchName: null },
-    can: { manage: canManage, openJobs: canOpenJobs, warranty: canWarranty, broadcast: canBroadcast },
+    account,
+    can: { manage: canManage, openJobs: canOpenJobs, warranty: canWarranty, broadcast: canBroadcast, credit: canCredit },
   };
 }
 export type Customer360 = NonNullable<Awaited<ReturnType<typeof getCustomer360>>>;
@@ -450,6 +466,52 @@ export type UpdateCustomerInput = {
   companyName?: string;
   taxId?: string;
 };
+
+/** Who may put an organisation on credit: Finance (records payments) or a Manager (approves closing jobs). */
+async function mayGrantCredit(): Promise<boolean> {
+  return (await allows('workshop.payment.record')) || (await allows('workshop.close.approve'));
+}
+
+export type CreditTermsInput = {
+  /** Days to pay after the invoice date; 0 or null = no credit (pay before collection). */
+  paymentTermsDays: number | null;
+  /** The most it may owe on unpaid invoices; null = no limit. */
+  creditLimit: number | null;
+};
+
+/**
+ * Credit terms for an organisation (company or fleet) customer: payment
+ * terms in days and an optional credit limit. On credit, its Job Cards need
+ * no deposit and can leave with a balance once invoiced, within the limit.
+ * Finance or a Manager sets them, and whoever does is recorded as approving
+ * them; every change is audited. 0 days switches credit off.
+ */
+export async function setCustomerCreditTerms(customerId: string, input: CreditTermsInput): Promise<void> {
+  // A money decision: never taken during an assisted session.
+  await refuseDuringAssist('setCustomerCreditTerms');
+  const me = await requireUser();
+  const c = await fencedCustomer(customerId);
+  // Finance (records payments) or a Manager (approves closing jobs).
+  if (!(await allows('workshop.payment.record')) && !(await allows('workshop.close.approve'))) return refuse('workshop.close.approve', 'setCustomerCreditTerms', 'Only Finance or a Manager can set credit terms.');
+  if (c.customerType !== 'ORGANIZATION') throw new CrmError('Only an organisation (company or fleet customer) can be on credit.');
+  const days = input.paymentTermsDays ?? 0;
+  if (!Number.isInteger(days) || days < 0 || days > 365) throw new CrmError('Enter the payment terms as whole days between 0 and 365.');
+  const limit = input.creditLimit === null ? null : Math.round(Number(input.creditLimit) * 100) / 100;
+  if (limit !== null && (!Number.isFinite(limit) || limit < 0 || limit > 999_999_999_999)) throw new CrmError('Enter the credit limit in naira, or leave it blank for no limit.');
+  const before = await prisma.customerCompany.findUnique({ where: { customerId: c.id }, select: { id: true, paymentTermsDays: true, creditLimit: true } });
+  if (!before) throw new CrmError('Add the company name first (Edit details), then set its credit terms.');
+  const on = days > 0;
+  await prisma.customerCompany.update({
+    where: { id: before.id },
+    data: { paymentTermsDays: on ? days : null, creditLimit: on ? limit : null, creditApprovedById: on ? me.id : null, creditApprovedAt: on ? new Date() : null },
+  });
+  await audit(me.id, c, on ? 'credit_terms_set' : 'credit_terms_removed', {
+    changes: {
+      paymentTermsDays: { from: before.paymentTermsDays, to: on ? days : null },
+      creditLimit: { from: before.creditLimit === null ? null : Number(before.creditLimit), to: on ? limit : null },
+    },
+  });
+}
 
 /** Edit a customer's details. Email stays unique across the platform; the
  * sign-in account is keyed by the customer id, so changing the email needs

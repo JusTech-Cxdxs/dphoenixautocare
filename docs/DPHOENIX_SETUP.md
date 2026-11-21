@@ -156,6 +156,28 @@ estimates, invoices and receipts add up:
 - **Discounts above this % need the Manager**: a discount on a whole estimate above this share of the
   customer's subtotal waits for the Manager, who approves it with the estimate. Leave it blank and
   every discount needs the Manager.
+- **Require a deposit before work starts (individual customers only)**: off until you switch it on.
+  Off, the customer's approval alone starts the work. On, an individual customer also pays
+  **Deposit (%)** of the estimate first (preset to 70%). Organisations (company and fleet customers)
+  never pay a deposit.
+
+**How customers approve an estimate.** When the front desk presses **Notify customer**, the customer
+is emailed the estimate with a secure **Approve or decline online** link (it works once, for 7 days).
+They can also approve or decline on their Job Card in the customer portal, or tell you by phone: on
+the Job Card, **Customer approved by phone** records who you spoke with and your name. **Send approval
+link** emails a fresh link and offers **Share on WhatsApp**, which opens WhatsApp on your phone with
+the message ready to send. Paying the deposit at the counter still counts as approval. The Job Card
+moves to In Progress once the customer has approved and any deposit is paid. A decline shows on the
+Job Card with the customer's note, so the front desk can call them.
+
+**Putting a company on credit.** Open the customer in **Customers** (it must be an **Organisation**
+with its company name filled in). Finance or the Manager uses **On account → Put on credit**: the
+**payment terms (days)**, for example 30, and an optional **credit limit (₦)**. On credit, its Job
+Cards need no deposit and can be closed and checked out with a balance: the invoice is issued and
+reads **Payment due by** the date its terms give. If the company's unpaid invoices would go over the
+limit, only the Manager can close the Job Card, by ticking **Close over the credit limit**. The same
+card shows what the company owes now and what is overdue, with links to the invoices. Record its
+payments on the Job Card as usual until the invoice is paid.
 
 **Settings → Branches and departments → Victoria Island Workshop**: add the **bank name, account name
 and account number** customers pay into. They print on estimates and payment requests.

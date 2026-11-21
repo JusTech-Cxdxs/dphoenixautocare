@@ -24,7 +24,7 @@ export default async function VehicleServicePage({ params }: { params: Promise<{
       customerComplaint: true,
       odometerAtService: true,
       complaints: { orderBy: { sequenceNumber: 'asc' }, select: { description: true } },
-      branch: { select: branchSelect },
+      branch: { select: { ...branchSelect, businessUnit: serviceItemSelect.branch.select.businessUnit } },
       serviceEstimate: { select: serviceEstimateSelect },
       warranties: { where: { customerId: me.id }, select: { id: true, warrantyNumber: true, subjectDescription: true, endsAt: true, status: true } },
     },

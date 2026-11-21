@@ -49,6 +49,8 @@ export async function updateBillingSettingsFormAction(formData: FormData) {
       vatRate: Number(str(formData, 'vatRate') || '7.5'),
       vatNumber: str(formData, 'vatNumber'),
       discountApprovalPercent: threshold === '' ? null : Number(threshold),
+      depositRequired: formData.get('depositRequired') === 'on',
+      depositPercent: Number(str(formData, 'depositPercent') || '70'),
     });
   } catch (err) {
     const message = friendlyError(err, 'Could not update billing and tax settings.', 'organisation-form-handlers');

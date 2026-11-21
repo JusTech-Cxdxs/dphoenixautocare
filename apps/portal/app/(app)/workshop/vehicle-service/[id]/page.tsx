@@ -54,7 +54,9 @@ import {
 import { LoadingLink } from '@/components/LoadingLink';
 import { getImportOrigin } from '@/lib/actions/data-exchange';
 import { PaymentAmountField } from '@/components/PaymentAmountField';
-import { MINIMUM_DEPOSIT_FRACTION, COMMON_ESTIMATE_LINE_DESCRIPTIONS } from '@/lib/workshop-constants';
+import { COMMON_ESTIMATE_LINE_DESCRIPTIONS } from '@/lib/workshop-constants';
+import { depositFractionFor, depositOf } from '@/lib/estimate-billing';
+import { depositSettingsOfBranch } from '@/lib/customer-approval';
 import { ServiceEstimateLineItemForm } from '@/components/ServiceEstimateLineItemForm';
 import { LikelyLinesCard } from '@/components/enyo/LikelyLinesCard';
 import { Suspense } from 'react';
@@ -147,8 +149,8 @@ const SERVICE_ESTIMATE_LINE_TYPES = (['STORE_PART', 'INTERNAL_JOB', 'LABOUR', 'S
 const NEXT_ACTION: Record<string, { status: string; label: string } | null> = {
   SCHEDULED: { status: 'CHECKED_IN', label: 'Check In Vehicle' },
   // No manual move to IN_SERVICE: after inspection the service either
-  // continues with an estimate (the 70% deposit moves it on, see
-  // recordServicePayment) or escalates to a Job Card.
+  // continues with an estimate (the deposit, or the first payment when no
+  // deposit applies, moves it on — see recordServicePayment) or escalates to a Job Card.
   CHECKED_IN: null,
   IN_SERVICE: { status: 'COMPLETED', label: 'Complete Service' },
   // Same ending as a Job Card: Ready for Collection → Manager-approved close → Check Out.
@@ -412,7 +414,9 @@ export default async function VehicleServiceDetailPage({
         ? isApprover || isEligibleManager
         : true;
   const isActiveVisit = service.status === 'SCHEDULED' || service.status === 'CHECKED_IN' || service.status === 'IN_SERVICE';
-  const minimumDeposit = Math.round(estimateTotal * MINIMUM_DEPOSIT_FRACTION * 100) / 100;
+  // The deposit for this customer: the one rule (none when switched off, never for an organisation).
+  const depositFraction = depositFractionFor(await depositSettingsOfBranch(service.branchId), service.customer.customerType);
+  const minimumDeposit = depositOf(estimateTotal, depositFraction);
   // A cancelled job that took money shows refund progress, not payment progress.
   const paymentStatus: 'AWAITING_PAYMENT' | 'PARTIAL' | 'DEPOSIT_MET' | 'PAID_IN_FULL' | 'REFUND_DUE' | 'REFUNDED' =
     service.status === 'CANCELLED' && paymentsTotal > 0
@@ -423,7 +427,7 @@ export default async function VehicleServiceDetailPage({
       ? 'AWAITING_PAYMENT'
       : estimateTotal > 0 && paymentsTotal >= estimateTotal
         ? 'PAID_IN_FULL'
-        : estimateTotal > 0 && paymentsTotal >= minimumDeposit
+        : estimateTotal > 0 && minimumDeposit > 0 && paymentsTotal >= minimumDeposit
           ? 'DEPOSIT_MET'
           : 'PARTIAL';
   // Payments show once the customer has been notified or any payment exists.
@@ -1263,7 +1267,7 @@ export default async function VehicleServiceDetailPage({
               ) : ['CHECKED_IN', 'IN_SERVICE', 'COMPLETED', 'READY_FOR_COLLECTION'].includes(service.status) && isEligibleFinance ? (
                 <>
                   <p className="mt-4 border-t border-[var(--ejo-border)] pt-4 text-xs text-[var(--ejo-text-muted)]">
-                    Once payments reach the 70% minimum deposit, the service moves to In Service automatically.
+                    {minimumDeposit > 0 ? `Once payments reach the ${Math.round(depositFraction * 100)}% deposit (${formatNaira(minimumDeposit)}), the service moves to In Service automatically.` : 'No deposit applies: the first payment moves the service to In Service automatically.'}
                     Pick a suggested amount or choose &quot;Other&quot; to enter a different one.
                   </p>
                   <form key={payments.length} action={recordServicePaymentFormAction} className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -1275,7 +1279,7 @@ export default async function VehicleServiceDetailPage({
                         paymentsTotal > 0
                           ? [{ key: 'REMAINING', label: `Remaining balance (${formatNaira(estimateTotal - paymentsTotal)})`, value: (Math.round((estimateTotal - paymentsTotal) * 100) / 100).toFixed(2) }]
                           : [
-                              { key: 'SEVENTY_PERCENT', label: `70% deposit (${formatNaira(minimumDeposit)})`, value: minimumDeposit.toFixed(2) },
+                              ...(minimumDeposit > 0 ? [{ key: 'DEPOSIT', label: `${Math.round(depositFraction * 100)}% deposit (${formatNaira(minimumDeposit)})`, value: minimumDeposit.toFixed(2) }] : []),
                               { key: 'FULL', label: `Full payment (${formatNaira(estimateTotal)})`, value: estimateTotal.toFixed(2) },
                             ]
                       }

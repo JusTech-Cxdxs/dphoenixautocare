@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { ServiceItem } from '@/lib/customer-portal/data';
 import { fmtDate, fmtDateTime, itemKindLabel, naira, COLLECTION_FRIENDLY_NOTICE_DAYS } from '@/lib/customer-portal/format';
-import { MINIMUM_DEPOSIT_FRACTION } from '@/lib/workshop-payment-constants';
+import { EstimateAnswerForm } from '@/components/EstimateAnswerForm';
 import { Badge, BackLink, Card, KeyValue, Notice, SectionTitle, Stepper, Timeline, type TimelineEntry } from './ui';
 import { PayHow, type BankDetails } from './PayHow';
 import { Meter } from './Charts';
@@ -94,9 +94,21 @@ export function ServiceDetail({ item, complaints, lines, branch, mileage, warran
       </section>
 
       {/* What needs doing now */}
-      {item.awaitingApproval ? (
+      {item.awaitingApproval && item.kind === 'jc' ? (
         <Notice tone="attention" icon="receipt">
-          <strong>Your approval is needed.</strong> Pay the minimum deposit of <strong>{naira(m.depositDue ?? 0)}</strong> ({Math.round(MINIMUM_DEPOSIT_FRACTION * 100)}% of the estimate){item.approvalDeadline ? <> by <strong>{fmtDate(item.approvalDeadline)}</strong></> : null} and we’ll start straight away. Details on how to pay are below.
+          {item.answer?.approvedAt ? (
+            <><strong>Thank you — you approved the estimate on {fmtDate(item.answer.approvedAt)}.</strong> Work starts as soon as the deposit of <strong>{naira(m.depositDue ?? 0)}</strong> ({m.depositPercent}% of the estimate) is received. Details on how to pay are below.</>
+          ) : (
+            <>
+              <strong>Your approval is needed.</strong> Please look over the estimate below and approve it{item.approvalDeadline ? <> by <strong>{fmtDate(item.approvalDeadline)}</strong></> : null}
+              {(m.depositDue ?? 0) > 0 ? <>, and pay the deposit of <strong>{naira(m.depositDue ?? 0)}</strong> ({m.depositPercent}% of the estimate) — details on how to pay are below. We start as soon as both are in.</> : <> and we’ll start straight away.</>}
+              <div className="mt-4"><EstimateAnswerForm jobCardId={item.id} declined={Boolean(item.answer?.declinedAt)} /></div>
+            </>
+          )}
+        </Notice>
+      ) : item.awaitingApproval ? (
+        <Notice tone="attention" icon="receipt">
+          <strong>Your approval is needed.</strong>{(m.depositDue ?? 0) > 0 ? <> Pay the deposit of <strong>{naira(m.depositDue ?? 0)}</strong> ({m.depositPercent}% of the estimate)</> : <> Pay towards the estimate, or call us to approve it,</>}{item.approvalDeadline ? <> by <strong>{fmtDate(item.approvalDeadline)}</strong></> : null} and we’ll start straight away. Details on how to pay are below.
         </Notice>
       ) : null}
       {item.waitingForCollection ? (
@@ -206,7 +218,7 @@ export function ServiceDetail({ item, complaints, lines, branch, mileage, warran
                 <div className="mt-2"><Meter value={m.netPaid} max={m.estimateTotal} label="Share of the estimate paid" /></div>
                 <dl className="mt-3 space-y-1.5 text-sm">
                   <div className="flex justify-between gap-3"><dt className="text-[var(--ejo-text-muted)]">Estimate</dt><dd className="shrink-0 text-right tabular-nums text-[var(--ejo-text)]">{naira(m.estimateTotal)}</dd></div>
-                  {item.phase === 'active' && (m.depositDue ?? 0) > 0 ? <div className="flex justify-between gap-3"><dt className="text-[var(--ejo-text-muted)]">Minimum deposit ({Math.round(MINIMUM_DEPOSIT_FRACTION * 100)}%)</dt><dd className="shrink-0 text-right tabular-nums text-[var(--ejo-text)]">{naira(m.minDeposit ?? 0)}</dd></div> : null}
+                  {item.phase === 'active' && (m.depositDue ?? 0) > 0 ? <div className="flex justify-between gap-3"><dt className="text-[var(--ejo-text-muted)]">Deposit before work starts ({m.depositPercent}%)</dt><dd className="shrink-0 text-right tabular-nums text-[var(--ejo-text)]">{naira(m.minDeposit ?? 0)}</dd></div> : null}
                   {m.refunded > 0 ? <div className="flex justify-between gap-3"><dt className="text-[var(--ejo-text-muted)]">Refunded</dt><dd className="shrink-0 text-right tabular-nums text-[var(--ejo-text)]">{naira(m.refunded)}</dd></div> : null}
                   <div className="flex justify-between gap-3 border-t border-[var(--ejo-border)] pt-1.5 font-semibold"><dt className="text-[var(--ejo-text)]">Balance</dt><dd className={owe > 0 ? 'text-[#b45309] dark:text-[var(--ejo-warning)]' : 'text-[var(--ejo-success)]'}>{owe > 0 ? naira(owe) : 'Nothing to pay'}</dd></div>
                 </dl>

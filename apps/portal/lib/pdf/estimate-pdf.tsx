@@ -70,7 +70,7 @@ export function EstimatePdf(props: EstimatePdfProps) {
     organisation, branch, logoUrl, jobNumber, customerName, customerAddress,
     vehicleDescription, plateNumber, chassisNumber, lineItems,
     servicesSubtotal, labourSubtotal, sundrySubtotal, discountAmount, vatLabel, vatAmount, totalAmount,
-    minimumDepositAmount, bankName, accountName, accountNumber, paymentRemarkSuggestion,
+    minimumDepositAmount, depositPercent, bankName, accountName, accountNumber, paymentRemarkSuggestion,
     referenceLabel = 'JOB CARD',
   } = props;
 
@@ -212,11 +212,18 @@ export function EstimatePdf(props: EstimatePdfProps) {
           </View>
         </View>
 
-        <View style={styles.depositBox}>
-          <Text style={styles.depositEyebrow}>MINIMUM DEPOSIT REQUIRED</Text>
-          <Text style={styles.depositAmount}>{minimumDepositAmount}</Text>
-          <Text style={styles.depositNote}>Work begins once this deposit is received and confirmed.</Text>
-        </View>
+        {minimumDepositAmount ? (
+          <View style={styles.depositBox}>
+            <Text style={styles.depositEyebrow}>{depositPercent ? `DEPOSIT BEFORE WORK STARTS (${depositPercent}%)` : 'DEPOSIT BEFORE WORK STARTS'}</Text>
+            <Text style={styles.depositAmount}>{minimumDepositAmount}</Text>
+            <Text style={styles.depositNote}>Work begins once you approve the estimate and this deposit is received and confirmed.</Text>
+          </View>
+        ) : (
+          <View style={styles.depositBox}>
+            <Text style={styles.depositEyebrow}>YOUR APPROVAL</Text>
+            <Text style={styles.depositNote}>Work begins once you approve this estimate. See our email for how to approve it, or call us.</Text>
+          </View>
+        )}
 
         <Text style={styles.paymentTitle}>How to pay</Text>
         <View style={styles.paymentBox}>

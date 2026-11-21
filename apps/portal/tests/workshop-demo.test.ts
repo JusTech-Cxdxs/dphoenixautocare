@@ -8,10 +8,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { planWorkshopDemo, type JobCardStatus } from '../lib/workshop/demo/plan';
+import { DEMO_UPFRONT_SHARE, planWorkshopDemo, type JobCardStatus } from '../lib/workshop/demo/plan';
 import { PARTS } from '../lib/workshop/demo/catalogue';
 import { DEMO_CUSTOMERS, DEMO_STAFF, isDemoEmail } from '../lib/demo/people';
-import { MINIMUM_DEPOSIT_FRACTION } from '../lib/workshop-constants';
 import { REWORK_FROM_STATUSES } from '../lib/job-card-status-rules';
 
 const NOW = new Date('2026-11-03T09:30:00Z');
@@ -63,7 +62,7 @@ test('every job card status today, every service status, every claim stage, ever
   assert.ok(plan.figures.jobCards! >= 150 && plan.figures.services! >= 60 && plan.figures.customers === 40);
 });
 
-test('the workshop’s rules hold in every job card: stages in order with their stamps, the deposit at 70% before work starts, the balance before closing, close and cancel only through a decided request, refunds only after a cancellation, rework only from the statuses the rules allow, estimates priced and approved before the customer is told', () => {
+test('the workshop’s rules hold in every job card: stages in order with their stamps, the customer’s go-ahead (a 70% part payment at the counter) before work starts, the balance before closing, close and cancel only through a decided request, refunds only after a cancellation, rework only from the statuses the rules allow, estimates priced and approved before the customer is told', () => {
   const order = ['CHECKED_IN', 'AWAITING_CUSTOMER_APPROVAL', 'IN_PROGRESS', 'AWAITING_PARTS', 'QUALITY_CHECK', 'COMPLETED', 'READY_FOR_COLLECTION', 'CLOSED', 'CHECKED_OUT'];
   for (const j of plan.jobCards) {
     const est = j.estimate;
@@ -73,7 +72,7 @@ test('the workshop’s rules hold in every job card: stages in order with their 
       if (est.customerNotifiedAt) { assert.equal(est.status, 'MANAGER_APPROVED'); assert.ok(est.managerApprovedAt! <= est.customerNotifiedAt && est.approvedAt! <= est.managerApprovedAt!); }
     }
     const paid = j.payments.reduce((s, p) => s + p.amount, 0);
-    if (j.workStartedAt) { assert.ok(est?.customerNotifiedAt, `${j.key} work after the customer was told`); const dep = j.payments[0]; if (est!.customerTotal > 0) assert.ok(dep && dep.at <= j.workStartedAt && dep.amount >= est!.customerTotal * MINIMUM_DEPOSIT_FRACTION - 1, `${j.key} deposit before work`); else assert.equal(j.payments.length, 0, `${j.key}: nothing to pay when the warranty carries it`); }
+    if (j.workStartedAt) { assert.ok(est?.customerNotifiedAt, `${j.key} work after the customer was told`); const dep = j.payments[0]; if (est!.customerTotal > 0) assert.ok(dep && dep.at <= j.workStartedAt && dep.amount >= est!.customerTotal * DEMO_UPFRONT_SHARE - 1, `${j.key} paid at the counter before work`); else assert.equal(j.payments.length, 0, `${j.key}: nothing to pay when the warranty carries it`); }
     if (j.cancellation?.status === 'APPROVED') { assert.ok(['CANCELLED', 'CHECKED_OUT'].includes(j.status) && !j.completedAt, `${j.key} cancelled: ${j.status}`); if (j.status === 'CHECKED_OUT') assert.ok(j.checkedOutAt && j.gateExit); continue; }
     if (order.indexOf(j.status) >= order.indexOf('IN_PROGRESS')) assert.ok(j.workStartedAt, `${j.key} ${j.status} has workStartedAt`);
     if (['COMPLETED', 'READY_FOR_COLLECTION', 'CLOSED', 'CHECKED_OUT'].includes(j.status)) assert.ok(j.completedAt && j.completedAt >= j.workStartedAt!, `${j.key} completedAt`);

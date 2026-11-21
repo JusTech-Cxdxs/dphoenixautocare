@@ -46,7 +46,7 @@ export function findOwnJob<T extends { number: string }>(items: readonly T[], ra
 export function nextStepFor(i: { kind: 'jc' | 'vs'; status: string; awaitingApproval: boolean; waitingForCollection: boolean; balance: number | null; estimateReady: boolean }): string {
   if (i.status === 'CANCELLED') return 'Nothing more is needed. If you paid anything, the branch will talk to you about a refund.';
   if (i.status === 'ESCALATED') return 'This visit continues as a Job Card; follow that one instead.';
-  if (i.awaitingApproval) return 'Your estimate is ready. Paying the minimum deposit approves the work so we can start.';
+  if (i.awaitingApproval) return 'Your estimate is ready. Approve it on your Job Card page, with the link in our email, or by calling us, and we can start (pay the deposit first if one is shown).';
   if (i.waitingForCollection) return (i.balance ?? 0) > 0 ? 'Settle the balance, then come and collect your vehicle.' : 'Your vehicle is ready. Come and collect it.';
   if (['CHECKED_OUT', 'COLLECTED'].includes(i.status)) return 'Nothing more is needed. Thank you for choosing us.';
   if (i.status === 'SCHEDULED') return 'Bring your vehicle in at the booked time.';

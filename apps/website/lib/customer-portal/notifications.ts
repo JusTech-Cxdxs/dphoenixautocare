@@ -42,7 +42,7 @@ function servicesEvents(items: ServiceItem[]): Omit<NoticeItem, 'read'>[] {
     if (i.kind === 'jc') add('created', i.createdAt, `${name} opened`, `Your ${car} is checked in. We’ll keep you posted at every step.`, 'wrench', 'info');
     else add('booked', i.createdAt, `${name} booked`, `Your ${car} is booked in for a service.`, 'calendarCheck', 'info');
     if (i.kind === 'vs') add('checked_in', i.checkedInAt, `${name}: checked in`, `Your ${car} has arrived and is with our team.`, 'car', 'info');
-    add('estimate', i.estimateNotifiedAt, `Your estimate for ${i.number} is ready`, i.money.estimateTotal !== null ? `Total ${naira(i.money.estimateTotal)} — minimum deposit ${naira(i.money.minDeposit ?? 0)}.` : 'Open it to see the details.', 'receipt', 'attention');
+    add('estimate', i.estimateNotifiedAt, `Your estimate for ${i.number} is ready`, i.money.estimateTotal !== null ? `Total ${naira(i.money.estimateTotal)}${(i.money.minDeposit ?? 0) > 0 ? ` — deposit before work starts ${naira(i.money.minDeposit ?? 0)}` : ''}. Open it to approve.` : 'Open it to see the details.', 'receipt', 'attention');
     add('started', i.workStartedAt, `Work started on ${i.number}`, `Our technicians are working on your ${car}.`, 'wrench', 'progress');
     add('completed', i.completedAt, `Work completed on ${i.number}`, 'All done — we’re getting it ready for you.', 'checkCircle', 'success');
     add('ready', i.readyAt, `${i.vehicle.label} is ready for collection`, `${name} is ready. Settle any balance and come and pick it up.`, 'parking', 'success');

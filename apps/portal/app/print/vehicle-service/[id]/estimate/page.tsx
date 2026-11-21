@@ -6,7 +6,7 @@ import { getServiceEstimate } from '@/lib/actions/vehicle-service-estimate';
 import { getVehicleServicePayments } from '@/lib/actions/vehicle-service-payment';
 import { getOrganisation } from '@/lib/actions/organisation';
 import { EstimatePrintDocument, isEstimateAuditAction } from '@/components/print/EstimatePrintDocument';
-import { MINIMUM_DEPOSIT_FRACTION } from '@/lib/workshop-constants';
+import { depositFractionFor } from '@/lib/estimate-billing';
 import { bankDetailsFor } from '@/lib/workshop-core';
 
 const TYPE_ORDER = ['STORE_PART', 'INTERNAL_JOB', 'LABOUR', 'SUNDRY'];
@@ -101,7 +101,7 @@ export default async function PrintVehicleServiceEstimatePage({
         .filter((e: (typeof auditTrail)[number]) => isEstimateAuditAction(e.action))
         .sort((a: (typeof auditTrail)[number], b: (typeof auditTrail)[number]) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())}
       bank={await bankDetailsFor(service.branchId)}
-      minimumDepositFraction={MINIMUM_DEPOSIT_FRACTION}
+      minimumDepositFraction={depositFractionFor(organisation, service.customer.customerType)}
       paymentReference={[service.serviceNumber, vehicleDescription, service.vehicle.plateNumber].filter(Boolean).join(' — ')}
     />
   );

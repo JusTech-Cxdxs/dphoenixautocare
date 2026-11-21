@@ -45,7 +45,9 @@ export type EstimatePdfProps = {
   vatLabel?: string | null;
   vatAmount?: string | null;
   totalAmount: string;
-  minimumDepositAmount: string;
+  /** The deposit due before work starts; null when none applies (no deposit box). */
+  minimumDepositAmount: string | null;
+  depositPercent?: number | null;
   bankName: string;
   accountName: string;
   accountNumber: string;
@@ -108,6 +110,8 @@ export type InvoicePdfProps = {
   logoUrl: string;
   invoiceNumber: string;
   issuedOnLabel: string;
+  /** "21 December 2026": printed as "Payment due by …"; null when due before collection. */
+  dueOnLabel?: string | null;
   jobNumber: string;
   customerName: string;
   customerContact: string | null;

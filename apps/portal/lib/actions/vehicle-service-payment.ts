@@ -10,7 +10,8 @@ import { exceedsBalance } from '@/lib/integrity-core';
 import { requireUser, requireEligibleFinanceOfficer, listEligibleManagersForBranch, listEligibleFinanceOfficersForBranch } from './workshop';
 import { writeAuditLog, getWorkshopOrgContext } from '@/lib/workshop-core';
 import type { PaymentMethod } from './workshop';
-import { MINIMUM_DEPOSIT_FRACTION } from '@/lib/workshop-constants';
+import { depositFractionFor, depositOf, paymentApproves } from '@/lib/estimate-billing';
+import { depositSettingsOfBranch } from '@/lib/customer-approval';
 import { sendEmail } from '@/lib/email';
 import { renderServicePaymentRecordedUpdateEmail } from '@/lib/email-templates/service-payment-recorded-update';
 import { renderServicePaymentRequirementMetEmail } from '@/lib/email-templates/service-payment-requirement-met';
@@ -34,8 +35,8 @@ export async function getVehicleServicePayments(vehicleServiceId: string) {
  * Records one payment toward a Vehicle Service's approved estimate (Vehicle
  * Service version of recordPayment()). `amount` is exactly what is recorded;
  * amounts that would take the total past the estimate are refused. When the
- * total first reaches the 70% deposit, the service moves to IN_SERVICE
- * automatically.
+ * total first reaches the deposit (depositFractionFor; with no deposit, the
+ * first money in), the service moves to IN_SERVICE automatically.
  */
 export async function recordServicePayment(
   vehicleServiceId: string,
@@ -59,7 +60,7 @@ export async function recordServicePayment(
       supervisorId: true,
       assignedTechnicianId: true,
       workStartedAt: true,
-      customer: { select: { fullName: true, email: true } },
+      customer: { select: { fullName: true, email: true, customerType: true } },
       department: { select: { name: true } },
       serviceEstimate: { select: { status: true, customerNotifiedAt: true, lineItems: { select: { amount: true } } } },
       payments: { select: { amount: true } },
@@ -95,7 +96,8 @@ export async function recordServicePayment(
   }
 
   const total = service.serviceEstimate.lineItems.reduce((sum: number, li: { amount: unknown }) => sum + Number(li.amount ?? 0), 0);
-  const minimumDeposit = Math.round(total * MINIMUM_DEPOSIT_FRACTION * 100) / 100;
+  // The deposit share for this customer: the one rule (none when switched off, never for an organisation).
+  const depositFraction = depositFractionFor(await depositSettingsOfBranch(service.branchId), String(service.customer.customerType));
   const alreadyPaid = service.payments.reduce((sum: number, p: { amount: unknown }) => sum + Number(p.amount ?? 0), 0);
   const formatNaira = (value: number) => `₦${value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -135,11 +137,11 @@ export async function recordServicePayment(
         `Another payment was recorded on this Vehicle Service just now. Up to ${formatNaira(remaining)} can still be recorded — refresh to see it.`,
       );
     }
-    const minimumNow = Math.round(totalNow * MINIMUM_DEPOSIT_FRACTION * 100) / 100;
+    const minimumNow = depositOf(totalNow, depositFraction);
     const afterNow = Math.round((paidNow + roundedAmount) * 100) / 100;
-    const metDeposit = paidNow < minimumNow && afterNow >= minimumNow;
+    const metDeposit = minimumNow > 0 && paidNow < minimumNow && afterNow >= minimumNow;
     const completedFull = paidNow < totalNow && afterNow >= totalNow;
-    const autoApprove = now.status === 'CHECKED_IN' && (metDeposit || completedFull);
+    const autoApprove = now.status === 'CHECKED_IN' && paymentApproves({ total: totalNow, deposit: minimumNow, paidBefore: paidNow, paidAfter: afterNow });
     await tx.payment.create({
       data: {
         idempotencyKey: idempotencyKey || null,
@@ -162,7 +164,6 @@ export async function recordServicePayment(
   const newTotal = settled.newTotal;
   const shouldAutoApprove = settled.autoApprove;
   const { justMetDeposit, justCompletedFull } = settled;
-  void minimumDeposit;
 
   await writeAuditLog({
     userId: user.id,

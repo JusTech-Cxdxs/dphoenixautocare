@@ -167,7 +167,7 @@ test.describe('Vehicle Service — the full visit', () => {
     await as(page, 'finance-officer');
     await open(page, S.url);
     const pay = jcForm(page, 'Record payment');
-    await pay.locator('select').first().selectOption('SEVENTY_PERCENT');
+    await pay.locator('select').first().selectOption('DEPOSIT');
     await pay.getByRole('button', { name: 'Record payment' }).click();
     await expect(vsStatus(page)).toHaveText('In Service');
     expectNoUrlError(page);

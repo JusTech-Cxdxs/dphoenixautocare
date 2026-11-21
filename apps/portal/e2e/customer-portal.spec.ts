@@ -216,7 +216,7 @@ test.describe('a Job Card, followed by its customer', () => {
     test.skip(!S.id, 'needs the Job Card from the first step');
     await as(page, 'finance-officer');
     await open(page, S.url);
-    await recordPayment(page, 'SEVENTY_PERCENT');
+    await recordPayment(page, 'DEPOSIT');
     await customerSignedIn(page, PORTAL_CUSTOMER);
     await page.goto(portal('/dashboard/payments'));
     await expect(page.getByTestId('payment-history')).toContainText(`Payment · ${S.number}`);

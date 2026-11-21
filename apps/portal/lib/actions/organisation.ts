@@ -78,10 +78,15 @@ export type UpdateBillingSettingsInput = {
   vatNumber?: string;
   /** Whole percent; null = every discount needs the Manager. */
   discountApprovalPercent: number | null;
+  /** A deposit before work starts, for individual customers only (never organisations). Off by default. */
+  depositRequired?: boolean;
+  /** Whole percent, 1–100; used only while depositRequired is on. */
+  depositPercent?: number;
 };
 
-/** Billing & tax: VAT on or off, its rate, the TIN printed on invoices, and
- * when a discount needs the Manager. Same people as the organisation's
+/** Billing & tax: VAT on or off, its rate, the TIN printed on invoices,
+ * when a discount needs the Manager, and the deposit before work starts
+ * (individual customers only). Same people as the organisation's
  * details, for their own organisation only; every change is audited. */
 export async function updateBillingSettings(organisationId: string, input: UpdateBillingSettingsInput): Promise<void> {
   const user = await requireUser();
@@ -102,11 +107,16 @@ export async function updateBillingSettings(organisationId: string, input: Updat
   if (input.vatEnabled && !vatNumber) {
     throw new OrganisationActionError('Enter the Tax ID (TIN) to print on invoices before switching VAT on.');
   }
-  const before = await prisma.organisation.findUnique({ where: { id: organisationId }, select: { vatEnabled: true, vatRate: true, vatNumber: true, discountApprovalPercent: true } });
+  const before = await prisma.organisation.findUnique({ where: { id: organisationId }, select: { vatEnabled: true, vatRate: true, vatNumber: true, discountApprovalPercent: true, depositRequired: true, depositPercent: true } });
   if (!before) throw new OrganisationActionError('Organisation not found.');
+  const depositRequired = input.depositRequired ?? before.depositRequired;
+  const depositPercent = input.depositPercent ?? before.depositPercent;
+  if (!Number.isInteger(depositPercent) || depositPercent < 1 || depositPercent > 100) {
+    throw new OrganisationActionError('Enter the deposit as a whole percentage between 1 and 100.');
+  }
   await prisma.organisation.update({
     where: { id: organisationId },
-    data: { vatEnabled: input.vatEnabled, vatRate, vatNumber, discountApprovalPercent: threshold },
+    data: { vatEnabled: input.vatEnabled, vatRate, vatNumber, discountApprovalPercent: threshold, depositRequired, depositPercent },
   });
   await writeAuditLog({
     userId: user.id,
@@ -114,8 +124,8 @@ export async function updateBillingSettings(organisationId: string, input: Updat
     entityType: 'Organisation',
     entityId: organisationId,
     metadata: {
-      from: { vatEnabled: before.vatEnabled, vatRate: Number(before.vatRate), vatNumber: before.vatNumber, discountApprovalPercent: before.discountApprovalPercent },
-      to: { vatEnabled: input.vatEnabled, vatRate, vatNumber, discountApprovalPercent: threshold },
+      from: { vatEnabled: before.vatEnabled, vatRate: Number(before.vatRate), vatNumber: before.vatNumber, discountApprovalPercent: before.discountApprovalPercent, depositRequired: before.depositRequired, depositPercent: before.depositPercent },
+      to: { vatEnabled: input.vatEnabled, vatRate, vatNumber, discountApprovalPercent: threshold, depositRequired, depositPercent },
     },
   });
 }

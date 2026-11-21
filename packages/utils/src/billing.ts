@@ -125,7 +125,7 @@ export function discountNeedsManager(t: Pick<BillingTotals, 'subtotal' | 'discou
   return discount * 100 > toKobo(t.subtotal) * approvalPercent;
 }
 
-/** The minimum deposit on a total (e.g. 0.7 of it), to the kobo. */
+/** The deposit on a total (its fraction from depositFractionFor), to the kobo. */
 export function depositOf(total: number, fraction: number): number {
   return naira(Math.round(toKobo(total) * fraction));
 }
@@ -138,4 +138,46 @@ export function paidInFull(paid: number, total: number): boolean {
 /** What is still owed (never negative), to the kobo. */
 export function balanceDue(total: number, paid: number): number {
   return naira(Math.max(0, toKobo(total) - toKobo(paid)));
+}
+
+/** The organisation's deposit switch (Organisation → Billing & tax). */
+export type DepositSetting = { depositRequired?: boolean | null; depositPercent?: number | null };
+
+/**
+ * The one deposit rule, for every screen, document, email and payment
+ * check in both apps: the share of the total the customer pays before work
+ * starts. 0 (no deposit) unless the organisation has switched the deposit
+ * on, and always 0 for an organisation (company or fleet) customer, on
+ * credit or not. Otherwise the organisation's percentage (1–100).
+ */
+export function depositFractionFor(setting: DepositSetting | null | undefined, customerType: string | null | undefined): number {
+  if (!setting?.depositRequired || customerType === 'ORGANIZATION') return 0;
+  const percent = Math.round(Number(setting.depositPercent ?? 0));
+  if (!Number.isFinite(percent) || percent <= 0) return 0;
+  return Math.min(100, percent) / 100;
+}
+
+/** The deposit as a whole percentage (0 when none applies), for wording. */
+export function depositPercentOf(fraction: number): number {
+  return Math.round(fraction * 100);
+}
+
+/**
+ * Does this payment count as the customer's go-ahead at the counter? When a
+ * deposit applies: the payment that first reaches it. With no deposit: the
+ * first money in. Either way, the payment that clears the whole total.
+ */
+export function paymentApproves(o: { total: number; deposit: number; paidBefore: number; paidAfter: number }): boolean {
+  const clears = !paidInFull(o.paidBefore, o.total) && paidInFull(o.paidAfter, o.total) && toKobo(o.total) > 0;
+  if (toKobo(o.deposit) <= 0) return clears || (toKobo(o.paidBefore) <= 0 && toKobo(o.paidAfter) > 0);
+  return clears || (!paidInFull(o.paidBefore, o.deposit) && paidInFull(o.paidAfter, o.deposit));
+}
+
+/**
+ * May work start? Only once the customer has approved the estimate and, when
+ * a deposit applies, it has been paid. With no deposit, approval alone.
+ */
+export function workMayStart(o: { approved: boolean; deposit: number; paid: number }): boolean {
+  if (!o.approved) return false;
+  return toKobo(o.deposit) <= 0 || paidInFull(o.paid, o.deposit);
 }

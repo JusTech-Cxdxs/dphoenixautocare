@@ -117,6 +117,12 @@ model Organisation {
   vatRate     Decimal  @default(7.5) @db.Decimal(5, 2)
   vatNumber   String?
   discountApprovalPercent Int?
+  // A deposit before work starts (Organisation → Billing & tax): off unless
+  // switched on, and then only for individual customers — never for an
+  // organisation (company or fleet) customer. depositPercent (1–100) is used
+  // only while depositRequired is on.
+  depositRequired Boolean @default(false)
+  depositPercent  Int     @default(70)
   // A demonstration organisation: the only kind that gets demo people with
   // sign-ins and demo records (apps/portal/lib/demo). Set by the platform
   // team or `npm run demo:reset`; a real organisation never has it.
@@ -407,6 +413,9 @@ model User {
   refundsRecorded Refund[] @relation("RefundRecordedBy")
   invoicesIssued  Invoice[] @relation("InvoiceIssuedBy")
   estimateDiscountsApproved Estimate[] @relation("EstimateDiscountApprovedBy")
+  estimateCustomerApprovalsTaken Estimate[] @relation("EstimateCustomerApprovedByStaff")
+  estimateApprovalLinksCreated EstimateApprovalLink[] @relation("EstimateApprovalLinkCreatedBy")
+  customerCreditApproved CustomerCompany[] @relation("CustomerCreditApprovedBy")
   vehicleServiceCancellationRequestsMade VehicleServiceCancellationRequest[] @relation("VehicleServiceCancellationRequestedBy")
   vehicleServiceCancellationRequestsDecided VehicleServiceCancellationRequest[] @relation("VehicleServiceCancellationDecidedBy")
   serviceEstimatesMatchingRequested ServiceEstimate[] @relation("ServiceEstimateMatchingRequestedBy")
@@ -701,6 +710,15 @@ model CustomerCompany {
 
   companyName String
   taxId       String?
+  // Credit terms (Customers → the organisation's page), set by Finance or the
+  // Manager: on credit = paymentTermsDays > 0 and approved. Its Job Cards
+  // need no deposit and can leave with a balance once invoiced, while its
+  // unpaid invoices stay within creditLimit (no limit when blank).
+  creditLimit        Decimal?  @db.Decimal(14, 2)
+  paymentTermsDays   Int?
+  creditApprovedById String?
+  creditApprovedAt   DateTime?
+  creditApprovedBy   User?     @relation("CustomerCreditApprovedBy", fields: [creditApprovedById], references: [id])
 
   @@map("customer_companies")
 }
@@ -982,6 +1000,17 @@ model Estimate {
   // off or its rate changes. Null while the estimate is being written: the
   // organisation's current setting applies.
   vatRate              Decimal?  @db.Decimal(5, 2)
+  // The customer's own answer to the estimate once they have been told:
+  // approved by the secure link (LINK), in the customer portal (PORTAL), by
+  // phone (PHONE, taken down by customerApprovedByStaffId) or by paying the
+  // deposit at the counter (DEPOSIT); IMPORT for records brought in. Or
+  // declined, with their note. Sending the estimate back clears both.
+  customerApprovedAt        DateTime?
+  customerApprovedVia       String?
+  customerApprovedByStaffId String?
+  customerApprovalNote      String?
+  customerDeclinedAt        DateTime?
+  customerDeclineNote       String?
   createdById String
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
@@ -993,9 +1022,33 @@ model Estimate {
   customerNotifiedBy User?       @relation("EstimateCustomerNotifiedBy", fields: [customerNotifiedById], references: [id])
   matchingRequestedBy User?      @relation("EstimateMatchingRequestedBy", fields: [matchingRequestedById], references: [id])
   discountApprovedBy User?       @relation("EstimateDiscountApprovedBy", fields: [discountApprovedById], references: [id])
+  customerApprovedByStaff User?  @relation("EstimateCustomerApprovedByStaff", fields: [customerApprovedByStaffId], references: [id])
   lineItems   EstimateLineItem[]
+  approvalLinks EstimateApprovalLink[]
 
   @@map("estimates")
+}
+
+// A secure link that lets the customer approve or decline their estimate
+// without signing in (sent in the estimate email, or shared by a colleague
+// on WhatsApp). Only the SHA-256 of the token is stored; the token itself is
+// shown once, in the message, and never kept or logged. Valid for 7 days and
+// for one answer; a new link revokes the older unused ones.
+model EstimateApprovalLink {
+  id          String    @id @default(cuid())
+  estimateId  String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  revokedAt   DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+
+  estimate    Estimate  @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation("EstimateApprovalLinkCreatedBy", fields: [createdById], references: [id])
+
+  @@index([estimateId])
+  @@map("estimate_approval_links")
 }
 
 // Estimate line types, with who may price each (requirePricingAuthority):
@@ -1162,6 +1215,9 @@ model Invoice {
   vatNumber         String?
   total             Decimal  @db.Decimal(12, 2)
   amountPaidAtIssue Decimal  @db.Decimal(12, 2)
+  // When payment is due: issuedAt + the customer's payment terms, for an
+  // organisation on credit. Null = due before collection.
+  dueDate           DateTime?
   // [{ description, type, quantity, unitOfMeasure, unitPrice, lineDiscount, amount, billTo }]
   lines             Json
   issuedAt          DateTime @default(now())

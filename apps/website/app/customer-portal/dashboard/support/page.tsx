@@ -6,14 +6,13 @@ import { Badge, Card, EmptyState, KeepCodes, PageHero, SectionTitle } from '@/co
 import { Icon } from '@/components/customer/Icon';
 import { SupportReplyForm } from '@/components/customer/SupportReplyForm';
 import { NewSupportRequestForm } from '@/components/customer/NewSupportRequestForm';
-import { MINIMUM_DEPOSIT_FRACTION } from '@/lib/workshop-payment-constants';
 import { APPROVAL_DEADLINE_WORKING_DAYS, READY_FOR_COLLECTION_GRACE_WORKING_DAYS } from '@/lib/customer-portal/format';
 import { moduleOn } from '@/lib/edition';
 
 export const metadata = { title: 'Help & support' };
 
 const FAQS: { q: string; a: string }[] = [
-  { q: 'How do I approve my estimate?', a: `When your estimate is ready we’ll email you and it appears under My services. Paying the minimum deposit (${Math.round(MINIMUM_DEPOSIT_FRACTION * 100)}% of the total) approves the work. Please approve within ${APPROVAL_DEADLINE_WORKING_DAYS} working days so we can keep your slot.` },
+  { q: 'How do I approve my estimate?', a: `When your estimate is ready we’ll email you and it appears under My services. Open it and press “Approve the estimate”, use the secure link in our email, or call your branch. If a deposit is shown on your estimate, the work starts once it is paid too. Please approve within ${APPROVAL_DEADLINE_WORKING_DAYS} working days so we can keep your slot.` },
   { q: 'How do I pay?', a: 'By bank transfer to the account shown on your estimate (use your Job Card or service number as the reference), or in person at our office. Payments show here as soon as our cashier records them.' },
   { q: 'What does “Waiting for parts” mean?', a: 'We’re waiting for a part to arrive. Nothing is needed from you — work carries on the moment it’s here, and you’ll see the status change.' },
   { q: 'When should I collect my vehicle?', a: `As soon as it’s ready. Please collect within ${READY_FOR_COLLECTION_GRACE_WORKING_DAYS} working days of the ready-for-collection notice — after that, storage charges may apply. Any balance must be settled before collection.` },

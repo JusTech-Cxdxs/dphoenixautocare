@@ -268,7 +268,9 @@ export async function loadWorkshopDemo(organisationId: string, anchor: Date = ne
     await prisma.jobCardComplaint.createMany({ data: jc.complaints.map((c, i) => ({ id: reg('JobCardComplaint', id()), jobCardId: jid, sequenceNumber: i + 1, description: c, createdAt: jc.openedAt })) });
     if (jc.estimate) {
       const est = jc.estimate; const eid = reg('Estimate', id());
-      await prisma.estimate.create({ data: { id: eid, jobCardId: jid, status: est.status, submittedAt: est.submittedAt, approvedAt: est.approvedAt, approvedById: est.approvedAt ? sup : null, managerApprovedAt: est.managerApprovedAt, managerApprovedById: est.managerApprovedAt ? by(DEMO_STAFF.find((s) => s.role === 'workshop-manager')!.email) : null, customerNotifiedAt: est.customerNotifiedAt, customerNotifiedById: est.customerNotifiedAt ? frontdesk : null, matchingRequestedAt: est.matchingRequestedAt, matchingRequestedById: est.matchingRequestedAt ? sup : null, createdById: tech, createdAt: est.createdAt } });
+      await prisma.estimate.create({ data: { id: eid, jobCardId: jid, status: est.status, submittedAt: est.submittedAt, approvedAt: est.approvedAt, approvedById: est.approvedAt ? sup : null, managerApprovedAt: est.managerApprovedAt, managerApprovedById: est.managerApprovedAt ? by(DEMO_STAFF.find((s) => s.role === 'workshop-manager')!.email) : null, customerNotifiedAt: est.customerNotifiedAt, customerNotifiedById: est.customerNotifiedAt ? frontdesk : null, matchingRequestedAt: est.matchingRequestedAt, matchingRequestedById: est.matchingRequestedAt ? sup : null, createdById: tech, createdAt: est.createdAt,
+        // The customer's go-ahead: paying at the counter, or (nothing to pay, the warranty carries it) by phone to the front desk.
+        ...(jc.workStartedAt ? { customerApprovedAt: jc.workStartedAt, customerApprovedVia: jc.payments.length ? 'DEPOSIT' : 'PHONE', customerApprovedByStaffId: jc.payments.length ? null : frontdesk, customerApprovalNote: jc.payments.length ? null : 'Spoke with the customer.' } : {}) } });
       await writeLines(est, eid, tech, false);
     }
     for (const slip of jc.slips) await writeSlip(slip, { jobCardId: jid }, tech, false);

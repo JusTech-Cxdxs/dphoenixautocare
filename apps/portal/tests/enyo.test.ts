@@ -306,7 +306,11 @@ test('next step follows the record\'s state', () => {
   assert.match(nextStep({ ...base, hasTechnician: false }), /assigns a technician/);
   assert.match(nextStep({ ...base, estimateStatus: 'APPROVED' }), /Manager's final approval/);
   assert.match(nextStep({ ...base, estimateStatus: 'MANAGER_APPROVED' }), /Notify customer/);
-  assert.match(nextStep({ ...base, estimateStatus: 'MANAGER_APPROVED', customerNotified: true, status: 'AWAITING_CUSTOMER_APPROVAL', paid: 20000 }), /₦70,000 \(70% of ₦100,000\); ₦20,000 paid/);
+  // With a deposit switched on (70%), the deposit is spelled out; with none (the default), approval alone.
+  assert.match(nextStep({ ...base, estimateStatus: 'MANAGER_APPROVED', customerNotified: true, status: 'AWAITING_CUSTOMER_APPROVAL', paid: 20000 }), /approve the estimate[\s\S]*₦70,000 \(70% of ₦100,000\); ₦20,000 paid/);
+  assert.match(nextStep({ ...base, estimateStatus: 'MANAGER_APPROVED', customerNotified: true, status: 'AWAITING_CUSTOMER_APPROVAL', paid: 20000, customerApproved: true }), /has approved\. Waiting for the deposit: ₦70,000/);
+  assert.match(nextStep({ ...base, depositFraction: 0, estimateStatus: 'MANAGER_APPROVED', customerNotified: true, status: 'AWAITING_CUSTOMER_APPROVAL' }), /No deposit applies/);
+  assert.deepEqual(paymentPosition(100000, 20000, 0), { label: 'Part paid, balance pending', balance: 80000 });
   assert.match(nextStep({ ...base, status: 'READY_FOR_COLLECTION', paid: 100000 }), /requests the close/);
   assert.match(nextStep({ ...base, status: 'CANCELLED', paid: 5000 }), /refund/);
   assert.match(nextStep({ ...base, kind: 'SV', status: 'ESCALATED' }), /Job Card/);

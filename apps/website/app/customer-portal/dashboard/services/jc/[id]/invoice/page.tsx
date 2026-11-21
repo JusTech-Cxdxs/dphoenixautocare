@@ -27,7 +27,7 @@ export default async function CustomerInvoicePage({ params }: { params: Promise<
   const inv = await prisma.invoice.findFirst({
     where: { jobCardId: id, customerId: me.id, organisationId: me.organisationId, jobCard: { customerId: me.id } },
     select: {
-      invoiceNumber: true, issuedAt: true, subtotal: true, lineDiscounts: true, discountAmount: true, discountReason: true,
+      invoiceNumber: true, issuedAt: true, dueDate: true, subtotal: true, lineDiscounts: true, discountAmount: true, discountReason: true,
       vatRate: true, vatAmount: true, vatNumber: true, total: true, lines: true,
       organisation: { select: { name: true, legalName: true, hqAddress: true, rcNumber: true, hotlines: true, email: true } },
       branch: { select: { name: true, address: true, hotlines: true, bankName: true, bankAccountName: true, bankAccountNumber: true } },
@@ -65,6 +65,7 @@ export default async function CustomerInvoicePage({ params }: { params: Promise<
             <p className="text-lg font-bold text-[#0A1628]">Invoice</p>
             <p className="font-mono text-sm">{inv.invoiceNumber}</p>
             <p className="text-xs text-[#475569]">{fmtDate(inv.issuedAt)}</p>
+            {inv.dueDate ? <p className="text-xs font-semibold text-[#475569]">Payment due by {fmtDate(inv.dueDate)}</p> : null}
           </div>
         </header>
 

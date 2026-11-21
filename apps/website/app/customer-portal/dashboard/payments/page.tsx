@@ -54,7 +54,7 @@ export default async function PaymentsPage() {
                   <Link key={i.id} href={i.href} className="ejo-rise ejo-lift flex flex-col gap-2 rounded-[var(--ejo-radius-lg)] border border-l-4 border-[var(--ejo-border)] border-l-[var(--ejo-warning)] bg-[var(--ejo-bg)] p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                     <span className="min-w-0">
                       <span className="block break-words text-sm font-semibold text-[var(--ejo-text)]">{i.number}<span className="font-normal text-[var(--ejo-text-muted)]"> · {i.vehicle.label}</span></span>
-                      <span className="block text-xs text-[var(--ejo-text-muted)]">{i.awaitingApproval ? `Minimum deposit ${naira(i.money.depositDue ?? 0)} to approve` : `Paid ${naira(i.money.netPaid)} of ${naira(i.money.estimateTotal ?? 0)}`}</span>
+                      <span className="block text-xs text-[var(--ejo-text-muted)]">{i.awaitingApproval ? ((i.money.depositDue ?? 0) > 0 ? `Waiting for your approval and the deposit of ${naira(i.money.depositDue ?? 0)}` : 'Waiting for your approval') : `Paid ${naira(i.money.netPaid)} of ${naira(i.money.estimateTotal ?? 0)}`}</span>
                     </span>
                     <span className="shrink-0 text-base font-bold tabular-nums text-[#b45309] sm:text-right dark:text-[var(--ejo-warning)]">{naira(outstanding(i))}</span>
                   </Link>

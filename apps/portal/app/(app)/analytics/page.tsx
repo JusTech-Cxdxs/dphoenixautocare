@@ -150,6 +150,7 @@ export default async function BusinessAnalyticsPage({ searchParams }: { searchPa
           <T icon="clock" className="mb-2">Receivables</T>
           <p className="text-2xl font-bold tabular-nums text-[var(--ejo-text)]">{naira(a.position.receivables)}</p>
           <p className="text-[10px] text-[var(--ejo-text-muted)]">{pluralize(a.position.receivableJobs, 'finished job')} not fully paid</p>
+          {a.position.organisationsOwed > 0 ? <p className="mt-1 text-[10px] text-[var(--ejo-text-muted)]" data-testid="owed-by-organisations">Owed by organisations {naira(a.position.organisationsOwed)}{a.position.organisationsOverdue > 0 ? <> · <span className="font-semibold text-[var(--ejo-error)]">overdue {naira(a.position.organisationsOverdue)}</span></> : null}</p> : null}
           <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-[var(--ejo-bg)] ring-1 ring-inset ring-[var(--ejo-border)]">
             <div className="bg-[var(--ejo-success)]" style={{ width: `${(a.position.aging.d0_7 / agingTotal) * 100}%` }} title="0–7 days" />
             <div style={{ width: `${(a.position.aging.d8_30 / agingTotal) * 100}%`, background: CHART.primarySoft }} title="8–30 days" />

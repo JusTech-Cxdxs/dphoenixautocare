@@ -7,7 +7,7 @@ import { getCustomer360, getCustomerActivity } from '@/lib/actions/crm';
 import { getRecycleBinOffer } from '@/lib/actions/recycle-bin';
 import { RecycleBinPanel } from '@/components/RecycleBinPanel';
 import {
-  setCustomerPortalAccessFormAction, sendCustomerSetPasswordLinkFormAction, customerAddressFormAction, customerContactFormAction, customerNoteFormAction,
+  setCustomerPortalAccessFormAction, sendCustomerSetPasswordLinkFormAction, customerAddressFormAction, customerContactFormAction, customerNoteFormAction, customerCreditTermsFormAction,
 } from '@/lib/actions/crm-form-handlers';
 import { CUSTOMER_ACTION_LABEL, JOB_STATUS_LABEL, WARRANTY_STATUS_LABEL, customerActionLabel, describeChanges, jobTone, naira } from '@/lib/crm';
 import { CLAIM_STATUS_LABEL } from '@/lib/warranty-claim-status';
@@ -69,6 +69,8 @@ const STATUS: Record<string, Notice> = {
   note_pin: { kind: 'success', title: 'Note pinned to the top' },
   note_unpin: { kind: 'success', title: 'Note unpinned' },
   note_delete: { kind: 'success', title: 'Note deleted' },
+  credit_saved: { kind: 'success', title: 'Credit terms saved', text: 'Its Job Cards need no deposit and can leave with a balance once invoiced, within the credit limit. You are recorded as approving the terms.' },
+  credit_removed: { kind: 'success', title: 'Credit switched off', text: 'Its Job Cards must be paid in full before the vehicle leaves again.' },
 };
 
 const METHOD: Record<string, string> = { BANK_TRANSFER: 'Bank transfer', CASH: 'Cash' };
@@ -187,6 +189,7 @@ export default async function Customer360Page({ params, searchParams }: { params
               </Section>
             </div>
             <div className="min-w-0 space-y-6">
+              {data.account ? <AccountCard data={data} /> : null}
               <PortalCard data={data} base={base} />
               <ProvenanceCard p={origin} />
               {pinned.length ? (
@@ -412,6 +415,58 @@ function JobList({ jobs }: { jobs: Data['jobs'] }) {
         );
       })}
     </ul>
+  );
+}
+
+/** "On account" — an organisation customer's credit terms, what it owes on its invoices now and what is overdue. */
+function AccountCard({ data }: { data: Data }) {
+  const a = data.account!;
+  const { customer: c, can } = data;
+  const overdue = a.invoices.filter((i) => i.overdue);
+  return (
+    <Section icon="wallet" title="On account" subtitle={a.onCredit ? `On credit: ${a.paymentTermsDays} days to pay` : 'Not on credit: pays before collection'}>
+      <dl className="space-y-1.5 text-sm" data-testid="on-account">
+        <div className="flex justify-between gap-2"><dt className="text-[var(--ejo-text-muted)]">Credit limit</dt><dd className="text-right text-[var(--ejo-text)]">{a.onCredit ? (a.creditLimit !== null ? naira(a.creditLimit) : 'No limit') : '—'}</dd></div>
+        <div className="flex justify-between gap-2"><dt className="text-[var(--ejo-text-muted)]">Owed now</dt><dd className={`text-right font-medium ${a.owed > 0 ? 'text-[var(--ejo-warning)]' : 'text-[var(--ejo-text)]'}`}>{naira(a.owed)}</dd></div>
+        <div className="flex justify-between gap-2"><dt className="text-[var(--ejo-text-muted)]">Overdue</dt><dd className={`text-right font-medium ${a.overdue > 0 ? 'text-[var(--ejo-error)]' : 'text-[var(--ejo-text)]'}`}>{naira(a.overdue)}</dd></div>
+        {a.onCredit && a.approvedAt ? <div className="flex justify-between gap-2"><dt className="text-[var(--ejo-text-muted)]">Approved</dt><dd className="text-right text-[var(--ejo-text)]">{a.approvedBy ?? 'Former staff member'} · {formatDateOnly(a.approvedAt)}</dd></div> : null}
+      </dl>
+      {a.invoices.length ? (
+        <ul className="mt-3 space-y-1 border-t border-[var(--ejo-border)] pt-3 text-xs">
+          {a.invoices.slice(0, 8).map((i) => (
+            <li key={i.id} className="flex items-center justify-between gap-2">
+              <span className="min-w-0 truncate"><a href={`/print/invoices/${i.id}`} target="_blank" rel="noopener" className="font-medium text-[var(--ejo-primary)] hover:underline">{i.invoiceNumber}</a> <Link href={`/workshop/job-cards/${i.jobCardId}`} prefetch={false} className="text-[var(--ejo-text-muted)] hover:underline">{i.jobNumber}</Link></span>
+              <span className={`shrink-0 tabular-nums ${i.overdue ? 'text-[var(--ejo-error)]' : 'text-[var(--ejo-text)]'}`}>{naira(i.balance)}{i.dueDate ? ` · due ${formatDateOnly(i.dueDate)}` : ''}</span>
+            </li>
+          ))}
+          {a.invoices.length > 8 ? <li className="text-[var(--ejo-text-muted)]">and {pluralize(a.invoices.length - 8, 'more invoice')}</li> : null}
+        </ul>
+      ) : <p className="mt-3 text-xs text-[var(--ejo-text-muted)]">No unpaid invoices.</p>}
+      {overdue.length ? <p className="mt-2 text-xs text-[var(--ejo-error)]">{pluralize(overdue.length, 'invoice')} past the due date.</p> : null}
+      {can.credit ? (
+        <details className="mt-3 border-t border-[var(--ejo-border)] pt-3">
+          <summary className="cursor-pointer text-xs font-medium text-[var(--ejo-text)]">{a.onCredit ? 'Change credit terms' : 'Put on credit'}</summary>
+          {a.hasCompany ? (
+            <form action={customerCreditTermsFormAction} className="mt-2 space-y-2">
+              <FormPendingOverlay />
+              <input type="hidden" name="customerId" value={c.id} />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label htmlFor="paymentTermsDays" className={labelCls}>Payment terms (days)</label>
+                  <input id="paymentTermsDays" name="paymentTermsDays" type="number" min="0" max="365" step="1" defaultValue={a.paymentTermsDays ?? 30} className={field} />
+                </div>
+                <div>
+                  <label htmlFor="creditLimit" className={labelCls}>Credit limit (₦)</label>
+                  <input id="creditLimit" name="creditLimit" type="number" min="0" step="0.01" defaultValue={a.creditLimit ?? ''} placeholder="Blank: no limit" className={field} />
+                </div>
+              </div>
+              <p className="text-[11px] text-[var(--ejo-text-muted)]">On credit, its Job Cards need no deposit and can leave with a balance once invoiced, while its unpaid invoices stay within the limit. 0 days switches credit off. Saved with your name.</p>
+              <SubmitButton label="Save credit terms" pendingLabel="Saving…" className={primary} />
+            </form>
+          ) : <p className="mt-2 text-xs text-[var(--ejo-text-muted)]">Add the company name first (Edit details), then set its credit terms.</p>}
+        </details>
+      ) : null}
+    </Section>
   );
 }
 

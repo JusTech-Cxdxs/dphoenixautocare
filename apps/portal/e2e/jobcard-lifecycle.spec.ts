@@ -132,11 +132,11 @@ test('Finance records the 70% deposit — a double click records ONE payment —
   await open(page, S.url);
   await expectStatus(page, 'Awaiting Customer Approval');
   const form = jcForm(page, 'Record payment');
-  await form.locator('select').first().selectOption('SEVENTY_PERCENT');
+  await form.locator('select').first().selectOption('DEPOSIT');
   await form.getByRole('button', { name: 'Record payment' }).dblclick();
   await expectStatus(page, 'In Progress');
   await page.reload();
-  await expect(page.getByText('Minimum Met — Balance Pending').first()).toBeVisible();
+  await expect(page.getByText('Deposit Met — Balance Pending').first()).toBeVisible();
   expect(await paymentsOn(S.id), 'payments recorded for one deposit').toBe(1);
   await latestMail(request, CUSTOMER.email, new RegExp(`Payment received — Job Card ${S.number}`));
   // Refresh after the submit does not record it again.
