@@ -433,3 +433,6 @@ body { overscroll-behavior-y: none; }
 [class~="hover:text-[var(--ejo-primary)]"]:hover,
 [class~="group-hover:text-[var(--ejo-primary)]"]:is(.group:hover *) { color: var(--ejo-primary-text); }
 .ejo-shimmer-soft { background-image: linear-gradient(90deg, var(--ejo-primary-text) 0%, var(--ejo-text) 50%, var(--ejo-primary-text) 100%); }
+/* Anything that turns orange on hover reads in navy, never white on orange. */
+[class~="hover:bg-[var(--ejo-primary)]"]:hover,
+[class~="group-hover:bg-[var(--ejo-primary)]"]:is(.group:hover *) { color: var(--ejo-on-primary); }
