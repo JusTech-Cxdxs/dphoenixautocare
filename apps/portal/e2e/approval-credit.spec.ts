@@ -90,6 +90,7 @@ test('the link in the estimate email approves once and refuses a second time', a
   await test.step('the same link is refused the second time', async () => {
     await page.goto(`${WEB}${path}`);
     await expect(page.getByTestId('estimate-link-problem')).toContainText('already been used');
+    await expect(page.getByTestId('estimate-link-problem')).toContainText('You approved this estimate');
   });
 
   await test.step('staff see who approved, and how', async () => {

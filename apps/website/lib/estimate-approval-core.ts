@@ -81,7 +81,7 @@ export function awaitingAnswer(jc: Pick<JobRow, 'status' | 'estimate'>): boolean
 
 export type LinkView =
   | { state: 'open' | 'answered'; organisationName: string; branchName: string; jobNumber: string; vehicle: string; plate: string | null; figures: ReturnType<typeof estimateFigures> }
-  | { state: Exclude<Exclude<AnswerOutcome, { ok: true }>['reason'], 'answered'> };
+  | { state: Exclude<Exclude<AnswerOutcome, { ok: true }>['reason'], 'answered'>; answered?: { answer: 'approved' | 'declined'; at: Date } };
 
 /**
  * What the link page shows (GET): reads only, never changes anything (so an
@@ -90,9 +90,14 @@ export type LinkView =
  */
 export async function viewApprovalLink(token: string, now = new Date()): Promise<LinkView> {
   if (!isApprovalToken(token)) return { state: 'not-found' };
-  const link = await prisma.estimateApprovalLink.findUnique({ where: { tokenHash: hashApprovalToken(token) }, select: { usedAt: true, revokedAt: true, expiresAt: true, estimate: { select: { jobCardId: true } } } });
+  const link = await prisma.estimateApprovalLink.findUnique({ where: { tokenHash: hashApprovalToken(token) }, select: { usedAt: true, revokedAt: true, expiresAt: true, estimate: { select: { jobCardId: true, customerApprovedAt: true, customerDeclinedAt: true } } } });
   if (!link) return { state: 'not-found' };
-  if (link.usedAt) return { state: 'used' };
+  // A used link says what was answered, so the customer is never left wondering.
+  if (link.usedAt) {
+    const e = link.estimate;
+    const answered = e.customerApprovedAt ? { answer: 'approved' as const, at: e.customerApprovedAt } : e.customerDeclinedAt ? { answer: 'declined' as const, at: e.customerDeclinedAt } : undefined;
+    return { state: 'used', answered };
+  }
   if (link.revokedAt) return { state: 'revoked' };
   if (link.expiresAt.getTime() <= now.getTime()) return { state: 'expired' };
   const jc = await prisma.jobCard.findUnique({ where: { id: link.estimate.jobCardId }, select: JOB_SELECT });

@@ -51,7 +51,8 @@ export async function answerByLink(_prev: AnswerState, f: FormData): Promise<Ans
   try {
     const r = await recordEstimateAnswer({ via: 'LINK', answer, note: noteFrom(f), token, ipAddress: addr });
     if (!r.ok) return { ok: false, message: LINK_PROBLEM[r.reason] };
-    revalidatePath(`/estimate/approve/${token}`);
+    // No refresh of the page here: it would now read the link as used and
+    // replace this thank-you with "already used".
     return { ok: true, message: thanks(answer, r.workStarted), answered: answer };
   } catch (err) {
     const ref = await logCustomerError('estimate.answer.link', err);

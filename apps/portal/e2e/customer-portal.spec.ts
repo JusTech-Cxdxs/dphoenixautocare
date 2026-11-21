@@ -222,7 +222,7 @@ test.describe('a Job Card, followed by its customer', () => {
     await recordPayment(page, 'DEPOSIT');
     await customerSignedIn(page, PORTAL_CUSTOMER);
     await page.goto(portal('/dashboard/payments'));
-    await expect(page.getByTestId('payment-history')).toContainText(`Payment · ${S.number}`);
+    await expect(page.getByTestId('payment-history')).toContainText(new RegExp(`Payment (RCT-\\d{4}-\\d{6} )?· ${S.number}`));
   });
 
   test('a warranty registered on the vehicle appears under Warranties', async ({ page }) => {
