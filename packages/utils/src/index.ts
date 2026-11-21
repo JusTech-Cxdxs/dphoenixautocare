@@ -3,7 +3,7 @@
  * Small framework-agnostic helpers shared across apps.
  */
 
-/** Turns "Isolo Branch" -> "isolo-branch" for slugs / routing / doc codes. */
+/** Turns "Victoria Island Workshop" -> "victoria-island-workshop" for slugs / routing / doc codes. */
 export function slugify(value: string): string {
   return value
     .toLowerCase()
@@ -14,8 +14,8 @@ export function slugify(value: string): string {
 
 /**
  * Builds a document reference number from a branch code, a template code,
- * and a running sequence — e.g. buildDocumentCode('KWL-WS', 'JOB', 45, 2026)
- * -> "KWL-WS-JOB-2026-00045". Central so every module numbers documents the
+ * and a running sequence — e.g. buildDocumentCode('DPA', 'JOB', 45, 2026)
+ * -> "DPA-JOB-2026-00045". Central so every module numbers documents the
  * same way instead of each module inventing its own format.
  */
 export function buildDocumentCode(

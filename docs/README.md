@@ -23,7 +23,7 @@ the code are right.
 | [ARCHITECTURE.md](ARCHITECTURE.md) | How the system is built: the three applications, how a request flows, the organisation and branch fences, how to add a module, coding rules. |
 | [ASSEMBLY_LINE_GUIDE.md](ASSEMBLY_LINE_GUIDE.md) | Using EJO 100 at the assembly plant, step by step: kits, the line, defects, QA audit, PDI, the yard, labels, and what goes to SAP. Written for plant managers and supervisors. |
 | [DEMO_WALKTHROUGH.md](DEMO_WALKTHROUGH.md) | A script for showing the system live, section by section, with the demo files. Follows the questions the client raised in October 2026. |
-| [KEWALRAM_DEMO.md](KEWALRAM_DEMO.md) | The demo organisation: who to sign in as and a 15-minute tour. **Generated file**: do not edit by hand. Change `apps/portal/lib/demo/tour.ts` or `people.ts` and run `npm run demo:tour-doc`; a test fails if the file and the code differ. |
+| [DPHOENIX_DEMO.md](DPHOENIX_DEMO.md) | The D'Phoenix Autocare demo: how to switch it on, who to sign in as, a 15-minute tour and what each scenario shows. **Generated file**: do not edit by hand. Change `apps/portal/lib/demo/tour.ts` or `people.ts` and run `npm run demo:tour-doc`; a test fails if the file and the code differ. |
 
 ## How it works
 
@@ -73,7 +73,7 @@ All of these are historical records.
 
 - Keep them plain Markdown. No generated HTML, no images that need a tool
   to rebuild.
-- Do not edit `KEWALRAM_DEMO.md` or anything under `demo/` by hand: both
+- Do not edit `DPHOENIX_DEMO.md` or anything under `demo/` by hand: both
   are written by scripts and checked by tests.
 - When a rule in the code changes, change the current reference in the
   same pull request. Leave the records as they are.

@@ -18,6 +18,7 @@ const LABELS: Record<string, string> = {
   outcome: 'Outcome', filter: 'Showing', period: 'Period', history: 'History from before EJO', year: 'Fiscal year', customerId: 'Customer',
   lead: 'Lead time (days)', service: 'Service level', from: 'From', to: 'To', kind: 'Kind', userId: 'Person', show: 'Showing people', branch: 'Branch', role: 'Role',
   stage: 'Stage', source: 'Source', imp: 'Import', layout: 'Column names', enteredFrom: 'Entered EJO from', enteredTo: 'Entered EJO to', originalFrom: 'Original date from', originalTo: 'Original date to',
+  owing: 'Still owed', overdue: 'Past the due date',
 };
 /** Paging and page-only flags never travel with an export (the file holds every matching record). */
 const DROP = new Set(['page', 'error', 'binned', 'focus', 'prefill', 'tab', 'cursor', 'add', 'id']);
@@ -48,6 +49,8 @@ const VALUE_WORDS: Record<string, Record<string, string>> = {
   layout: { sap: 'SAP field names', ejo: 'EJO (plain English)' },
   stage: { KIT: 'Kit arrival', LINE: 'On the line', QA: 'Quality audit', PDI: 'Pre-delivery inspection', YARD: 'In the yard', SOLD: 'Sold' },
   status: { issues: 'With open shortages or damage' },
+  owing: { yes: 'Yes' },
+  overdue: { yes: 'Yes' },
 };
 
 /** "Search: Ade · Source: Imported from SAP" — or "Everything in the list". */

@@ -8,7 +8,7 @@ import { lagosDayKey } from '../utils/format-date';
 
 /** demo_records model name of the once-a-day marker (one row per organisation per Lagos day). */
 export const PULSE_MODEL = 'DemoPulse';
-/** demo_records model names that remember which records the pulse made (so later days can move them on). */
+/** demo_records model names that remember which records the pulse made (so later days can move them on; PulseService marks a service Job Card). */
 export const PULSE_JOB = 'PulseJobCard';
 export const PULSE_SERVICE = 'PulseService';
 export const PULSE_VISIT = 'PulseVisit';
@@ -72,10 +72,10 @@ export function dayRandom(dayKey: string, salt: string): () => number {
 }
 
 export const PULSE_VISITORS = [
-  { name: 'Mr Okonkwo (fleet owner)', purpose: 'Bringing a vehicle for service', company: 'Fleet owner', hh: 10, mm: 0, minutes: 60, vehicle: 'TRUCK' },
-  { name: 'Mrs Adeyemi (insurance assessor)', purpose: 'Insurance assessor inspection', company: 'Leadway Assurance (demo)', hh: 14, mm: 0, minutes: 60, vehicle: 'CAR' },
-  { name: 'Mr Bello (Lagos Lubricants)', purpose: 'Supplier delivery follow-up', company: 'Lagos Lubricants Distribution', hh: 11, mm: 30, minutes: 45, vehicle: 'CAR' },
-  { name: 'Ms Nwosu', purpose: 'Estimate discussion with the supervisor', company: '', hh: 9, mm: 30, minutes: 30, vehicle: 'ON_FOOT' },
+  { name: 'Fleet Manager (a fleet customer)', purpose: 'Bringing a vehicle for service', company: 'Fleet customer', hh: 10, mm: 0, minutes: 60, vehicle: 'TRUCK' },
+  { name: 'Insurance assessor', purpose: 'Insurance assessor inspection', company: 'Insurance assessor (demo)', hh: 14, mm: 0, minutes: 60, vehicle: 'CAR' },
+  { name: 'Parts vendor', purpose: 'Parts delivery from a vendor', company: 'Parts vendor (demo)', hh: 11, mm: 30, minutes: 45, vehicle: 'CAR' },
+  { name: 'Ms Ekanem', purpose: 'Estimate discussion with the supervisor', company: '', hh: 9, mm: 30, minutes: 30, vehicle: 'ON_FOOT' },
 ] as const;
 
 export const PULSE_TICKETS = [

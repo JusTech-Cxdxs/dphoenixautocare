@@ -60,7 +60,7 @@ export async function emailInvoice(invoiceId: string): Promise<void> {
 export async function getJobCardInvoice(jobCardId: string) {
   await requireUser();
   await seeJobCard(jobCardId, 'getJobCardInvoice');
-  return prisma.invoice.findUnique({ where: { jobCardId }, select: { id: true, invoiceNumber: true, issuedAt: true, total: true } });
+  return prisma.invoice.findUnique({ where: { jobCardId }, select: { id: true, invoiceNumber: true, issuedAt: true, total: true, dueDate: true } });
 }
 
 /** One invoice, everything its print page shows. Whoever can see its Job Card. */

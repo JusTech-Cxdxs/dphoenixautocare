@@ -26,7 +26,7 @@ Names only. Values never go into the repository, chat, or tickets.
 | `BETTER_AUTH_URL` | yes | The portal's public address, e.g. `https://portal.example.com` |
 | `NEXT_PUBLIC_PORTAL_URL` | yes | The portal's public address (links in emails and printouts) |
 | `NEXT_PUBLIC_WEBSITE_URL` | yes | The website's public address (customer links) |
-| `NEXT_PUBLIC_ORGANISATION_NAME` | yes | Name on the sign-in pages, e.g. `Kewalram Chanrai Group` |
+| `NEXT_PUBLIC_ORGANISATION_NAME` | yes | Name on the sign-in pages, e.g. `D'Phoenix Autocare` |
 | `CRON_SECRET` | yes | Long random secret for the scheduled jobs |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | yes | Outgoing email |
 | `PLATFORM_OWNER_EMAIL` | yes | The platform owner account |
@@ -41,10 +41,10 @@ Names only. Values never go into the repository, chat, or tickets.
 | `SERPER_API_KEY` or `BRAVE_SEARCH_API_KEY` or `TAVILY_API_KEY` | optional | A general web search engine for Enyo alongside Wikipedia (Google via serper.dev, Brave, or Tavily — the first set is used): business leaders and their public profiles, company news. Only the topic words are sent; results that do not match the question are dropped. Set in Vercel for the portal and the website |
 | `MAILBOX_ENCRYPTION_KEY` | for Mail | 32 random bytes, base64 (`openssl rand -base64 32`). Encrypts connected mailbox passwords. Changing it disconnects every mailbox |
 | `ML_SERVICE_TOKEN` | for Enyo models | At least 32 random characters. Lets the trainer (GitHub workflow "Train Enyo models") read the de-identified history and hand in models (docs/ML.md). Unset = /api/ml answers 404. The same value goes in the GitHub secret `ML_SERVICE_TOKEN`; rotate both together |
-| `DEMO_STAFF_PASSWORD` | for the demo | One password (8+ characters) for every demo sign-in (`docs/KEWALRAM_DEMO.md`). While it is set, each production build makes or refreshes the demo people in the demo organisation; never printed, never in code. Not set: no demo sign-ins at all. |
+| `DEMO_STAFF_PASSWORD` | for the demo | One password (8+ characters) for every demo sign-in (`docs/DPHOENIX_DEMO.md`). While it is set, each production build makes the demo organisation (D'Phoenix Autocare (Demo), kept apart from the real one) and makes or refreshes its demo people; never printed, never in code. Not set: no demo at all. |
 | `DEMO_CUSTOMER_PASSWORD` | optional | The four customer-portal demo sign-ins' password; the staff password when not set. |
 | `RESET_DEMO_PASSWORDS` | optional | `yes` sets every demo password again on the next build (and signs those accounts out). Set it for one deploy, then remove it. |
-| `DEMO_ORG_SLUG` | optional | Which organisation is the demo when none is marked yet (default `kewalram-nigeria`, the seed's own). Only a marked organisation (`organisations.isDemo`) ever gets demo people. |
+| `DEMO_ORG_SLUG` | optional | The demo organisation's short name when none is marked yet (default `dphoenix-demo`; made with its own Victoria Island workshop). Only a marked organisation (`organisations.isDemo`) ever gets demo people or records; the real `dphoenix-autocare`, or any organisation with its own customers or job cards, is refused. |
 | `DEMO_DAILY_ACTIVITY` | optional | `off` stops the demo organisation's daily working day (check-ins, visitors, requests…). On by default; never touches a real organisation and never emails. |
 | `DEMO_LOAD` | optional | `off` stops the build loading the demo records (plant and workshop) into the demo organisation the first time. |
 | `DEMO_STRICT` | optional | `1` makes a demo-people problem stop the build (by default it is reported and the app still deploys). |

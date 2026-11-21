@@ -43,7 +43,8 @@ export function checkStaffRow(cells: unknown[], mapping: Mapping): Checked<Staff
   const warn = (field: string, message: string) => issues.push({ field, message, level: 'warning' });
   const fail = (field: string, message: string) => issues.push({ field, message, level: 'error' });
 
-  const fullName = get(cells, mapping, 'fullName').replace(/\s+/g, ' ').trim().slice(0, 120);
+  // The full-name column, or first and last name in their own columns (Zoho People and most staff lists).
+  const fullName = (get(cells, mapping, 'fullName') || [get(cells, mapping, 'firstName'), get(cells, mapping, 'lastName')].filter(Boolean).join(' ')).replace(/\s+/g, ' ').trim().slice(0, 120);
   if (!fullName) fail('fullName', 'Full name is required.');
   else if (fullName.length < 2) fail('fullName', 'The full name is too short.');
   const email = get(cells, mapping, 'email').trim().toLowerCase();

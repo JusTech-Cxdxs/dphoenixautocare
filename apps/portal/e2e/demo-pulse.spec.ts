@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { test, expect, type Page } from '@playwright/test';
 import { db } from './db';
 import { as, gotoSettled, signIn } from './helpers';
-import { MASTER, ORGANISATION_SLUG } from './people';
+import { MASTER } from './people';
+import { DEMO_ORG_SLUG as ORGANISATION_SLUG } from '../lib/demo/organisation';
 import { DEMO_ENABLED, DEMO_OFF } from './edition';
 
 /**
@@ -48,7 +49,7 @@ test('today is already in the story (the load claimed it); a later Monday adds i
   for (const j of monJobs) { expect(j.status).toBe('CHECKED_IN'); expect(j.jobNumber).toMatch(new RegExp(`^JC-${dayKey.slice(0, 4)}-\\d{6}$`)); }
   // Every record it made is listed for the reset.
   for (const j of monJobs) expect(await db().demoRecord.count({ where: { model: 'JobCard', recordId: j.id } })).toBe(1);
-  // Monday's notice: to Isolo only, never emailed.
+  // Monday's notice: to the workshop only, never emailed.
   const notice = await db().broadcast.findFirstOrThrow({ where: { organisationId: org.id, title: 'This week in the workshop', startsAt: { gte: new Date(`${dayKey}T00:00:00Z`) } }, orderBy: { startsAt: 'asc' }, select: { sendEmail: true, audience: true } });
   expect(notice).toEqual({ sendEmail: false, audience: 'BRANCH' });
   // Tuesday: Monday's check-ins accepted and estimated (no money, no stock).
@@ -97,6 +98,13 @@ test('making another organisation the demo takes its short name typed, and back 
   await expect(row.getByRole('button', { name: 'Make it the demo' })).toBeDisabled();
   await row.getByRole('textbox').fill('other-org-e2e');
   await row.getByRole('button', { name: 'Make it the demo' }).click();
+  // An organisation with its own customers or job cards is never made the demo.
+  const ownRecords = (await db().customer.count({ where: { organisationId: other.id } })) + (await db().jobCard.count({ where: { customer: { organisationId: other.id } } }));
+  if (ownRecords) {
+    await expect(consoleCard(page).getByRole('alert')).toContainText('already holds its own records');
+    expect((await db().organisation.findUniqueOrThrow({ where: { id: other.id }, select: { isDemo: true } })).isDemo).toBe(false);
+    return;
+  }
   await expect(consoleCard(page).getByRole('status')).toContainText('is now the demo organisation');
   expect((await db().organisation.findUniqueOrThrow({ where: { id: other.id }, select: { isDemo: true } })).isDemo).toBe(true);
   await row.getByRole('textbox').fill('other-org-e2e');

@@ -56,10 +56,12 @@ test('things that already happened are dated through the morning and never after
 test('the pulse keeps its promises in code: demo only, the switch, the claim first inside one transaction, a second run stops on the unique marker, never money, stock, warranty or email; every record listed for the reset', () => {
   const src = read('apps/portal/lib/demo/pulse.ts');
   assert.match(src, /if \(!pulseEnabled\(env\)\) return result\('off'\)/);
-  assert.match(src, /if \(!org\?\.isDemo\) return result\('not-demo'\)/);
   assert.ok(src.indexOf('tx.demoRecord.create({ data: { organisationId, model: PULSE_MODEL') < src.indexOf('tx.jobCard.create('), 'the claim is the first write');
   assert.match(src, /e\.code === 'P2002'\) return result\('already'\)/);
-  for (const forbidden of ['payment.', 'partRequestSlip', 'goodsReceipt', 'warrantyClaim', 'sendEmail(', 'sendMail(', 'partStock']) assert.ok(!src.includes(forbidden), `the pulse never touches ${forbidden}`);
+  for (const forbidden of ['payment.', 'invoice.', 'refund.', 'partRequestSlip', 'goodsReceipt', 'warrantyClaim', 'vehicleService.create', 'sendEmail(', 'sendMail(', 'partStock']) assert.ok(!src.includes(forbidden), `the pulse never touches ${forbidden}`);
+  // A service is a Job Card with Service ticked (no separate Vehicle Service in this edition); never the real organisation.
+  assert.match(src, /isService: service/);
+  assert.match(src, /if \(!org\?\.isDemo \|\| org\.slug === REAL_ORG_SLUG\) return result\('not-demo'\)/);
   assert.match(src, /sendEmail: false/);
   assert.match(src, /tx\.demoRecord\.createMany\(\{ data: registry/);
   // A fresh load claims its own day, so the pulse adds nothing on top of it.
@@ -72,7 +74,7 @@ test('the pulse keeps its promises in code: demo only, the switch, the claim fir
 
 test('the console is the platform team’s only: every action checks the Master Administrator, refuses during an assisted session, takes typed words, is audited; only a demo organisation is loaded or emptied', () => {
   const src = read('apps/portal/lib/actions/demo-console.ts');
-  for (const fn of ['getDemoConsoleState', 'setDemoOrganisation', 'refreshDemoNow', 'removeDemoNow']) {
+  for (const fn of ['getDemoConsoleState', 'createDemoOrganisationNow', 'setDemoOrganisation', 'refreshDemoNow', 'removeDemoNow']) {
     const start = src.indexOf(`export async function ${fn}(`);
     const next = src.indexOf('\nexport ', start + 10);
     const body = src.slice(start, next === -1 ? undefined : next);
@@ -81,5 +83,9 @@ test('the console is the platform team’s only: every action checks the Master 
   }
   assert.match(src, /if \(!p\.isSuperAdmin\) return refuse\(/);
   assert.match(src, /if \(!org\.isDemo\) return fail\(/);
+  // Never the real organisation, never one with its own records; the plant demo is never loaded.
+  assert.match(src, /const refusal = await demoMarkRefusal\(prisma, org\); if \(refusal\) return fail\(refusal\)/);
+  assert.match(src, /if \(org\.slug === REAL_ORG_SLUG\) return fail\(/);
+  assert.ok(!src.includes('loadPlantDemo'));
   assert.match(read('apps/portal/app/(app)/it/page.tsx'), /\(await getPrincipal\(\)\)\.isSuperAdmin \? await getDemoConsoleState\(\) : null/);
 });

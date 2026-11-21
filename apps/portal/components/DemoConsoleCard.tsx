@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { refreshDemoNow, removeDemoNow, setDemoOrganisation, type DemoConsoleState } from '@/lib/actions/demo-console';
+import { createDemoOrganisationNow, refreshDemoNow, removeDemoNow, setDemoOrganisation, type DemoConsoleState } from '@/lib/actions/demo-console';
 import { formatDateTimeCompact } from '@/lib/utils/format-date';
 
 const field = 'min-w-0 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]';
@@ -11,8 +11,9 @@ type Result = { ok: true; summary: string } | { ok: false; error: string };
 
 /**
  * The platform team's demo console: which organisation is the demo, what is
- * in it, and one button to load it again as of now or take the demo records
- * out. Typed words confirm each change; the server checks everything again.
+ * in it, a button to make the demo organisation (kept apart from the real
+ * one), and one to load it again as of now or take the demo records out.
+ * Typed words confirm each change; the server checks everything again.
  */
 export function DemoConsoleCard({ state }: { state: DemoConsoleState }) {
   const router = useRouter();
@@ -29,8 +30,17 @@ export function DemoConsoleCard({ state }: { state: DemoConsoleState }) {
     <section aria-labelledby="demo-console" className="rounded-[var(--ejo-radius-lg)] border border-dashed border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-4" data-testid="demo-console">
       <h2 id="demo-console" className="text-sm font-semibold text-[var(--ejo-text)]">Demo organisation</h2>
       <p className="mt-1 text-xs text-[var(--ejo-text-muted)]">
-        Platform team only. The demo organisation has a sign-in for every role and six months of the workshop and six weeks of the plant, as of the moment they are loaded, with a new working day added each day{state.pulseOn ? '' : ' (switched off: DEMO_DAILY_ACTIVITY=off)'}. Loading replaces only the demo&rsquo;s own records. {state.passwordSet ? 'The demo sign-in password is set.' : 'DEMO_STAFF_PASSWORD is not set: the sign-ins are not made.'}
+        Platform team only. The demo lives in its own organisation, never in the real one: a sign-in for every role and seven months of the workshop (fleets on credit, services, invoices and receipts), as of the moment it is loaded, with a new working day added each day{state.pulseOn ? '' : ' (switched off: DEMO_DAILY_ACTIVITY=off)'}. Loading replaces only the demo&rsquo;s own records. {state.passwordSet ? 'The demo sign-in password is set.' : 'DEMO_STAFF_PASSWORD is not set: the sign-ins are not made.'}
       </p>
+      {!state.demoExists ? (
+        <div className="mt-3 flex flex-wrap items-end gap-2 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] p-3">
+          <label className="text-xs text-[var(--ejo-text-muted)]">
+            Type <b>{state.demoSlug}</b> to make {state.demoName}
+            <input value={words.create ?? ''} onChange={(e) => setWords((w) => ({ ...w, create: e.target.value }))} className={`${field} mt-1 block w-64 max-w-full`} autoComplete="off" aria-label="Confirm making the demo organisation" />
+          </label>
+          <button type="button" disabled={pending || typed('create') !== state.demoSlug} onClick={() => run('create', () => createDemoOrganisationNow(words.create ?? ''))} className={`${btn} border-[var(--ejo-primary)] bg-[var(--ejo-primary)] text-white`}>Make the demo organisation</button>
+        </div>
+      ) : null}
       <ul className="mt-3 space-y-3">
         {state.orgs.map((o) => (
           <li key={o.id} className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] p-3" data-org={o.slug}>
@@ -40,12 +50,12 @@ export function DemoConsoleCard({ state }: { state: DemoConsoleState }) {
             </div>
             {o.isDemo ? (
               <p className="mt-1 text-xs text-[var(--ejo-text-muted)]">
-                {o.records ? `${o.records.toLocaleString('en-NG')} workshop demo records` : 'No workshop demo records'} · {o.plantVehicles} plant demo vehicles · {o.signIns} sign-ins ({o.people} active){o.loadedAt ? ` · loaded ${formatDateTimeCompact(o.loadedAt)}` : ''}{o.lastPulseDay ? ` · last working day ${o.lastPulseDay}` : ''}
+                {o.records ? `${o.records.toLocaleString('en-NG')} workshop demo records` : 'No workshop demo records'} · {o.signIns} sign-ins ({o.people} active){o.loadedAt ? ` · loaded ${formatDateTimeCompact(o.loadedAt)}` : ''}{o.lastPulseDay ? ` · last working day ${o.lastPulseDay}` : ''}
               </p>
             ) : null}
             <div className="mt-2 flex flex-wrap items-end gap-2">
               <label className="text-xs text-[var(--ejo-text-muted)]">
-                Type {o.isDemo ? <><b>refresh the demo</b>, <b>remove the demo</b> or <b>{o.slug}</b> (to unmark)</> : <><b>{o.slug}</b> to make it the demo</>}
+                {o.isReal && !o.isDemo ? 'The real organisation: the demo is never loaded here.' : <>Type {o.isDemo ? <><b>refresh the demo</b>, <b>remove the demo</b> or <b>{o.slug}</b> (to unmark)</> : <><b>{o.slug}</b> to make it the demo</>}</>}
                 <input value={words[o.id] ?? ''} onChange={(e) => setWords((w) => ({ ...w, [o.id]: e.target.value }))} className={`${field} mt-1 block w-64 max-w-full`} autoComplete="off" aria-label={`Confirm for ${o.name}`} />
               </label>
               {o.isDemo ? (
@@ -54,7 +64,7 @@ export function DemoConsoleCard({ state }: { state: DemoConsoleState }) {
                   <button type="button" disabled={pending || typed(o.id) !== 'remove the demo'} onClick={() => run(o.id, () => removeDemoNow(o.id, words[o.id] ?? ''))} className={`${btn} border-[var(--ejo-error)] text-[var(--ejo-error)]`}>Remove the demo records</button>
                   <button type="button" disabled={pending || typed(o.id) !== o.slug.toLowerCase()} onClick={() => run(o.id, () => setDemoOrganisation(o.id, false, words[o.id] ?? ''))} className={`${btn} border-[var(--ejo-border)] text-[var(--ejo-text)]`}>Not a demo</button>
                 </>
-              ) : (
+              ) : o.isReal ? null : (
                 <button type="button" disabled={pending || typed(o.id) !== o.slug.toLowerCase()} onClick={() => run(o.id, () => setDemoOrganisation(o.id, true, words[o.id] ?? ''))} className={`${btn} border-[var(--ejo-border)] text-[var(--ejo-text)]`}>Make it the demo</button>
               )}
             </div>

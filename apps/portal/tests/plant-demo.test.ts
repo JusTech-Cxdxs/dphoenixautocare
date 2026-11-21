@@ -47,8 +47,8 @@ test('nothing in the story happens after now, VINs are real-shaped and unique, a
   for (const s of p.shipments) { all.push(s.arrivedAt); for (const k of s.kits) { all.push(k.startedAt, k.submittedAt, k.decidedAt); for (const i of k.issues) all.push(i.raisedAt, i.claimedAt, i.resolvedAt); for (const c of k.checks) all.push(c.checkedAt); } }
   for (const v of p.vehicles) { all.push(v.lineStartedAt, v.gatePassedAt); for (const x of v.visits) all.push(x.startedAt, x.finishedAt, x.passedAt); for (const d of v.defects) all.push(d.raisedAt, d.reworkedAt, d.verifiedAt); for (const a of v.audits) all.push(a.startedAt, a.finishedAt); for (const q of v.pdis) { all.push(q.startedAt, q.submittedAt, q.decidedAt); for (const it of q.items) all.push(it.checkedAt, it.reworkedAt); } }
   for (const d of all) if (d) assert.ok(d <= NOON_MONDAY, `${d.toISOString()} is after now`);
-  // The plant's people are the demo organisation's people (lib/demo/people.ts): reserved domain, demo numbers, one account each.
-  for (const person of DEMO_PEOPLE) { assert.match(person.email, /@demo\.kewalram\.local$/); assert.match(person.employeeId, /^DEMO-AP-\d{3}$/); assert.match(person.previousEmail ?? '', /@afprint-demo\.example$/); }
+  // The plant's own people: role names on the demo's reserved domain, demo numbers, one account each.
+  for (const person of DEMO_PEOPLE) { assert.match(person.email, /@demo\.dphoenix\.example$/); assert.match(person.employeeId, /^DEMO-AP-\d{3}$/); assert.equal(person.previousEmail, undefined); }
   assert.equal(new Set(DEMO_PEOPLE.map((x) => x.key)).size, DEMO_PEOPLE.length);
 });
 

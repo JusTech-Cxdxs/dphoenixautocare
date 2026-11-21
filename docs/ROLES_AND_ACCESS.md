@@ -223,61 +223,64 @@ while any step is unsettled.
 
 Loading or removing the demo records needs `admin.structure.manage` (an
 administrator), typed words to confirm, and is refused during an assisted
-session; both are audited. The 13 demo people on the plant are the demo
-organisation's own people (below); they never carry a real person's name.
+session; both are audited. The 13 demo people on the plant carry role
+names only (the plant is off in the D'Phoenix edition).
 
 ### The demo people (D1)
 
-One sign-in for every role — eight at Headquarters (no branch, so
-organisation-wide), seventeen at Isolo, sixteen at Afprint — and four
-customer-portal sign-ins (`docs/KEWALRAM_DEMO.md`, generated from
-`apps/portal/lib/demo/people.ts`). What keeps them safe:
+One sign-in for every role of the edition — seven at Headquarters (no
+branch, so organisation-wide), twelve at the Victoria Island Workshop — and
+two customer-portal sign-ins (`docs/DPHOENIX_DEMO.md`, generated from
+`apps/portal/lib/demo/people.ts`), each named by their role. They live in
+their own organisation, `dphoenix-demo` (`apps/portal/lib/demo/organisation.ts`),
+never in the real one. What keeps them safe:
 
-- **Only a demo organisation** (`organisations.isDemo`) ever gets them; a
-  demo person found anywhere else is switched off and signed out on the
-  next run, never deleted.
+- **Only a demo organisation** (`organisations.isDemo`) ever gets them, and
+  the real organisation (`dphoenix-autocare`) never; a demo person found
+  anywhere else is switched off and signed out on the next run, never
+  deleted.
 - **No password in code.** The accounts exist only while
   `DEMO_STAFF_PASSWORD` (8+ characters) is set in the environment; nothing
   is printed. A password already set is never changed, and an account an
   administrator switched off stays off, unless `RESET_DEMO_PASSWORDS=yes`
   is set for one run (which also signs those accounts out).
-- **Nothing is emailed:** every address is on `demo.kewalram.local`, a
-  reserved name.
-- **The rules hold for them as for anyone:** a demo technician sees only
-  their jobs; the Finance Officer at Headquarters confirms no branch's
-  money; a line operator cannot open a job card (`e2e/demo-people.spec.ts`).
+- **Nothing is emailed:** every address is on `demo.dphoenix.example`, a
+  reserved name; company contacts are on example.com.
+- **The rules hold for them as for anyone:** a demo technician works only
+  on their jobs; the calendar user sees nothing of the workshop
+  (`e2e/demo-people.spec.ts`).
 - Every run is audited (`demo.people_loaded`); making the accounts is a
-  deploy-time or terminal step (`npm run demo:people`, `npm run demo:reset`),
-  not a portal action — the platform team's button comes with D3.
+  deploy-time or terminal step (`npm run demo:people`, `npm run demo:reset`)
+  or the platform team's button (IT control room → Demo organisation).
 
 ### The workshop demo (D2)
 
-Six months of Isolo Branch (DEMO_WALKTHROUGH §15), loaded only into the
-demo organisation, by the build the first time and by `npm run demo:reset`
-after. Every record it makes is written as the demo people and obeys the
-same rules the actions enforce (the tests in
-`apps/portal/tests/workshop-demo.test.ts` check them: deposits at 70%
-before work, closing only through a decided request, refunds only after a
-cancellation, stock never negative, claims with their stage stamps). Every
-record is listed in `demo_records`, so removing the demo deletes exactly
-those — a person's own records are never touched. The load and the removal
-are audited (`demo.workshop_loaded`); the demo's own audit entries are
-removed with it under the trail's recorded maintenance switch, in one
-transaction, so a reload never doubles a history.
+Seven months of the Victoria Island Workshop (DEMO_WALKTHROUGH §15), loaded
+only into the demo organisation, by the build the first time and by
+`npm run demo:reset` after. Every record it makes is written as the demo
+people and obeys the same rules the actions enforce (the tests in
+`apps/portal/tests/workshop-demo.test.ts` check them: the customer's answer
+and an individual's deposit before work, VAT fixed at the Manager's
+approval, a discount above the limit approved by the Manager, an individual
+paid in full before closing, a fleet on credit leaving only with its
+invoice, refunds only after a cancellation). Every record is listed in
+`demo_records`, so removing the demo deletes exactly those — a person's own
+records are never touched. The load and the removal are audited
+(`demo.workshop_loaded`); the demo's own audit entries are removed with it
+under the trail's recorded maintenance switch, in one transaction, so a
+reload never doubles a history.
 
 ### The role tour and its proofs (D4)
 
-`docs/KEWALRAM_DEMO.md` gives each demo sign-in a first view, three clicks
+`docs/DPHOENIX_DEMO.md` gives each demo sign-in a first view, three clicks
 and what it **must not** do; it is generated from
 `apps/portal/lib/demo/tour.ts` (`npm run demo:tour-doc`). The promises are
 checked twice: `tests/demo-tour.test.ts` runs each against the
 authorization catalogue (a must-not page is refused by the person's roles, a
 protected click is granted — using the same page list as the role matrix,
-`lib/authz/page-areas.ts`), and `e2e/demo-tour.spec.ts` signs in as all 41
-people and proves it in the browser, plus the branch fences on real demo
-records (the plant's store officer cannot open an Isolo job card; a
-technician cannot open a colleague's; Headquarters' Finance can) and the
-reset refusing a hosted database.
+`lib/authz/page-areas.ts`), and `e2e/demo-tour.spec.ts` signs in as every
+demo person and proves it in the browser, plus the fences on real demo
+records and the reset refusing a hosted database.
 
 ### The demo every day, and the console (D3)
 

@@ -1,9 +1,9 @@
 /**
  * What kind of place a branch is, and which work happens there. Pure.
  *
- * Kewalram's set-up: an after-sales workshop with its parts store (Isolo
- * Branch), and the assembly plant where trucks and cars are built from kits
- * (Afprint Assembly Plant, also in Isolo). Later a vehicle sales point. Each
+ * The platform's places: an after-sales workshop (with its parts store where
+ * the Store is on), and an assembly plant where vehicles are built from kits
+ * (switched off in the D'Phoenix Autocare edition). Later a vehicle sales point. Each
  * is one branch of one type, so plant work and workshop work never mix:
  * kits, the line, quality, PDI and the yard live on an assembly-plant
  * branch; job cards, vehicle services and the store on a workshop branch.

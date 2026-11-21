@@ -49,6 +49,13 @@ test('every export that can be imported comes back in, with its SAP numbers reco
   const inv = headers('sap-invoices');
   assert.equal(inv[autoMap('invoices', inv).customerExternalId!], 'Customer number (SAP)');
   // A file exported before these names changed still comes back in.
+  // EJO's own invoices (one per Job Card) read back as invoice history: the total, not the subtotal, is the amount; the balance, due date and status come along.
+  const own = headers('invoices');
+  const ownMap = autoMap('invoices', own);
+  for (const f of ['invoiceNumber', 'invoiceDate', 'customerExternalId', 'customerName', 'amount', 'balance', 'dueDate', 'invoiceStatus', 'currency', 'vin']) assert.notEqual(ownMap[f], null, `invoices: ${f} is not recognised in ${JSON.stringify(own)}`);
+  assert.deepEqual(mappingProblems('invoices', ownMap), []);
+  assert.equal(own[autoMap('invoices', own).amount!], 'Total');
+  assert.equal(autoMap('invoices', own).tax, null, 'the total already holds the VAT');
   const old = autoMap('invoices', ['Invoice number (SAP)', 'Invoice date', 'Customer', 'Customer SAP number', 'Amount']);
   assert.equal(old.invoiceNumber, 0); assert.equal(old.customerExternalId, 3);
   assert.equal(autoMap('customers', ['SAP / old-system number', 'Name']).externalId, 0);

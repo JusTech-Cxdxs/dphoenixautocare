@@ -18,7 +18,8 @@ import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { depositFractionFor, depositOf, depositPercentOf, paymentApproves, workMayStart } from '@ejo/utils/billing';
-import { APPROVAL_LINK_DAYS, approvalLinkUrl, hashApprovalToken, isApprovalToken, newApprovalToken, whatsAppNumber, whatsAppShareUrl } from '@ejo/utils/approval-link';
+import { APPROVAL_LINK_DAYS, approvalLinkUrl, hashApprovalToken, isApprovalToken, newApprovalToken } from '@ejo/utils/approval-link';
+import { whatsAppNumber, whatsAppShareUrl } from '@ejo/utils/whatsapp';
 import { creditLimitOf, invoiceDueDate, isOnCredit, isOverdue, withinCreditLimit } from '../lib/credit-core';
 import { jobEstimatePdfProps } from '../lib/pdf/document-props';
 

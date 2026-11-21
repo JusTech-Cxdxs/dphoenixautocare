@@ -74,7 +74,7 @@ export default async function WorkshopJobCardsPage({
         icon="clipboard"
         title="Job Cards"
         description={<><OrgTrail area="Workshop" /></>}
-        actions={<ExportAction kind="job-cards" params={sp} />}
+        actions={<span className="flex flex-wrap items-center gap-2"><ExportAction kind="job-cards" params={sp} /><ExportAction kind="invoices" params={{ q: sp.q }} label="Export invoices" /></span>}
       />
 
       <CategoryFilterTabs basePath="/workshop/job-cards" currentType={vehicleType} preserveParams={{ q }} />

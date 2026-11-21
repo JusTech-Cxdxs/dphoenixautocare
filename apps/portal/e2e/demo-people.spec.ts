@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { test, expect } from '@playwright/test';
 import { db } from './db';
 import { expectSignedIn, gotoSettled, signIn, signOut } from './helpers';
-import { DEMO_E2E_PASSWORD, ORGANISATION_SLUG } from './people';
+import { DEMO_E2E_PASSWORD } from './people';
+import { DEMO_ORG_SLUG } from '../lib/demo/organisation';
 import { customerSignedIn, websiteUp } from './customer';
 import { DEMO_CUSTOMERS, DEMO_DOMAIN, DEMO_STAFF, demoPerson } from '../lib/demo/people';
 import { DEMO_ENABLED, DEMO_OFF } from './edition';
@@ -31,7 +32,7 @@ async function hashes(): Promise<Map<string, string | null>> {
 }
 
 test('every demo person exists once, on the right branch and department, with their roles, employee number and a sign-in; the organisation is marked as the demo', async () => {
-  const org = await db().organisation.findUniqueOrThrow({ where: { slug: ORGANISATION_SLUG }, select: { id: true, isDemo: true } });
+  const org = await db().organisation.findUniqueOrThrow({ where: { slug: DEMO_ORG_SLUG }, select: { id: true, isDemo: true } });
   expect(org.isDemo).toBe(true);
   const users = await db().user.findMany({ where: { email: { in: staffEmails } }, select: { email: true, organisationId: true, employeeId: true, fullName: true, isActive: true, emailVerified: true, branch: { select: { type: true, code: true } }, department: { select: { slug: true } }, roles: { select: { role: { select: { slug: true } } } }, accounts: { select: { providerId: true } }, employeeProfile: { select: { jobTitle: true } } } });
   expect(users).toHaveLength(DEMO_STAFF.length);
@@ -42,16 +43,14 @@ test('every demo person exists once, on the right branch and department, with th
     expect(u.fullName).toBe(s.name);
     expect(u.employeeId).toBe(s.employeeId);
     expect(u.isActive && u.emailVerified).toBe(true);
-    expect(u.branch?.type ?? 'HQ', s.email).toBe(s.branch === 'HQ' ? 'HQ' : s.branch === 'ISOLO' ? 'WORKSHOP' : 'ASSEMBLY_PLANT');
+    expect(u.branch?.type ?? 'HQ', s.email).toBe(s.branch === 'HQ' ? 'HQ' : 'WORKSHOP');
     expect(u.department?.slug ?? null, s.email).toBe(s.dept);
     for (const role of [s.role, ...(s.alsoRoles ?? [])]) expect(u.roles.map((r) => r.role.slug), `${s.email} has ${role}`).toContain(role);
     expect(u.accounts.map((a) => a.providerId)).toEqual(['credential']);
     expect(u.employeeProfile?.jobTitle).toBe(s.jobTitle);
   }
-  // The first release's plant addresses are gone: renamed, not doubled.
-  expect(await db().user.count({ where: { email: { endsWith: '@afprint-demo.example' } } })).toBe(0);
   const customers = await db().customer.findMany({ where: { email: { in: DEMO_CUSTOMERS.map((c) => c.email) } }, select: { email: true, organisationId: true, customerType: true, customerCompany: { select: { companyName: true } }, accounts: { select: { providerId: true } } } });
-  expect(customers).toHaveLength(4);
+  expect(customers).toHaveLength(DEMO_CUSTOMERS.length);
   for (const c of customers) { expect(c.organisationId).toBe(org.id); expect(c.accounts.map((a) => a.providerId)).toEqual(['credential']); }
   expect(customers.find((c) => c.email === demoCustomer('FLEET').email)?.customerCompany?.companyName).toBe(demoCustomer('FLEET').company);
   expect(customers.find((c) => c.email === demoCustomer('INDIVIDUAL').email)?.customerType).toBe('INDIVIDUAL');
@@ -60,12 +59,11 @@ test('every demo person exists once, on the right branch and department, with th
 });
 
 
-test('they sign in: headquarters, the workshop and the plant each land on their own dashboard; a line operator is refused the job cards, a calendar user the plant', async ({ page }) => {
+test('they sign in: headquarters and the workshop each land on their own dashboard; a technician is refused the users, a calendar user the job cards', async ({ page }) => {
   for (const [person, must, mustNot] of [
     [demoPerson('administrator', 'HQ'), '/users', null],
-    [demoPerson('technician', 'ISOLO'), '/workshop/job-cards', '/plant'],
-    [demoPerson('line-operator', 'AFPRINT'), '/plant/line', '/workshop/job-cards'],
-    [demoPerson('calendar-user', 'HQ'), '/schedule', '/plant'],
+    [demoPerson('technician', 'VI'), '/workshop/job-cards', '/users'],
+    [demoPerson('calendar-user', 'HQ'), '/schedule', '/workshop/job-cards'],
   ] as const) {
     await signIn(page, person.email, DEMO_E2E_PASSWORD);
     await expect(page.getByRole('button', { name: 'Account menu' })).toContainText(person.name);
@@ -99,7 +97,7 @@ test('a second run changes nothing — no new account, no password touched; with
   // Nothing printed that should not be.
   expect(out).not.toContain(DEMO_E2E_PASSWORD);
   // A signed-in demo person…
-  const tech = demoPerson('technician', 'ISOLO');
+  const tech = demoPerson('technician', 'VI');
   await signIn(page, tech.email, DEMO_E2E_PASSWORD);
   const reset = run({ DEMO_STAFF_PASSWORD: DEMO_E2E_PASSWORD, RESET_DEMO_PASSWORDS: 'yes' });
   expect(reset).toMatch(new RegExp(`${DEMO_STAFF.length} staff passwords set, 0 customers created, ${DEMO_CUSTOMERS.length} customer-portal passwords set.*RESET_DEMO_PASSWORDS=yes`));

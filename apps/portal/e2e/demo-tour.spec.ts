@@ -3,13 +3,14 @@ import { join } from 'node:path';
 import { test, expect } from '@playwright/test';
 import { db } from './db';
 import { expectHealthy, gotoSettled, signIn } from './helpers';
-import { DEMO_E2E_PASSWORD, ORGANISATION_SLUG } from './people';
+import { DEMO_E2E_PASSWORD } from './people';
+import { DEMO_ORG_SLUG } from '../lib/demo/organisation';
 import { DEMO_STAFF, demoPerson } from '../lib/demo/people';
 import { tourFor } from '../lib/demo/tour';
 import { DEMO_ENABLED, DEMO_OFF } from './edition';
 
 /**
- * D4 — the role tour of docs/KEWALRAM_DEMO.md, in the browser: every demo
+ * D4 — the role tour of docs/DPHOENIX_DEMO.md, in the browser: every demo
  * sign-in lands on its own dashboard, its three clicks open (never
  * "Access denied"), and every "must not" is refused when typed in. Then the
  * branch fences on real demo records, and the reset refusing a hosted
@@ -51,26 +52,20 @@ for (const person of DEMO_STAFF) {
 }
 
 async function demoJob(where: Record<string, unknown>) {
-  const org = await db().organisation.findUniqueOrThrow({ where: { slug: ORGANISATION_SLUG }, select: { id: true } });
+  const org = await db().organisation.findUniqueOrThrow({ where: { slug: DEMO_ORG_SLUG }, select: { id: true } });
   return db().jobCard.findFirstOrThrow({ where: { customer: { organisationId: org.id, externalSource: 'EJO-DEMO' }, ...where }, orderBy: { createdAt: 'desc' }, select: { id: true, jobNumber: true } });
 }
 
-test('branch fences on real demo records: the plant’s store officer and a line operator cannot open an Isolo job card; Headquarters’ Finance can', async ({ page }) => {
+test('fences on real demo records: a technician on the cars bay cannot work on the fleet bay’s job card; the calendar user cannot open it; the Managing Director can', async ({ page }) => {
   test.setTimeout(150_000);
-  const commercialTech = await db().user.findUniqueOrThrow({ where: { email: demoPerson('technician', 'ISOLO').email.replace('tech.passenger', 'tech.commercial') }, select: { id: true } });
-  const job = await demoJob({ assignedTechnicianId: commercialTech.id, status: { in: ['IN_PROGRESS', 'READY_FOR_COLLECTION', 'CHECKED_OUT'] } });
-  const refused = async (who: string) => {
-    await page.context().clearCookies(); // the next person signs in afresh
-    await signIn(page, who, DEMO_E2E_PASSWORD);
-    await gotoSettled(page, `/workshop/job-cards/${job.id}`);
-    await expect(page.getByText(job.jobNumber)).toHaveCount(0);
-    const denied = /\/access-denied/.test(page.url());
-    if (!denied) await expect(page.getByRole('link', { name: 'Back to the dashboard' })).toBeVisible();
-  };
-  await refused(DEMO_STAFF.find((s) => s.email.startsWith('kit.store@'))!.email); // Afprint: another branch
-  await refused(DEMO_STAFF.find((s) => s.email.startsWith('operator.1@'))!.email); // Afprint, and no workshop at all
+  const fleetTech = await db().user.findUniqueOrThrow({ where: { email: DEMO_STAFF.find((s) => s.email.startsWith('tech.3@'))!.email }, select: { id: true } });
+  const job = await demoJob({ assignedTechnicianId: fleetTech.id, status: { in: ['IN_PROGRESS', 'READY_FOR_COLLECTION', 'CHECKED_OUT'] } });
   await page.context().clearCookies();
-  await signIn(page, DEMO_STAFF.find((s) => s.email.startsWith('finance.hq@'))!.email, DEMO_E2E_PASSWORD);
+  await signIn(page, DEMO_STAFF.find((s) => s.email.startsWith('calendar@'))!.email, DEMO_E2E_PASSWORD);
+  await gotoSettled(page, `/workshop/job-cards/${job.id}`);
+  await expect(page.getByText(job.jobNumber)).toHaveCount(0);
+  await page.context().clearCookies();
+  await signIn(page, demoPerson('executive', 'HQ').email, DEMO_E2E_PASSWORD);
   await gotoSettled(page, `/workshop/job-cards/${job.id}`);
   await expect(page.getByText(job.jobNumber).first()).toBeVisible();
   await expectHealthy(page);

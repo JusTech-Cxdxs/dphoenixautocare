@@ -1,47 +1,51 @@
 /**
  * D1 — the demo people (lib/demo/people.ts) and how they are made
- * (lib/demo/people-load.ts): every role on every branch, one account each,
- * on a reserved domain, with no password anywhere in the code; the plant
- * demo's people are the same accounts; the deploy makes them only when the
- * environment asks. The database behaviour (idempotent, never a password
- * changed, a demo person in a real organisation switched off) is proved in
- * e2e/demo-people.spec.ts against a real database.
+ * (lib/demo/people-load.ts): every role at Headquarters and at the Victoria
+ * Island Workshop, one account each, named by their role, on a reserved
+ * domain, with no password anywhere in the code; the demo organisation is
+ * its own (lib/demo/organisation.ts), never the real one; the deploy makes
+ * them only when the environment asks. The database behaviour (idempotent,
+ * never a password changed, a demo person in a real organisation switched
+ * off) is proved in e2e/demo-people.spec.ts against a real database.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEMO_CUSTOMERS, DEMO_DOMAIN, DEMO_PASSWORD_MIN, DEMO_STAFF, PLANT_DEMO_STAFF, demoPerson, isDemoEmail } from '../lib/demo/people';
+import { DEMO_CUSTOMERS, DEMO_DOMAIN, DEMO_PASSWORD_MIN, DEMO_STAFF, demoPerson, isDemoEmail } from '../lib/demo/people';
 import { demoPasswords } from '../lib/demo/people-load';
+import { DEMO_ORG_NAME, DEMO_ORG_SLUG, REAL_ORG_SLUG, demoOrgSlug } from '../lib/demo/organisation';
 import { DEMO_PEOPLE } from '../lib/plant/demo/plan';
 import { ROLE_GRANTS, ROLE_LABELS } from '../lib/authz/catalogue';
-import { PLANT_DEPARTMENTS } from '../lib/branch-types';
 
 const ROOT = join(__dirname, '..', '..', '..', '..');
 const read = (p: string) => readFileSync(join(ROOT, p), 'utf8');
 
-/** The roles the brief asks for, per place. */
-const WANTED: Record<'HQ' | 'ISOLO' | 'AFPRINT', string[]> = {
-  HQ: ['administrator', 'executive', 'it-administrator', 'finance-officer', 'customer-care-lead', 'broadcaster', 'scheduling-admin', 'calendar-user'],
-  ISOLO: ['branch-administrator', 'workshop-manager', 'workshop-supervisor', 'technician', 'receptionist', 'branch-assistant', 'store-manager', 'store-officer', 'finance-officer', 'warranty-hod', 'warranty-officer', 'chief-security-officer', 'security-officer', 'customer-care', 'department-head'],
-  AFPRINT: ['branch-administrator', 'plant-manager', 'production-supervisor', 'line-operator', 'kit-inspector', 'qc-inspector', 'qa-auditor', 'quality-supervisor', 'pdi-supervisor', 'pdi-inspector', 'security-officer'],
+/** The roles the D'Phoenix edition has (packages/database/prisma/seed.ts), per place. */
+const WANTED: Record<'HQ' | 'VI', string[]> = {
+  HQ: ['administrator', 'executive', 'it-administrator', 'customer-care-lead', 'broadcaster', 'scheduling-admin', 'calendar-user'],
+  VI: ['workshop-manager', 'workshop-supervisor', 'technician', 'receptionist', 'finance-officer', 'chief-security-officer', 'security-officer', 'customer-care', 'department-head'],
 };
-const WORKSHOP_DEPARTMENTS = ['workshop', 'store', 'workshop-passenger', 'workshop-commercial'];
+const WORKSHOP_DEPARTMENTS = ['workshop', 'workshop-passenger', 'workshop-commercial'];
+const OFF_ROLES = ['store-manager', 'store-officer', 'warranty-hod', 'warranty-officer', 'plant-manager', 'line-operator', 'kit-inspector', 'qc-inspector', 'qa-auditor', 'quality-supervisor', 'production-supervisor', 'pdi-inspector', 'pdi-supervisor'];
 
-test('every role the brief names has a sign-in on its branch; two supervisors and two technicians at Isolo (passenger and commercial), two line operators or more', () => {
-  for (const [branch, roles] of Object.entries(WANTED) as ['HQ' | 'ISOLO' | 'AFPRINT', string[]][]) {
+test('every role of the edition has a sign-in on its place; two supervisors (cars and fleet) and three technicians; nothing of the Store, Warranty or the plant', () => {
+  for (const [branch, roles] of Object.entries(WANTED) as ['HQ' | 'VI', string[]][]) {
     for (const role of roles) assert.ok(DEMO_STAFF.some((s) => s.branch === branch && s.role === role), `${role} on ${branch}`);
   }
-  const isolo = (role: string) => DEMO_STAFF.filter((s) => s.branch === 'ISOLO' && s.role === role);
-  assert.deepEqual(isolo('workshop-supervisor').map((s) => s.dept).sort(), ['workshop-commercial', 'workshop-passenger']);
-  assert.deepEqual(isolo('technician').map((s) => s.dept).sort(), ['workshop-commercial', 'workshop-passenger']);
-  assert.ok(DEMO_STAFF.filter((s) => s.branch === 'AFPRINT' && s.role === 'line-operator').length >= 2);
-  assert.equal(demoPerson('workshop-manager').branch, 'ISOLO');
-  assert.equal(demoPerson('finance-officer', 'HQ').email, `finance.hq@${DEMO_DOMAIN}`);
+  const vi = (role: string) => DEMO_STAFF.filter((s) => s.branch === 'VI' && s.role === role);
+  assert.deepEqual(vi('workshop-supervisor').map((s) => s.dept).sort(), ['workshop-commercial', 'workshop-passenger']);
+  assert.deepEqual(vi('technician').map((s) => s.name), ['Technician 1', 'Technician 2', 'Technician 3']);
+  assert.ok(vi('technician').some((s) => s.dept === 'workshop-commercial'));
+  for (const s of DEMO_STAFF) assert.ok(!OFF_ROLES.includes(s.role), `${s.email}: ${s.role} is off in this edition`);
+  assert.equal(demoPerson('workshop-manager').branch, 'VI');
+  assert.equal(demoPerson('executive').name, 'Managing Director');
   assert.throws(() => demoPerson('master-administrator'), /No demo person/);
 });
 
-test('one account each: addresses on the reserved domain, unique; names and employee numbers unique and obviously demo; every role known to the catalogue; departments that exist on that branch; reporting lines resolve', () => {
+test('one account each: addresses on the reserved domain, unique; named by role (no real person’s name); employee numbers unique and obviously demo; every role known to the catalogue; departments that exist; reporting lines resolve', () => {
+  assert.equal(DEMO_DOMAIN, 'demo.dphoenix.example');
+  assert.ok(DEMO_DOMAIN.endsWith('.example'), 'a reserved name');
   const emails = new Set<string>();
   const ids = new Set<string>();
   const names = new Set<string>();
@@ -50,36 +54,48 @@ test('one account each: addresses on the reserved domain, unique; names and empl
     assert.ok(!emails.has(s.email), `${s.email} twice`); emails.add(s.email);
     assert.ok(!ids.has(s.employeeId), `${s.employeeId} twice`); ids.add(s.employeeId);
     assert.ok(!names.has(s.name), `${s.name} twice`); names.add(s.name);
-    assert.match(s.employeeId, /^DEMO-(HQ|WS|AP)-\d{3}$/);
-    assert.equal(s.employeeId.slice(5, 7), s.branch === 'HQ' ? 'HQ' : s.branch === 'ISOLO' ? 'WS' : 'AP');
+    assert.match(s.employeeId, /^DEMO-(HQ|VI)-\d{3}$/);
+    assert.equal(s.employeeId.slice(5, 7), s.branch);
+    // A role name: the role label, the job title or a numbered/qualified role ("Technician 1", "Supervisor — Cars").
+    const label = (ROLE_LABELS[s.role] ?? '').replace(/\s*\(.*\)\s*$/, '');
+    assert.ok(s.name === label || s.name === s.jobTitle || /^(Technician \d|Supervisor — \w+|Security Officer — \w+|Head of Department — \w+|Workshop Manager|Front Desk|Managing Director|Administrator|Broadcaster)$/.test(s.name), `${s.email}: "${s.name}" is a role name`);
     for (const role of [s.role, ...(s.alsoRoles ?? [])]) { assert.ok(role in ROLE_LABELS, `${role} has a label`); assert.ok(role in ROLE_GRANTS, `${role} has grants`); }
     if (s.branch === 'HQ') assert.equal(s.dept, null, `${s.email}: headquarters has no department`);
-    if (s.dept) assert.ok((s.branch === 'ISOLO' ? WORKSHOP_DEPARTMENTS : PLANT_DEPARTMENTS.map((d) => d.slug)).includes(s.dept), `${s.email}: ${s.dept} exists on ${s.branch}`);
-    if (s.reportsTo) assert.ok(emails.has(s.reportsTo) || DEMO_STAFF.some((o) => o.email === s.reportsTo), `${s.email} reports to ${s.reportsTo}`);
+    if (s.dept) assert.ok(WORKSHOP_DEPARTMENTS.includes(s.dept), `${s.email}: ${s.dept} exists at the workshop`);
+    if (s.reportsTo) assert.ok(DEMO_STAFF.some((o) => o.email === s.reportsTo), `${s.email} reports to ${s.reportsTo}`);
     assert.ok(s.jobTitle.length > 3 && s.show.length > 20, `${s.email} has a title and a tour line`);
-    if (s.previousEmail) assert.match(s.previousEmail, /@afprint-demo\.example$/);
   }
-  assert.ok(isDemoEmail(`x@${DEMO_DOMAIN}`) && !isDemoEmail('x@kewalram.com') && !isDemoEmail(null));
+  assert.ok(isDemoEmail(`x@${DEMO_DOMAIN}`) && !isDemoEmail('x@dphoenixautocare.com') && !isDemoEmail(null));
   // Nobody at headquarters is tied to a branch: that is what makes them organisation-wide.
-  assert.ok(DEMO_STAFF.filter((s) => s.branch === 'HQ').length >= 8);
+  assert.ok(DEMO_STAFF.filter((s) => s.branch === 'HQ').length >= 6);
 });
 
-test('the plant demo’s people ARE the demo organisation’s plant people: same keys, emails, numbers and departments; the first release’s addresses are remembered for the rename', () => {
-  assert.equal(PLANT_DEMO_STAFF.length, DEMO_PEOPLE.length);
-  for (const person of DEMO_PEOPLE) {
-    const s = PLANT_DEMO_STAFF.find((x) => x.plantKey === person.key)!;
-    assert.ok(s, person.key);
-    assert.equal(s.email, person.email); assert.equal(s.employeeId, person.employeeId); assert.equal(s.name, person.fullName); assert.equal(s.role, person.role); assert.equal(s.dept, person.department);
-    assert.equal(s.previousEmail, `${person.fullName.toLowerCase().replace(/[^a-z]+/g, '.')}@afprint-demo.example`);
-  }
+test('the plant demo (switched off) keeps its own people: role names on the reserved domain, never the workshop’s sign-ins', () => {
   assert.deepEqual(DEMO_PEOPLE.map((p) => p.key), ['pm', 'prod', 'op1', 'op2', 'op3', 'op4', 'qc', 'qs', 'qa', 'kit1', 'kit2', 'pdi1', 'pdi2']);
+  for (const p of DEMO_PEOPLE) { assert.ok(isDemoEmail(p.email)); assert.ok(!DEMO_STAFF.some((s) => s.email === p.email)); assert.match(p.employeeId, /^DEMO-AP-\d{3}$/); }
 });
 
-test('four customer-portal sign-ins: an individual, a fleet company, a warranty customer and an Afprint-built vehicle’s owner — reserved addresses, no real numbers', () => {
-  assert.deepEqual(DEMO_CUSTOMERS.map((c) => c.kind), ['INDIVIDUAL', 'FLEET', 'WARRANTY', 'PLANT']);
+test('two customer-portal sign-ins: an individual and a fleet company on credit — reserved addresses, no real numbers', () => {
+  assert.deepEqual(DEMO_CUSTOMERS.map((c) => c.kind), ['INDIVIDUAL', 'FLEET']);
   for (const c of DEMO_CUSTOMERS) { assert.ok(isDemoEmail(c.email)); assert.match(c.phone, /^0800 000 \d{4}$/); assert.ok(c.address.includes('Lagos')); }
-  assert.ok(DEMO_CUSTOMERS.find((c) => c.kind === 'FLEET')!.company);
-  assert.equal(new Set(DEMO_CUSTOMERS.map((c) => c.email)).size, 4);
+  assert.equal(DEMO_CUSTOMERS.find((c) => c.kind === 'FLEET')!.company, 'SEEPCO');
+  assert.equal(new Set(DEMO_CUSTOMERS.map((c) => c.email)).size, DEMO_CUSTOMERS.length);
+});
+
+test('the demo has its own organisation: dphoenix-demo by default (DEMO_ORG_SLUG changes it), never the real dphoenix-autocare nor one with its own records', () => {
+  assert.equal(DEMO_ORG_SLUG, 'dphoenix-demo');
+  assert.equal(DEMO_ORG_NAME, "D'Phoenix Autocare (Demo)");
+  assert.equal(REAL_ORG_SLUG, 'dphoenix-autocare');
+  assert.equal(demoOrgSlug({}), 'dphoenix-demo');
+  assert.equal(demoOrgSlug({ DEMO_ORG_SLUG: ' my-demo ' }), 'my-demo');
+  const org = read('apps/portal/lib/demo/organisation.ts');
+  assert.match(org, /if \(org\.slug === REAL_ORG_SLUG\) return/);
+  assert.match(org, /prisma\.customer\.count\(\{ where: \{ organisationId: org\.id \} \}\)/);
+  assert.match(org, /isDemo: true/);
+  assert.match(org, /name: 'Victoria Island Workshop \(Demo\)'/);
+  const people = read('apps/portal/scripts/demo-people.ts');
+  assert.match(people, /ensureDemoOrganisation\(prisma, demoOrgSlug\(env\)\)/);
+  assert.ok(!/kewalram/i.test(people + org + read('apps/portal/lib/demo/people-load.ts')));
 });
 
 test('passwords come only from the environment: none → skipped; shorter than 8 → skipped with the reason; the customers fall back to the staff password; never printed', () => {
@@ -99,9 +115,10 @@ test('passwords come only from the environment: none → skipped; shorter than 8
   }
 });
 
-test('the loader keeps the rules in its code: only a demo organisation, a password already set is kept unless RESET_DEMO_PASSWORDS=yes, the first release’s plant accounts are renamed not doubled, stray demo people switched off, one audit entry', () => {
+test('the loader keeps the rules in its code: only a demo organisation (never the real one), a password already set is kept unless RESET_DEMO_PASSWORDS=yes, an earlier address is renamed not doubled, stray demo people switched off, one audit entry', () => {
   const src = read('apps/portal/lib/demo/people-load.ts');
   assert.match(src, /if \(!org\.isDemo\) \{ r\.skipped =/);
+  assert.match(src, /if \(org\.slug === REAL_ORG_SLUG\) \{ r\.skipped =/);
   assert.match(src, /env\.RESET_DEMO_PASSWORDS === 'yes'/);
   assert.match(src, /else if \(reset\) \{\s*await prisma\.account\.update/);
   assert.match(src, /session\.deleteMany\(\{ where: \{ userId \} \}\)/);
@@ -109,9 +126,8 @@ test('the loader keeps the rules in its code: only a demo organisation, a passwo
   assert.match(src, /disableStrayDemoPeople/);
   assert.match(src, /action: 'demo\.people_loaded'/);
   assert.match(src, /customerSession\.deleteMany/);
-  // The plant demo's own loader renames too, and never switches a person back on.
+  // The plant demo's own loader never switches a person back on.
   const plant = read('apps/portal/lib/plant/demo/load.ts');
-  assert.match(plant, /previousEmail/);
   assert.ok(!/update: \{[^}]*isActive: true/.test(plant), 'the plant demo never re-enables an account');
 });
 
@@ -132,10 +148,12 @@ test('the production build makes the demo people only when DEMO_STAFF_PASSWORD i
   assert.match(read('scripts/v-d1-demo-people.sql'), /ADD COLUMN IF NOT EXISTS "isDemo"/);
 });
 
-test('docs/KEWALRAM_DEMO.md lists every demo sign-in (staff and customers) with its employee number, and never a password', () => {
-  const doc = read('docs/KEWALRAM_DEMO.md');
+test('docs/DPHOENIX_DEMO.md lists every demo sign-in (staff and customers) with its employee number, how to switch the demo on, and never a password', () => {
+  const doc = read('docs/DPHOENIX_DEMO.md');
   for (const s of DEMO_STAFF) { assert.ok(doc.includes(`\`${s.email}\``), s.email); assert.ok(doc.includes(s.employeeId), s.employeeId); assert.ok(doc.includes(s.name), s.name); }
   for (const c of DEMO_CUSTOMERS) assert.ok(doc.includes(`\`${c.email}\``), c.email);
   assert.ok(!/password\s*(is|:)\s*`[^`]+`/i.test(doc), 'no password written in the tour');
   assert.match(doc, /DEMO_STAFF_PASSWORD/);
+  assert.match(doc, /## Switching the demo on/);
+  assert.ok(!/kewalram|afprint|isolo/i.test(doc));
 });

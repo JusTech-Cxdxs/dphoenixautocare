@@ -1,8 +1,8 @@
 /**
- * Writes the demo people (./people.ts) into a demo organisation, with their
- * sign-ins. Used by `npm run demo:people`, by `npm run demo:reset`, by the
- * production build (scripts/db-push-if-vercel.js) and later by the platform
- * team's console; the callers decide when.
+ * Writes the demo people (./people.ts) into the demo organisation
+ * (./organisation.ts), with their sign-ins. Used by `npm run demo:people`, by
+ * `npm run demo:reset`, by the production build (scripts/db-push-if-vercel.js)
+ * and by the platform team's console; the callers decide when.
  *
  * Rules, every one of them tested:
  *   • Only an organisation marked as a demo (organisations.isDemo) gets demo
@@ -28,6 +28,7 @@ import type { PrismaClient } from '@prisma/client';
 import { hashPassword } from 'better-auth/crypto';
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from '../authz/catalogue';
 import { DEMO_CUSTOMERS, DEMO_DOMAIN, DEMO_PASSWORD_MIN, DEMO_STAFF, type DemoBranch, type DemoStaff } from './people';
+import { DEMO_ORG_SLUG, REAL_ORG_SLUG } from './organisation';
 
 export type DemoPeopleEnv = Record<string, string | undefined>;
 
@@ -83,14 +84,12 @@ async function ensureRoles(prisma: PrismaClient, organisationId: string): Promis
   return new Map((await prisma.role.findMany({ where: { organisationId, slug: { in: slugs } }, select: { id: true, slug: true } })).map((r) => [r.slug, r.id]));
 }
 
-/** Isolo (the first workshop branch) and Afprint (the first assembly plant) of the organisation. */
+/** The demo organisation's Victoria Island workshop (lib/demo/organisation.ts), or its first workshop branch. */
 async function demoBranches(prisma: PrismaClient, organisationId: string): Promise<Record<Exclude<DemoBranch, 'HQ'>, { id: string; name: string }>> {
   const branches = await prisma.branch.findMany({ where: { businessUnit: { organisationId } }, orderBy: { createdAt: 'asc' }, select: { id: true, name: true, code: true, type: true } });
-  const isolo = branches.find((b) => b.code === 'KWL-WS') ?? branches.find((b) => b.type === 'WORKSHOP');
-  const afprint = branches.find((b) => b.code === 'KWL-AP') ?? branches.find((b) => b.type === 'ASSEMBLY_PLANT');
-  if (!isolo) throw new Error('Demo people: the organisation has no workshop branch yet — run the base seed first.');
-  if (!afprint) throw new Error('Demo people: the organisation has no assembly plant yet. Open it first (Assembly plant → Open the assembly plant now) and run again.');
-  return { ISOLO: { id: isolo.id, name: isolo.name }, AFPRINT: { id: afprint.id, name: afprint.name } };
+  const vi = branches.find((b) => b.code === 'DPD') ?? branches.find((b) => b.type === 'WORKSHOP');
+  if (!vi) throw new Error('Demo people: the demo organisation has no workshop branch yet — run npm run demo:people (it makes the demo organisation) first.');
+  return { VI: { id: vi.id, name: vi.name } };
 }
 
 /**
@@ -100,14 +99,14 @@ async function demoBranches(prisma: PrismaClient, organisationId: string): Promi
  */
 export async function disableStrayDemoPeople(prisma: PrismaClient): Promise<number> {
   const stray = await prisma.user.findMany({
-    where: { email: { endsWith: `@${DEMO_DOMAIN}` }, isActive: true, OR: [{ organisationId: null }, { organisation: { isDemo: false } }] },
+    where: { email: { endsWith: `@${DEMO_DOMAIN}` }, isActive: true, OR: [{ organisationId: null }, { organisation: { isDemo: false } }, { organisation: { slug: REAL_ORG_SLUG } }] },
     select: { id: true },
   });
   if (!stray.length) return 0;
   const ids = stray.map((u) => u.id);
   await prisma.user.updateMany({ where: { id: { in: ids } }, data: { isActive: false } });
   await prisma.session.deleteMany({ where: { userId: { in: ids } } });
-  const strayCustomers = await prisma.customer.findMany({ where: { email: { endsWith: `@${DEMO_DOMAIN}` }, isActive: true, organisation: { isDemo: false } }, select: { id: true } });
+  const strayCustomers = await prisma.customer.findMany({ where: { email: { endsWith: `@${DEMO_DOMAIN}` }, isActive: true, OR: [{ organisation: { isDemo: false } }, { organisation: { slug: REAL_ORG_SLUG } }] }, select: { id: true } });
   if (strayCustomers.length) {
     const cids = strayCustomers.map((c) => c.id);
     await prisma.customer.updateMany({ where: { id: { in: cids } }, data: { isActive: false } });
@@ -230,12 +229,13 @@ async function placeCustomers(prisma: PrismaClient, organisationId: string, crea
  * set. `actorId` is the person who asked (null for the deploy).
  */
 export async function loadDemoPeople(prisma: PrismaClient, organisationId: string, env: DemoPeopleEnv = process.env, actorId: string | null = null): Promise<DemoPeopleResult> {
-  const org = await prisma.organisation.findUnique({ where: { id: organisationId }, select: { id: true, name: true, isDemo: true } });
+  const org = await prisma.organisation.findUnique({ where: { id: organisationId }, select: { id: true, name: true, slug: true, isDemo: true } });
   if (!org) throw new Error('Demo people: no such organisation.');
   const reset = resetAsked(env);
   const r: DemoPeopleResult = { organisation: org.name, skipped: null, staffCreated: 0, staffRenamed: 0, staffRefreshed: 0, passwordsSet: 0, customersCreated: 0, customerPasswordsSet: 0, strayDisabled: 0, reset, notes: [] };
   r.strayDisabled = await disableStrayDemoPeople(prisma);
   if (!org.isDemo) { r.skipped = `${org.name} is not marked as a demo organisation; no demo people are made for it.`; return r; }
+  if (org.slug === REAL_ORG_SLUG) { r.skipped = `${org.name} is the real organisation; the demo people live in the demo organisation (${DEMO_ORG_SLUG}).`; return r; }
   const passwords = demoPasswords(env);
   r.notes.push(...passwords.problems);
   if (!passwords.staff && !passwords.customer) { r.skipped = 'No usable demo password is set.'; return r; }

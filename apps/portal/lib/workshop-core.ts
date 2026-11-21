@@ -208,6 +208,19 @@ export async function getWorkshopBranchId(): Promise<string> {
 }
 
 /**
+ * The workshop's name and the number customers call back, for the messages
+ * a colleague sends on WhatsApp (lib/whatsapp-messages): the branch's first
+ * hotline, else the organisation's; its address for a collection. Never
+ * throws: without a branch it is the organisation's name only.
+ */
+export async function workshopContactFor(branchId: string | null | undefined): Promise<{ name: string; phone: string | null; address: string | null }> {
+  const b = branchId ? await prisma.branch.findUnique({ where: { id: branchId }, select: { name: true, address: true, hotlines: true, businessUnit: { select: { organisation: { select: { name: true, hotlines: true, hqAddress: true } } } } } }).catch(() => null) : null;
+  if (!b) return { name: process.env.NEXT_PUBLIC_ORGANISATION_NAME ?? 'The workshop', phone: null, address: null };
+  const org = b.businessUnit.organisation;
+  return { name: org.name, phone: b.hotlines[0] ?? org.hotlines[0] ?? null, address: b.address ?? org.hqAddress ?? null };
+}
+
+/**
  * The bank account customers pay into, for this branch. Never shows a made-up
  * number: if the branch's details are not filled in yet, documents say
  * "ask the branch" instead.

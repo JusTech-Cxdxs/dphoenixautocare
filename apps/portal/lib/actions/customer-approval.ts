@@ -11,7 +11,8 @@ import { websiteBaseUrl } from '@/lib/portal-url';
 import { customerLinks } from '@/lib/customer-links-core';
 import { billingOf, depositDueOn, ESTIMATE_TOTALS_SELECT, JOB_CARD_BILLING_SELECT, jobCardTotals } from '@/lib/estimate-billing';
 import { issueApprovalLink, revokeApprovalLinks, startWorkIfReady } from '@/lib/customer-approval';
-import { approvalLinkUrl, whatsAppShareUrl } from '@ejo/utils/approval-link';
+import { approvalLinkUrl } from '@ejo/utils/approval-link';
+import { whatsAppShareUrl } from '@ejo/utils/whatsapp';
 import { renderCustomerEstimateApprovalLinkEmail } from '@/lib/email-templates/customer-estimate-approval-link';
 import { requireUser, currentUserIsMasterAdmin } from './workshop';
 

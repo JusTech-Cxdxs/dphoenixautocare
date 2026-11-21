@@ -236,6 +236,11 @@ export type TrackedVehicle = {
   customerId?: string;
   customerName: string;
   customerEmail: string | null;
+  /** The customer's phones, for "Send on WhatsApp" (the first usable one is used). */
+  customerPhone: string | null;
+  customerAltPhone: string | null;
+  /** An organisation (a fleet): the message greets the company, not a first name. */
+  customerIsOrganisation: boolean;
   /** The completed visit whose prediction is current. From EJO (a Vehicle Service, or a service Job Card — then the id is "jc:<id>"), or a job card from SAP before EJO (P4) — then the id is "hist:<id>". */
   lastService: { id: string; serviceNumber: string; date: Date | null; mileage: number | null; source: 'EJO' | 'SAP' };
   nextServiceDueOdometer: number | null;
@@ -278,7 +283,7 @@ async function historyAnchors(scope: { branchId?: string; vehicleId?: string }, 
   for (const j of jobs) if (j.vehicleId && !skip.has(j.vehicleId) && !latest.has(j.vehicleId)) latest.set(j.vehicleId, j);
   if (!latest.size) return [];
   const [vehicles, orgs] = await Promise.all([
-    prisma.customerVehicle.findMany({ where: { id: { in: [...latest.keys()] } }, select: { id: true, make: true, model: true, year: true, plateNumber: true, mileage: true, vehicleType: true, serviceIntervalKm: true, serviceIntervalDays: true, customer: { select: { id: true, fullName: true, email: true } } } }),
+    prisma.customerVehicle.findMany({ where: { id: { in: [...latest.keys()] } }, select: { id: true, make: true, model: true, year: true, plateNumber: true, mileage: true, vehicleType: true, serviceIntervalKm: true, serviceIntervalDays: true, customer: { select: { id: true, fullName: true, email: true, phone: true, altPhone: true, customerType: true } } } }),
     prisma.organisation.findMany({ where: { id: { in: [...new Set([...latest.values()].map((j) => j.organisationId))] } }, select: { id: true, primaryServiceIntervalKm: true, primaryServiceIntervalDays: true } }),
   ]);
   const orgOf = new Map(orgs.map((o) => [o.id, o]));
@@ -360,7 +365,7 @@ async function jobCardAnchors(scope: { branchId?: string; vehicleId?: string }) 
       mileageAtCheckIn: true,
       checkedOutAt: true,
       serviceAttendedAt: true,
-      customer: { select: { id: true, fullName: true, email: true } },
+      customer: { select: { id: true, fullName: true, email: true, phone: true, altPhone: true, customerType: true } },
       vehicle: { select: { make: true, model: true, year: true, plateNumber: true, mileage: true, vehicleType: true, serviceIntervalKm: true, serviceIntervalDays: true } },
       branch: CYCLE_SOURCE_SELECT.branch,
     },
@@ -416,7 +421,7 @@ export async function loadServiceTracking(scope: { branchId?: string; vehicleId?
       primaryServiceMileage: true,
       nextServiceDueOdometer: true,
       nextServiceDueDate: true,
-      customer: { select: { id: true, fullName: true, email: true } },
+      customer: { select: { id: true, fullName: true, email: true, phone: true, altPhone: true, customerType: true } },
       vehicle: { select: { make: true, model: true, year: true, plateNumber: true, mileage: true, vehicleType: true } },
       escalatedToJobCard: { select: { id: true, jobNumber: true } },
     },
@@ -467,6 +472,9 @@ export async function loadServiceTracking(scope: { branchId?: string; vehicleId?
       customerId: s.customer.id,
       customerName: s.customer.fullName,
       customerEmail: s.customer.email,
+      customerPhone: s.customer.phone ?? null,
+      customerAltPhone: s.customer.altPhone ?? null,
+      customerIsOrganisation: s.customer.customerType === 'ORGANIZATION',
       lastService: { id: s.id, serviceNumber: s.serviceNumber, date: s.primaryServiceDate, mileage: s.primaryServiceMileage, source: s.id.startsWith('hist:') ? ('SAP' as const) : ('EJO' as const) },
       nextServiceDueOdometer: s.nextServiceDueOdometer,
       nextServiceDueDate: s.nextServiceDueDate,

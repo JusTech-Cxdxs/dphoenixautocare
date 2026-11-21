@@ -201,6 +201,42 @@ Each person receives a welcome email and sets their own password.
 | Customer care | **Customer Care** / **Customer Care Lead** | Support centre, complaints |
 | You | Master Administrator (already) | Everything, the IT control room |
 
+### Bringing in your Zoho and Excel records
+
+Your customers, vehicles, past invoices, past job cards and staff come in through **Data Exchange →
+New import** (Organisation Administrator or IT Administrator; a Manager or the Customer Care Lead
+approves, as the screen says). Each file is checked first — nothing is saved until you approve — and
+can be undone in one click afterwards.
+
+1. **Export from Zoho.** Zoho Books or Zoho Invoice: **Sales → Customers → Export** (choose CSV or
+   XLSX) and **Sales → Invoices → Export** (one row per item is fine). Zoho CRM: **Contacts** or
+   **Accounts → Export**. Zoho People: the employee list. Your own spreadsheets (the vehicles register,
+   old job cards) work as they are: save them as `.xlsx` or `.csv`.
+2. **Load them in this order:** staff → customers → vehicles → invoices → past job cards. A vehicle
+   finds its owner, and an invoice its customer, by the customer number (Zoho's **Contact ID** /
+   **Customer ID**), the phone, or — for an invoice — the customer's name when exactly one customer has
+   it.
+3. **The columns map themselves.** Zoho's own headers are recognised — *Display Name*, *Company
+   Name*, *First Name*, *Last Name*, *EmailID*, *Phone*, *Mobile Phone*, *Billing Address / City /
+   State*, *Customer Sub Type* (business or individual), *Payment Terms*, *Account Name*, *Mailing
+   Street*; and for invoices *Invoice Number*, *Invoice Date*, *Due Date*, *Customer ID*, *Customer
+   Name*, *Total*, *Balance*, *Invoice Status*, *Item Name*, *Quantity*, *Item Price*. Check the
+   mapping screen, change any column it got wrong, and save the mapping for next time.
+4. **What happens to Zoho's extras.** *Payment Terms* ("Net 30") is kept as a tag on the customer:
+   credit itself is set in EJO by Finance or the Manager (see *Putting a company on credit* above).
+   An invoice's balance, due date and status are kept with it; a **Void** or **Draft** invoice is
+   reported and not loaded. Past invoices are read-only history: they count in each customer's spend
+   and the figures, but are not invoices EJO issued.
+5. **Getting records out to Excel.** Every main list has an **Export** button (Excel or CSV, exactly as
+   the list is filtered): **Customers**, **Vehicles**, **Job Cards**, and **Export invoices** on the
+   Job Cards page (every invoice with its VAT, what has been paid, the balance, and a *Status* column —
+   Paid, Owing or Overdue — to filter on in Excel). Exports are listed under **Data Exchange →
+   Exports**; an exported customers or vehicles file can be edited in Excel and brought back in to
+   update those records.
+
+To show the portal to someone without touching real customers, use the demo: it lives in its own
+organisation, *D'Phoenix Autocare (Demo)* — see `docs/DPHOENIX_DEMO.md`.
+
 ## 4. Scheduled jobs
 
 - **Already scheduled on Vercel** (from `apps/portal/vercel.json`): the daily clean-ups at 08:00 Lagos
@@ -213,8 +249,20 @@ Each person receives a welcome email and sets their own password.
   2. `scripts/v36-support-scheduler.sql` — replace the portal address (twice).
   3. After ten minutes, check: `select status_code, created from net._http_response order by created desc limit 5;`
      — `200` means working; `401` means the secret does not match Vercel's.
-- **Service-due reminders** are sent by a person, by design: the **Service Tracker** lists every vehicle
-  due or overdue, and one click sends the reminder by email. (WhatsApp links come in a later phase.)
+- **Service-due reminders** are sent by a person, by design: the **Service Tracker** (and each
+  vehicle's page) lists every vehicle due or overdue, with two ways to remind the customer:
+  - **Send reminder** emails it (customers with an email address), on the staged schedule the
+    tracker shows (1st, 2nd, 3rd, then overdue, seven working days apart).
+  - **Send on WhatsApp** opens WhatsApp on your own phone or computer with the message already
+    written — the vehicle, its plate, the kilometres and date it is due, and the workshop's number to
+    call back. You press send yourself: the portal sends nothing, so there is nothing to set up and
+    no WhatsApp account to connect. The button only shows when the customer's phone can take
+    WhatsApp (a Nigerian mobile such as 0803 123 4567, or a number written with + and its country
+    code). The number used is the branch's first hotline (Settings → Branches), else the
+    organisation's.
+- The same **Send on WhatsApp** sits next to the other messages to a customer: *Ready for
+  collection* on the Job Card, the **invoice** (its number, the total and the balance, and the link
+  to it in the customer portal) and each **payment receipt**.
 
 If you change the staff portal address later (custom domain), run both scripts again with the new
 address.

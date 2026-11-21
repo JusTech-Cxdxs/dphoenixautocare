@@ -538,6 +538,9 @@ export type VehicleServiceHealth = {
   reminderDue: { stage: 1 | 2 | 3 | 4 } | null;
   nextReminderFrom: Date | null;
   viaJobCard: { id: string; jobNumber: string } | null;
+  /** Who to remind and on what: for "Send on WhatsApp" next to the emailed reminder. */
+  customer: { name: string; phone: string | null; altPhone: string | null; organisation: boolean };
+  vehicle: { description: string; plateNumber: string | null };
 };
 
 /**
@@ -571,6 +574,8 @@ export async function getVehicleServiceHealth(vehicleId: string): Promise<Vehicl
     reminderDue: t.reminderDue,
     nextReminderFrom: t.nextReminderFrom,
     viaJobCard: t.viaJobCard,
+    customer: { name: t.customerName, phone: t.customerPhone, altPhone: t.customerAltPhone, organisation: t.customerIsOrganisation },
+    vehicle: { description: t.vehicleDescription, plateNumber: t.plateNumber },
   };
 }
 

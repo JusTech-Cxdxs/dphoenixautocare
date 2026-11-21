@@ -58,14 +58,13 @@ export const PUBLIC_WEBSITE = false;
 export const NO_PUBLIC_WEBSITE = "No public website in the D'Phoenix edition (apps/website is the customer portal only)";
 
 /**
- * The demo people and records (lib/demo, `npm run demo:people`) are the
- * Kewalram demo — Headquarters, the Isolo workshop and the Afprint plant,
- * with the Store, Warranty and the line — loaded into the seed's
- * organisation. The D'Phoenix edition has none of those, so the demo specs
- * only run with E2E_DEMO=1.
+ * The demo people and records (lib/demo, docs/DPHOENIX_DEMO.md) live in their
+ * own organisation, dphoenix-demo, made only when the platform owner asks
+ * (DEMO_STAFF_PASSWORD, `npm run demo:reset`). The demo specs need it loaded
+ * first, so they only run with E2E_DEMO=1.
  */
 export const DEMO_ENABLED = process.env.E2E_DEMO === '1';
-export const DEMO_OFF = "The demo (lib/demo: Isolo, Afprint, the Store, Warranty and the plant) is not the D'Phoenix edition's";
+export const DEMO_OFF = 'The demo organisation (dphoenix-demo) is loaded only on request: run npm run demo:reset and set E2E_DEMO=1';
 
 /** The staff portal's addresses that belong to an area switched off above: not found in this edition (their layouts say so), never "Access denied". */
 export const OFF_URL_PREFIXES: string[] = [

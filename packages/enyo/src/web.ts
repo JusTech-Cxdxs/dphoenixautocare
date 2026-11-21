@@ -150,7 +150,7 @@ export function parseDuckDuckGoLite(html: string): { title: string; url: string;
   return out;
 }
 
-/** Where a result came from, for the answer: "linkedin.com", "kewalramchanrai.com". */
+/** Where a result came from, for the answer: "linkedin.com", "example.com". */
 export function siteOf(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, '').replace(/^[a-z]{2}\.linkedin\.com$/, 'linkedin.com');
@@ -249,7 +249,7 @@ export function webLookupTool<Ctx>(opts: { fetchImpl?: FetchLike; env?: Env } = 
     kind: 'read',
     status: 'Looking it up on the web…',
     description:
-      `General knowledge from the public web (${provider ? `${provider.label} web search and Wikipedia` : 'Wikipedia'}): people in public life and business leaders, places, countries and who currently holds an office, history, science, how things work, vehicles and brands, company news and public background on an organisation. Use it for questions that are NOT about this organisation's own records, especially anything current that may have changed since your training. For "who is <name>": first check the organisation's own people (the organisation information tool), then search here with the name and any organisation or role words you know ("Jane Doe Kewalram"). Send only the topic words, never a customer's name or anything from the records. About a person, give only their public professional facts (role, organisation, career) with the source; never a home address, phone, family or other private details. If the results do not clearly match the same person, say you could not confirm who they are. Answer briefly, name the source site, and say it may not be fully up to date.`,
+      `General knowledge from the public web (${provider ? `${provider.label} web search and Wikipedia` : 'Wikipedia'}): people in public life and business leaders, places, countries and who currently holds an office, history, science, how things work, vehicles and brands, company news and public background on an organisation. Use it for questions that are NOT about this organisation's own records, especially anything current that may have changed since your training. For "who is <name>": first check the organisation's own people (the organisation information tool), then search here with the name and any organisation or role words you know ("Jane Doe, Managing Director"). Send only the topic words, never a customer's name or anything from the records. About a person, give only their public professional facts (role, organisation, career) with the source; never a home address, phone, family or other private details. If the results do not clearly match the same person, say you could not confirm who they are. Answer briefly, name the source site, and say it may not be fully up to date.`,
     parameters: {
       type: 'object',
       properties: {

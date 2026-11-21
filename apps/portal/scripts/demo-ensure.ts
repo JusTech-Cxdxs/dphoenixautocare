@@ -1,43 +1,36 @@
 /**
- * The demo, once: after the demo people (scripts/demo-people.ts), the
- * production build runs this so a first installation holds the whole demo
- * the moment the deploy finishes — the plant's six weeks (lib/plant/demo)
- * and the workshop's six months (lib/workshop/demo) — with nothing to run
- * anywhere.
+ * The demo, once: after the demo people (scripts/demo-people.ts, which makes
+ * the demo organisation), the production build runs this so a first
+ * installation holds the whole demo the moment the deploy finishes — the
+ * Victoria Island Workshop's seven months (lib/workshop/demo) — with nothing
+ * to run anywhere.
  *
- * It loads only into an organisation marked as the demo, and only when that
- * organisation has no demo records yet: a later deploy never wipes what a
- * person did in the demo since. To start again: `npm run demo:reset`, or
- * the platform team's button. DEMO_LOAD=off skips it. Never emails anyone;
- * prints counts, never data.
+ * It loads only into an organisation marked as the demo (never the real
+ * one), and only when that organisation has no demo records yet: a later
+ * deploy never wipes what a person did in the demo since. To start again:
+ * `npm run demo:reset`, or the platform team's button. DEMO_LOAD=off skips
+ * it. Never emails anyone; prints counts, never data.
  */
 import { prisma } from '@ejo/database';
-import { loadPlantDemo } from '../lib/plant/demo/load';
 import { loadWorkshopDemo } from '../lib/workshop/demo/load';
-import { DEMO_SOURCE } from '../lib/workshop/demo/plan';
+import { REAL_ORG_SLUG } from '../lib/demo/organisation';
 import { runDemoPulse } from '../lib/demo/pulse';
 
 async function main() {
   if ((process.env.DEMO_LOAD ?? '').toLowerCase() === 'off') { console.log('Demo records: skipped (DEMO_LOAD=off).'); return; }
-  const orgs = await prisma.organisation.findMany({ where: { isDemo: true }, select: { id: true, name: true, slug: true } });
+  const orgs = (await prisma.organisation.findMany({ where: { isDemo: true }, select: { id: true, name: true, slug: true } })).filter((o) => o.slug !== REAL_ORG_SLUG);
   if (!orgs.length) { console.log('Demo records: no organisation is marked as a demo; nothing loaded.'); return; }
   for (const org of orgs) {
-    const [records, plantRecords, plant] = await Promise.all([
-      prisma.demoRecord.count({ where: { organisationId: org.id } }),
-      prisma.plantVehicle.count({ where: { organisationId: org.id, externalSource: DEMO_SOURCE } }),
-      prisma.branch.findFirst({ where: { businessUnit: { organisationId: org.id }, type: 'ASSEMBLY_PLANT' }, select: { id: true } }),
-    ]);
+    const records = await prisma.demoRecord.count({ where: { organisationId: org.id } });
     if (records > 0) {
       console.log(`Demo records (${org.name}): already loaded (${records} records); left as they are. Reload with npm run demo:reset.`);
       const pulse = await runDemoPulse(org.id);
       console.log(`Demo daily pulse (${org.name}, ${pulse.dayKey}): ${pulse.reason}${pulse.ran ? ` — ${JSON.stringify(pulse.counts)}` : ''}.`);
       continue;
     }
-    if (!plant) { console.log(`Demo records (${org.name}): no assembly plant yet; nothing loaded.`); continue; }
     const started = Date.now();
-    if (plantRecords === 0) { const p = await loadPlantDemo(org.id, new Date()); console.log(`Plant demo loaded into ${p.plantName}: ${p.made.vehicles} vehicles, ${p.made.kits} kits.`); }
     const w = await loadWorkshopDemo(org.id, new Date());
-    console.log(`Workshop demo loaded into ${w.branchName} in ${Math.round((Date.now() - started) / 1000)}s: ${Object.values(w.made).reduce((a, b) => a + b, 0)} records (${w.figures.jobCards} job cards, ${w.figures.services} services, ${w.figures.customers} customers).`);
+    console.log(`Workshop demo loaded into ${w.branchName} in ${Math.round((Date.now() - started) / 1000)}s: ${Object.values(w.made).reduce((a, b) => a + b, 0)} records (${w.figures.jobCards} job cards, ${w.figures.invoices} invoices, ${w.figures.customers} customers).`);
   }
 }
 

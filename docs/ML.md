@@ -50,7 +50,7 @@ The models grow with the data: more finished jobs give the trainer more rows, mo
 3. **Set the GitHub secrets.** In GitHub → Settings → Secrets and variables → Actions, add:
    - `PORTAL_URL` = `https://ejo100-portal.vercel.app`
    - `ML_SERVICE_TOKEN` = the same value
-4. **Train.** In GitHub → Actions → **Train Enyo models** → Run workflow, set organisation to `kewalram-nigeria`. It takes about 3 minutes. The run's summary lists every task with **passed**, **rejected** or **not trained**, and the reason.
+4. **Train.** In GitHub → Actions → **Train Enyo models** → Run workflow, set organisation to `dphoenix-autocare`. It takes about 3 minutes. The run's summary lists every task with **passed**, **rejected** or **not trained**, and the reason.
 5. **Choose the models.** In the portal, go to Enyo learning → **Models** and press **Use this model** on each model marked Ready to use. Leave job times and price warnings in **Shadow** until the measured numbers look right, then move them to **Assist**.
 
 Each task needs a minimum amount of history:
@@ -83,7 +83,7 @@ pip install -r requirements-dev.txt
 python -m pytest -q                                   # the trainer's own tests
 python -m ejo_ml synth --out /tmp/data                # an invented history
 python -m ejo_ml train --from-dir /tmp/data --out /tmp/out
-ML_SERVICE_TOKEN=… python -m ejo_ml train --portal https://… --organisation kewalram-nigeria --dry-run
+ML_SERVICE_TOKEN=… python -m ejo_ml train --portal https://… --organisation dphoenix-autocare --dry-run
 ```
 
 ## Changing a model

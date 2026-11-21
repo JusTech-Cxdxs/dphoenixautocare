@@ -6,7 +6,9 @@ import { getServiceTracker } from '@/lib/actions/vehicle-service';
 import { currentUserIsMasterAdmin } from '@/lib/actions/workshop';
 import { bookServiceHref, separateVehicleServiceOn, OPEN_SERVICE_JOB_CARD } from '@/lib/service-entry';
 import { serviceAnchorHref } from '@/lib/vehicle-service-cycle';
-import { getWorkshopBranchId } from '@/lib/workshop-core';
+import { getWorkshopBranchId, workshopContactFor } from '@/lib/workshop-core';
+import { WhatsAppLink } from '@/components/WhatsAppLink';
+import { customerWhatsAppUrl, serviceReminderMessage } from '@/lib/whatsapp-messages';
 import { attendToOverdueVehicleFormAction, sendManualServiceReminderFormAction, runServiceRemindersNowFormAction } from '@/lib/actions/vehicle-service-form-handlers';
 import { LoadingLink } from '@/components/LoadingLink';
 import { FormPendingOverlay } from '@/components/FormPendingOverlay';
@@ -40,7 +42,7 @@ export default async function ServiceTrackerPage({
   const vehicleType = rawType === 'PASSENGER' || rawType === 'COMMERCIAL' ? rawType : null;
   const filter: Filter = (['overdue', 'due_soon', 'on_track', 'in_workshop', 'attended', 'lapsed'] as const).includes(rawFilter as never) ? (rawFilter as Filter) : 'all';
   const branchId = await getWorkshopBranchId();
-  const tracker = await getServiceTracker(branchId);
+  const [tracker, workshop] = await Promise.all([getServiceTracker(branchId), workshopContactFor(branchId)]);
   const { remindersLast30Days, canRunReminders } = tracker;
   // The organisation's service interval: set here as well as on the Vehicle Service page (which has no Workshop tile in
   // this edition). The same action and the same rule: Master Admin, for their own organisation.
@@ -315,6 +317,13 @@ export default async function ServiceTrackerPage({
                               className="rounded-[var(--ejo-radius-md)] bg-[var(--ejo-warning)] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
                             />
                           </form>
+                        ) : null}
+                        {v.status !== 'ON_TRACK' && !v.inWorkshop && !v.attendedAt ? (
+                          // The same reminder on WhatsApp: the colleague sends it from their own phone; nothing is sent from here.
+                          <WhatsAppLink
+                            href={customerWhatsAppUrl({ phone: v.customerPhone, altPhone: v.customerAltPhone }, serviceReminderMessage({ customerName: v.customerName, organisation: v.customerIsOrganisation, vehicle: { make: v.vehicleDescription, plateNumber: v.plateNumber }, dueOdometer: v.nextServiceDueOdometer, dueDate: v.nextServiceDueDate, overdue: v.status === 'OVERDUE', workshop }))}
+                            testId="service-reminder-whatsapp"
+                          />
                         ) : null}
                         {v.status === 'OVERDUE' && !v.attendedAt && !v.inWorkshop ? (
                           <form action={attendToOverdueVehicleFormAction}>

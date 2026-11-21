@@ -776,96 +776,80 @@ People: the **Organisation Administrator** (or front desk / a manager).
 
 *The question: "let me see it as the technician — and as the director."*
 
-People: everyone. [KEWALRAM_DEMO.md](KEWALRAM_DEMO.md) lists every sign-in:
-eight at **Headquarters** (Organisation Administrator, Executive, IT
-Administrator, Finance Officer, Customer Care Lead, Broadcaster, Scheduling
-Admin, Calendar User), seventeen at **Isolo Branch** (Branch Administrator,
-the Manager, two Workshop Supervisors — passenger and commercial — two
-Technicians, Front Desk, Branch Assistant, Store Manager and Officer,
-Finance, Warranty HOD and Officer, the Chief Security Officer and the gate,
-Customer Care, a Department Head) and sixteen at **Afprint** (Branch
-Administrator, Plant Manager, Production Supervisor, four Line Operators,
-QC, Quality Supervisor, QA Auditor, two Kit Inspectors, PDI Inspector and
-Supervisor, the kit store, the plant gate), plus four customer-portal
-sign-ins. All invented, all on the reserved `demo.kewalram.local` name,
-employee numbers `DEMO-…`.
+People: everyone. [DPHOENIX_DEMO.md](DPHOENIX_DEMO.md) lists every sign-in
+of the demo organisation, **D'Phoenix Autocare (Demo)** (`dphoenix-demo`),
+kept apart from the real organisation: seven at **Headquarters**
+(Administrator, Managing Director, IT Administrator, Customer Care Lead,
+Broadcaster, Scheduling Admin, Calendar User) and twelve at the **Victoria
+Island Workshop** (Workshop Manager, Supervisor — Cars, Supervisor — Fleet,
+Technicians 1 to 3, Front Desk, Finance Officer, Chief Security Officer,
+Security Officer — Gate, Customer Care, Head of Department — Fleet), plus
+two customer-portal sign-ins. Every person is named by their role, all on
+the reserved `demo.dphoenix.example` name, employee numbers `DEMO-…`.
 
 1. The one password is `DEMO_STAFF_PASSWORD` in the hosting environment
    (never in code or in this document). Set it, redeploy: the build makes
-   the accounts; a later build changes nothing. Or `npm run demo:people`.
-2. Sign in as `tech.passenger@demo.kewalram.local`: his dashboard, only
-   the jobs assigned to him, no plant. As `operator.1@…`: the line board
-   and his station, no job cards. As `finance.hq@…`: every branch's money
-   in view, nothing to confirm. As `admin@…`: both branches, the set-up,
-   the audit trail — and no job to open.
-3. In the customer portal, `customer.adaora@demo.kewalram.local` (an
-   individual) or `customer.fleet@…` (a fleet company) sign in with the
-   same password (or `DEMO_CUSTOMER_PASSWORD`).
-4. The plant's people here are the ones §13 puts on the line: one set of
-   accounts. Their records in the workshop — six months of job cards,
-   services, the store, warranty, security, support — are §15.
+   the demo organisation and the accounts; a later build changes nothing.
+   Or `npm run demo:people`.
+2. Sign in as `tech.1@demo.dphoenix.example`: their dashboard and only the
+   jobs assigned to them. As `calendar@…`: their calendar and nothing of
+   the workshop. As `admin@…`: the set-up and the audit trail — and no job
+   to open.
+3. In the customer portal, `customer.individual@demo.dphoenix.example` (a
+   private customer) or `customer.fleet@…` (SEEPCO, a fleet on credit) sign
+   in with the same password (or `DEMO_CUSTOMER_PASSWORD`).
 
-## 15. Six months of the workshop in one go: the workshop demo (D2)
+## 15. Seven months of the workshop in one go: the workshop demo (D2)
 
 *The question: "show me the workshop as it is on a Tuesday morning — not an
 empty list."*
 
-People: everyone at Isolo (§14); the Administrator loads it.
+People: everyone at the workshop (§14); the platform team loads it.
 
 1. The demo organisation gets its records once, by itself: the production
    build (when `DEMO_STAFF_PASSWORD` is set) runs `npm run demo:ensure` after
-   the demo people — the plant's six weeks (§13) and then **six months of
-   Isolo Branch** as of that minute. From a terminal: `npm run demo:reset`
-   (people → plant → workshop; refused against a hosted database unless
-   `DEMO_RESET_CONFIRM` is set). Every record it makes is listed in
-   `demo_records`, so a reload or `-- --remove` takes out exactly those and
-   nothing a person made — even the demo's own audit entries, under the
-   trail's recorded maintenance switch, so a job card's history is never
-   doubled.
-2. As the **Manager** (`manager@demo.kewalram.local`): the dashboard, then
-   **Workshop → Job cards**: about 175 over six months and, today, one at
-   every status — checked in this morning, waiting for the customer's
-   approval (one nine days overdue, with its reminder), in progress,
-   waiting for parts (the slip with the HOD, with the store, approved and
-   reserved), at quality check (one sent back for rework, in the history),
-   completed, ready for collection, closed, checked out, and cancelled
-   (one with its refund). Open any: the complaint, the diagnosis, the
-   estimate with labour, store parts matched to the catalogue, an outside
-   part or job, the parts slip and what the store issued (batch numbers for
-   oil, serial numbers for batteries), the 70% deposit that started the
-   work and the balance at collection, the close request, the gate exit.
-3. **Vehicle services**: ~80 services, every status, the inspection on each
-   (a few items needing attention), the service estimate, two escalated
-   into job cards, the **service tracker** with the next service due from
-   each completed one and three reminders sent.
-4. As the **Store Manager**: stock from 35 goods receipts (an opening count
-   and monthly orders from six suppliers), four parts **below their reorder
-   point**, two open **pricing alerts** (an injector bought at a loss, pads
-   that ate the margin) and two resolved ones, batches with what is left,
-   serials in stock and issued.
-5. As the **Warranty HOD**: four providers and policies, the makers'
-   warranties on the Afprint-built and newer vehicles (one waiting for
-   verification), part warranties made automatically for every battery and
-   pad set issued, and **nine claims, one at each stage** from draft to
-   settled — the warranty customer's is the submitted one.
-6. As the **Chief Security Officer**: **Security → Overdue** shows the
-   insurance assessor three hours past his time and the Store Officer out
-   on an exit pass past its return; a visitor just in, two expected, a
+   the demo people — **seven months of the Victoria Island Workshop** as of
+   that minute. From a terminal: `npm run demo:reset` (people → workshop;
+   refused against a hosted database unless `DEMO_RESET_CONFIRM` is set).
+   Every record it makes is listed in `demo_records`, so a reload or
+   `-- --remove` takes out exactly those and nothing a person made — even
+   the demo's own audit entries, under the trail's recorded maintenance
+   switch, so a job card's history is never doubled. The real organisation
+   is refused outright.
+2. As the **Workshop Manager** (`manager@demo.dphoenix.example`): the
+   dashboard, then **Workshop → Job Cards**: about 140 over seven months,
+   half of them services (Service ticked), and, today, one at every status
+   — checked in this morning, waiting for the customer (one declined,
+   asking for a cheaper option), in progress, waiting for parts bought
+   outside, at quality check (one sent back for rework), completed, ready
+   for collection, closed, checked out, and cancelled (one with its deposit
+   refunded). Open any: the complaint, the diagnosis, the estimate with
+   labour, parts bought outside and sundries in naira, a discount where one
+   was given, VAT at 7.5%, the customer's answer (by link, in the portal,
+   by phone or by paying the deposit), the payments with their receipts,
+   the invoice, the close request, the gate exit.
+3. **The fleets on credit**: SEEPCO, RCL Africa, Nairda Limited, Desicon
+   Engineering, Dori Construction and Inspiration FM, each with a Fleet
+   Manager on the account and credit terms. Their vehicles leave with the
+   invoice; most invoices are paid by transfer, some are not yet due and a
+   few are **past their due date**.
+4. **The Service Tracker**: vehicles due soon and overdue (by date or by
+   kilometres) from their last service Job Card, the reminders already
+   sent, *Send reminder* by email and *Send on WhatsApp* for the others.
+5. As the **Chief Security Officer**: **Security → Overdue** shows the
+   insurance assessor three hours past their time and a technician out on
+   an exit pass past its return; a visitor just in, two expected, a parts
    delivery at the gate and one expected, the roofing contractor's team on
-   site, an open incident from this morning, 40 road tests on the job
-   cards that needed one.
-7. **Scheduling, broadcasts, support**: today's appointments in the two
-   rooms, a branch notice about Saturday's generator service, a greeting
-   for the new month, the Support centre with an open complaint about a
-   scratch, a staff *Get help* about the scanner, replies drafted by Enyo.
-8. **Data Exchange**: the seven completed imports of the cut-over
-   (customers, equipment, vendors, materials, stock with Finance's
-   sign-off, invoices, job card history) and four exports.
-9. The six oldest vehicles in the plant demo's yard are **sold** through
-   Isolo — the plant vehicle points at the customer's vehicle — with the
-   maker's warranty and their first service; `/vehicles/<VIN>` reads from
-   the kit to that service. The four portal customers each have their story
-   (§14).
+   site, an open incident from this morning, road tests on the job cards
+   that needed one.
+6. **Scheduling, broadcasts, support**: today's appointments, a workshop
+   notice about Saturday's generator service, a greeting for the new
+   month, the Support centre with an open complaint about a scratch after a
+   wash, a staff request about the wash bay.
+7. **Data Exchange**: the completed imports of the cut-over — the Zoho
+   Books contacts and invoices, the workshop's own vehicles register and
+   past jobs, the staff list — and four exports (job cards, invoices,
+   customers, vehicles).
 
 ## 16. A new working day every day, and the platform team's button (D3)
 
@@ -875,19 +859,20 @@ People: anyone in the demo; the **Master Administrator** (platform team) for
 the button.
 
 1. Every day the demo gets a working day of its own, dated today (Lagos):
-   three vehicles checked in this morning at Isolo (one on Saturday, none
-   on Sunday), a service checked in and one booked for the next working
-   day, two visitors expected (one already in), the morning workshop
-   meeting, two new support requests with Enyo's acknowledgement, and on
-   Mondays a notice to Isolo, *This week in the workshop* — never emailed.
+   three vehicles checked in this morning (one on Saturday, none on
+   Sunday), a service Job Card checked in and a service booked for the
+   next working day, two visitors expected (one already in), the morning
+   workshop meeting, two new support requests with the automatic
+   acknowledgement, and on Mondays a notice to the workshop, *This week in
+   the workshop* — never emailed.
 2. The days before move on by themselves, one safe step a day: yesterday's
    check-ins are accepted by their technician with an estimate written; two
    days later the supervisor approves it — and then it **waits for the demo
-   Manager**, so `manager@demo.kewalram.local` always has real approvals to
-   give. Yesterday's visitors are signed out, yesterday's requests answered;
-   a check-in nobody moved for a week is cancelled (the customer did not
-   come back), a week-old request resolved. The pulse never touches money,
-   stock, parts slips, warranty or the plant.
+   Manager**, so `manager@demo.dphoenix.example` always has real approvals
+   to give. Yesterday's visitors are signed out, yesterday's requests
+   answered; a check-in nobody moved for a week is cancelled (the customer
+   did not come back), a week-old request resolved. The pulse never touches
+   money.
 3. It runs at most once a Lagos day, whichever comes first: the daily
    07:00 UTC job, the first dashboard opened that day (after the page is
    shown, never in its way), or a deploy. A fresh load counts as the day.
@@ -895,31 +880,31 @@ the button.
    (`-- --at <date>` to rehearse another day). Only an organisation marked
    as a demo is ever touched.
 4. As the **Master Administrator**: **IT control room → Demo organisation**.
-   Each organisation is listed as *Demo* or *Real organisation*. For the
-   demo: its record counts, sign-ins, when it was loaded and its last
-   working day; type **refresh the demo** and press **Load / refresh the
-   demo now** to load it all again as of this minute (people → plant →
-   workshop; a few minutes on a hosted database), **remove the demo** to
-   take its records out, or the organisation's short name to unmark it (its
-   demo sign-ins are switched off on the spot). To make another
-   organisation the demo, type its short name. Everything is audited; the
-   IT Administrator and an organisation's own Administrator never see the
-   card.
+   With no demo organisation yet, type its short name and press **Make the
+   demo organisation**. Each organisation is listed as *Demo* or *Real
+   organisation*. For the demo: its record counts, sign-ins, when it was
+   loaded and its last working day; type **refresh the demo** and press
+   **Load / refresh the demo now** to load it all again as of this minute,
+   **remove the demo** to take its records out, or the organisation's short
+   name to unmark it (its demo sign-ins are switched off on the spot). The
+   real organisation, or one with its own customers or job cards, can never
+   be made the demo. Everything is audited; the IT Administrator and an
+   organisation's own Administrator never see the card.
 
 ## 17. The role tour: who to sign in as, and what they cannot do (D4)
 
 *The question: "show me it's really locked down — role by role."*
 
-[KEWALRAM_DEMO.md](KEWALRAM_DEMO.md) opens with **the 15-minute tour for
-the directors** — ten sign-ins in order, from the Executive's daily brief
-through the front desk, a technician, the Manager's approvals, the store,
-warranty, the line at Afprint, the security desk and the customer portal,
-ending with the Administrator's audit trail — and then lists every one of
-the 41 demo people with what they see first, three clicks that show their
-job and the pages they **must not** open. Try any of those: the portal
-answers *Access denied*. Every line is checked against the authorization
-catalogue by a unit test and in the browser by an e2e test that signs in
-as each person.
+[DPHOENIX_DEMO.md](DPHOENIX_DEMO.md) opens with how to switch the demo on
+and **the 15-minute tour for the directors** — ten sign-ins in order, from
+the Managing Director's daily brief through the front desk, a technician,
+the Manager's approvals, the estimate sent by link, Finance's invoices and
+receipts, the Service Tracker, the security desk and the customer portal,
+ending with the Administrator's audit trail — and then lists every demo
+person with what they see first, three clicks that show their job and the
+pages they **must not** open. Try any of those: the portal answers *Access
+denied*. Every line is checked against the authorization catalogue by a
+unit test and in the browser by an e2e test that signs in as each person.
 
 ---
 

@@ -22,7 +22,8 @@ export type InvoiceValues = {
   invoiceNumber: string;
   invoiceDate: string;
   amount: number;
-  customer: { externalId: string | null; phone: string | null };
+  /** Name: used to find the customer only when there is no number or phone (and exactly one customer has it). */
+  customer: { externalId: string | null; phone: string | null; name?: string | null };
   vin: string | null;
   vinKey: string | null;
   documentType: string | null;
@@ -72,7 +73,12 @@ export function checkInvoiceRow(cells: unknown[], mapping: Mapping, today = lago
 
   const custExt = get(cells, mapping, 'customerExternalId').replace(/^0+(?=\d)/, '') || null;
   const custPhone = phoneKey(get(cells, mapping, 'customerPhone'));
-  if (!custExt && !custPhone) fail('customer', 'Whose invoice is it? Give the SAP customer number (KUNAG / KUNRG) or the customer’s phone.');
+  const custName = get(cells, mapping, 'customerName').slice(0, 160) || null;
+  if (!custExt && !custPhone && !custName) fail('customer', 'Whose invoice is it? Give the customer number (Zoho Customer ID, SAP KUNAG / KUNRG), the customer’s phone or their name.');
+
+  // Zoho's status: a void or draft invoice was never owed, so it is not loaded.
+  const status = get(cells, mapping, 'invoiceStatus');
+  if (/^(void|voided|draft)$/i.test(status)) fail('invoiceStatus', `The invoice is “${status}” in the file: it was never owed, so it is not loaded.`);
 
   const vinRaw = get(cells, mapping, 'vin');
   const vk = vinKey(vinRaw);
@@ -86,14 +92,27 @@ export function checkInvoiceRow(cells: unknown[], mapping: Mapping, today = lago
   if (yearRaw && (!Number.isInteger(fiscalYear) || fiscalYear! < 1990 || fiscalYear! > 2100)) { warn('fiscalYear', `Fiscal year “${yearRaw}” is not a year; the invoice date’s year was used.`); fiscalYear = null; }
   const ranged = Boolean(companyCode || fiscalYear);
   const year = fiscalYear ?? (invoiceDate ? Number(invoiceDate.slice(0, 4)) : 0);
-  const description = get(cells, mapping, 'description').slice(0, 300) || null;
+  // What it was for, with Zoho's item quantity and price, its balance, due date and status when the file gives them.
+  const qtyRaw = get(cells, mapping, 'itemQuantity');
+  const priceRaw = get(cells, mapping, 'itemPrice');
+  const price = priceRaw ? parseAmount(priceRaw) : null;
+  const balanceRaw = get(cells, mapping, 'balance');
+  const balance = balanceRaw ? parseAmount(balanceRaw) : null;
+  if (balanceRaw && balance === null) warn('balance', `Balance “${balanceRaw}” is not an amount, so it was left out.`);
+  const dueRaw = get(cells, mapping, 'dueDate');
+  const due = dueRaw ? parseDay(dueRaw) : null;
+  if (dueRaw && !due) warn('dueDate', `Due date “${dueRaw}” is not a date, so it was left out.`);
+  const naira = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const item = [get(cells, mapping, 'description'), qtyRaw && qtyRaw !== '1' ? `× ${qtyRaw}` : '', price !== null && priceRaw ? `@ ${naira(price)}` : ''].filter(Boolean).join(' ');
+  const notes = [status && !/^void|draft/i.test(status) ? status : '', balance !== null ? `balance ${naira(balance)}` : '', due ? `due ${due.split('-').reverse().join('.')}` : ''].filter(Boolean).join(', ');
+  const description = [item, notes ? `(${notes})` : ''].filter(Boolean).join(' ').slice(0, 300) || null;
 
   const failed = issues.some((i) => i.level === 'error');
   return {
     status: failed ? 'REJECTED' : issues.length ? 'WARNING' : 'GOOD',
     issues,
     keys: invoiceNumber ? [`inv:${sapRange(companyCode, fiscalYear, ranged)}|${invoiceNumber.toUpperCase()}`] : [],
-    values: failed ? null : { invoiceNumber, invoiceDate: invoiceDate!, amount, customer: { externalId: custExt, phone: custPhone }, vin: goodVin ? vinRaw : null, vinKey: goodVin, documentType, description, companyCode, fiscalYear: year, source: sapRange(companyCode, fiscalYear, ranged) },
+    values: failed ? null : { invoiceNumber, invoiceDate: invoiceDate!, amount, customer: { externalId: custExt, phone: custPhone, ...(custName ? { name: custName } : {}) }, vin: goodVin ? vinRaw : null, vinKey: goodVin, documentType, description, companyCode, fiscalYear: year, source: sapRange(companyCode, fiscalYear, ranged) },
   };
 }
 

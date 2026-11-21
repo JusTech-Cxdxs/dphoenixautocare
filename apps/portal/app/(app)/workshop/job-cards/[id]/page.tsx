@@ -55,6 +55,11 @@ import { SapTrail } from '@/components/data-exchange/SapTrail';
 import { featureOn, moduleIsOn } from '@/lib/modules';
 import { serviceJobCardCycle } from '@/lib/vehicle-service-cycle';
 import { ServiceJobCardBadge } from '@/components/ServiceJobCardBadge';
+import { WhatsAppLink } from '@/components/WhatsAppLink';
+import { customerWhatsAppUrl, invoiceMessage, readyForCollectionMessage, receiptMessage } from '@/lib/whatsapp-messages';
+import { workshopContactFor } from '@/lib/workshop-core';
+import { websiteBaseUrl } from '@/lib/portal-url';
+import { customerLinks } from '@/lib/customer-links-core';
 
 // Switched per edition (the D'Phoenix Autocare edition has no Store, Warranty
 // or outside-purchase approvals): their parts of this page are hidden, the
@@ -514,6 +519,21 @@ export default async function JobCardDetailPage({
   // credit limit; a Job Card a Manager has closed has had that decision.
   const credit = !isPaidInFull && !isCancelled && jobCard.customer.customerType === 'ORGANIZATION' ? await creditStanding(id, outstanding) : null;
   const mayLeaveOnCredit = Boolean(credit?.onCredit && (jobCard.status === 'CLOSED' || credit.withinLimit));
+  // "Send on WhatsApp" next to the emails: the message is written here, the colleague sends it from their own phone.
+  const workshopContact = await workshopContactFor(jobCard.branchId);
+  const asOrganisation = jobCard.customer.customerType === 'ORGANIZATION';
+  const waVehicle = { make: jobCard.vehicle.make, model: jobCard.vehicle.model, plateNumber: jobCard.vehicle.plateNumber };
+  const readyWhatsApp = jobCard.status === 'READY_FOR_COLLECTION'
+    ? customerWhatsAppUrl(jobCard.customer, readyForCollectionMessage({ customerName: jobCard.customer.fullName, organisation: asOrganisation, vehicle: waVehicle, jobNumber: jobCard.jobNumber, balance: outstanding, onCredit: Boolean(credit?.onCredit), workshop: workshopContact }))
+    : null;
+  const invoiceWhatsApp = invoice
+    ? customerWhatsAppUrl(jobCard.customer, invoiceMessage({ customerName: jobCard.customer.fullName, organisation: asOrganisation, invoiceNumber: invoice.invoiceNumber, jobNumber: jobCard.jobNumber, total: Number(invoice.total), balance: outstanding, dueOn: invoice.dueDate ?? null, portalUrl: customerLinks(websiteBaseUrl()).invoice(jobCard.id), workshop: workshopContact }))
+    : null;
+  const receiptWhatsApp = (p: { amount: unknown; receiptNumber: string | null; recordedAt: Date }) => {
+    if (!p.receiptNumber) return null;
+    const paidSoFar = payments.filter((x: (typeof payments)[number]) => new Date(x.recordedAt).getTime() <= new Date(p.recordedAt).getTime()).reduce((sum: number, x: (typeof payments)[number]) => sum + Number(x.amount ?? 0), 0);
+    return customerWhatsAppUrl(jobCard.customer, receiptMessage({ customerName: jobCard.customer.fullName, organisation: asOrganisation, receiptNumber: p.receiptNumber, amount: Number(p.amount ?? 0), jobNumber: jobCard.jobNumber, paidAt: new Date(p.recordedAt), balance: Math.max(0, Math.round((estimateTotal - paidSoFar) * 100) / 100), workshop: workshopContact }));
+  };
   // The customer's own answer to the estimate (approved by link, portal, phone or at the counter; or declined).
   const awaitingAnswer = jobCard.status === 'AWAITING_CUSTOMER_APPROVAL' && estimate?.status === 'MANAGER_APPROVED' && Boolean(estimate.customerNotifiedAt) && !estimate.customerApprovedAt;
   const mayTakeAnswer = isMasterAdmin || isCreator || isApprover || isEligibleManager || (await can('workshop.customer.notify', { branchId: jobCard.branchId })).allowed;
@@ -704,6 +724,11 @@ export default async function JobCardDetailPage({
                 <dt className="text-[var(--ejo-text-muted)]">Contact</dt>
                 <dd className="mt-0.5 font-medium text-[var(--ejo-text)]">
                   {jobCard.customer.phone || jobCard.customer.email}
+                  {readyWhatsApp ? (
+                    <div className="mt-1">
+                      <WhatsAppLink href={readyWhatsApp} label="Ready for collection: send on WhatsApp" testId="ready-for-collection-whatsapp" />
+                    </div>
+                  ) : null}
                 </dd>
               </div>
               <div>
@@ -1285,6 +1310,7 @@ export default async function JobCardDetailPage({
                         <SubmitButton label="Email invoice" pendingLabel="Sending…" className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] px-3 py-1.5 text-xs font-medium text-[var(--ejo-text)] hover:bg-[var(--ejo-bg)]" />
                       </form>
                     ) : null}
+                    {mayInvoice ? <WhatsAppLink href={invoiceWhatsApp} testId="invoice-whatsapp" className="inline-flex items-center rounded-[var(--ejo-radius-md)] bg-[var(--ejo-success)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90" /> : null}
                   </div>
                 </>
               ) : (
@@ -1335,9 +1361,12 @@ export default async function JobCardDetailPage({
                         </p>
                       </div>
                       {p.receiptNumber ? (
-                        <a href={`/print/receipts/${p.id}`} target="_blank" rel="noopener" className="shrink-0 text-xs font-medium text-[var(--ejo-primary)] hover:underline">
-                          Print receipt
-                        </a>
+                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                          <a href={`/print/receipts/${p.id}`} target="_blank" rel="noopener" className="text-xs font-medium text-[var(--ejo-primary)] hover:underline">
+                            Print receipt
+                          </a>
+                          <WhatsAppLink href={receiptWhatsApp(p)} label="Receipt on WhatsApp" testId="receipt-whatsapp" />
+                        </div>
                       ) : null}
                     </div>
                   ))}

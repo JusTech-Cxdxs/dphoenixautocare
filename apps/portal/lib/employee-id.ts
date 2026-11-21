@@ -1,10 +1,10 @@
 /**
  * Employee IDs — short, memorable, and they say where the person belongs.
  *
- * Format:  ORG-BRANCH-NNNN   e.g.  KN-ISO-0007
- *   ORG     the organisation's initials (2–3 letters: "Kewalram Nigeria" → KN)
- *   BRANCH  the branch's code (its own short code when set, otherwise three
- *           letters from its name: "Isolo Branch" → ISO, "Victoria Island" → VI)
+ * Format:  ORG-BRANCH-NNNN   e.g.  DPA-VI-0007
+ *   ORG     the organisation's initials (2–3 letters: "D'Phoenix Autocare" → DPA)
+ *   BRANCH  the branch's code (its own short code when set, otherwise
+ *           letters from its name: "Victoria Island Workshop" → VI, "Ikeja Branch" → IKE)
  *   NNNN    a running number within that branch prefix, never reused
  *
  * Common practice for staff numbers: a fixed company/location prefix plus a
@@ -18,7 +18,7 @@ function lettersOf(v: string): string {
   return v.normalize('NFKD').replace(/[^A-Za-z0-9 ]/g, ' ').trim();
 }
 
-/** "Kewalram Nigeria" → "KN"; one-word names give their first three letters. */
+/** "D'Phoenix Autocare" → "DPA"; one-word names give their first three letters. */
 export function organisationCode(name: string): string {
   const words = lettersOf(name).split(/\s+/).filter(Boolean);
   if (words.length === 0) return 'EJO';

@@ -3,7 +3,7 @@
  * authorization catalogue would not do: every demo sign-in has a tour stop;
  * every "must not" page is refused by its roles; every click on a protected
  * page is granted; the director's order uses real sign-ins; and
- * docs/KEWALRAM_DEMO.md is exactly what `npm run demo:tour-doc` writes.
+ * docs/DPHOENIX_DEMO.md is exactly what `npm run demo:tour-doc` writes.
  * e2e/demo-tour.spec.ts proves the same in the browser for every person.
  */
 import { test } from 'node:test';
@@ -68,6 +68,6 @@ test('the 15-minute order: ten steps, minutes in order up to 15, each a real dem
   assert.equal(last, 15);
 });
 
-test('docs/KEWALRAM_DEMO.md is the generated tour (run npm run demo:tour-doc after changing lib/demo/tour.ts or people.ts)', () => {
-  assert.equal(readFileSync(join(ROOT, 'docs/KEWALRAM_DEMO.md'), 'utf8'), renderTourDoc());
+test('docs/DPHOENIX_DEMO.md is the generated tour (run npm run demo:tour-doc after changing lib/demo/tour.ts or people.ts)', () => {
+  assert.equal(readFileSync(join(ROOT, 'docs/DPHOENIX_DEMO.md'), 'utf8'), renderTourDoc());
 });

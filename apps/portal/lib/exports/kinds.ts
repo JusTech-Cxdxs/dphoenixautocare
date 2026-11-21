@@ -425,6 +425,65 @@ const sapInvoices: ExportKind = {
   },
 };
 
+/**
+ * Invoices issued in EJO (one per Job Card, figures frozen at issue): what
+ * was charged, the VAT, what has been paid since and what is still owed —
+ * with the due date for an organisation on credit. Filters: q (invoice or
+ * Job Card number, customer), owing=yes (still owed), overdue=yes (owed and
+ * past its due date). Payments are money, so the file is sensitive. Its
+ * columns read straight back in as invoice history.
+ */
+const invoiceSearch = (q: string | undefined): Prisma.InvoiceWhereInput => (q ? { OR: [{ invoiceNumber: { contains: q, mode: 'insensitive' } }, { jobCard: { jobNumber: { contains: q, mode: 'insensitive' } } }, { customer: { fullName: { contains: q, mode: 'insensitive' } } }, { customer: { customerCompany: { companyName: { contains: q, mode: 'insensitive' } } } }] } : {});
+const invoices: ExportKind = {
+  key: 'invoices', label: 'Invoices', view: ['workshop.job_card.view'], sensitive: true, page: '/workshop/job-cards',
+  note: 'Every invoice issued in EJO within your reach, newest first, with what has been paid towards it on the day of the export.',
+  columns: [
+    { header: 'Invoice number', type: 'code', width: 16, get: (r) => r.invoiceNumber },
+    { header: 'Invoice date', type: 'day', width: 12, get: (r) => r.issuedAt },
+    { header: 'Due date', type: 'day', width: 12, get: (r) => r.dueDate },
+    { header: 'Status', type: 'text', width: 10, get: (r) => r.state },
+    { header: 'Job Card', type: 'code', width: 16, get: (r) => r.jobCard?.jobNumber },
+    { header: 'Branch', type: 'text', width: 14, get: (r) => r.branch?.name },
+    { header: 'Customer name', type: 'text', width: 24, get: (r) => r.customer?.customerCompany?.companyName ?? r.customer?.fullName },
+    { header: 'Customer number', type: 'code', width: 14, get: (r) => r.customer?.externalId },
+    { header: 'Plate', type: 'code', width: 12, get: (r) => r.jobCard?.vehicle?.plateNumber },
+    { header: 'Chassis number (VIN)', type: 'code', width: 20, get: (r) => r.jobCard?.vehicle?.chassisNumber },
+    { header: 'Vehicle', type: 'text', width: 16, get: (r) => [r.jobCard?.vehicle?.make, r.jobCard?.vehicle?.model].filter(Boolean).join(' ') },
+    { header: 'Subtotal', type: 'money', width: 13, get: (r) => n(r.subtotal) },
+    { header: 'Discount', type: 'money', width: 12, get: (r) => n(r.discountAmount) },
+    { header: 'VAT rate (%)', type: 'number', width: 8, get: (r) => n(r.vatRate) },
+    { header: 'VAT charged', type: 'money', width: 12, get: (r) => n(r.vatAmount) },
+    { header: 'Total', type: 'money', width: 13, get: (r) => n(r.total) },
+    { header: 'Paid', type: 'money', width: 13, get: (r) => r.paid },
+    { header: 'Balance', type: 'money', width: 13, get: (r) => r.balance },
+    { header: 'Currency', type: 'text', width: 8, get: () => 'NGN' },
+    { header: 'Issued by', type: 'text', width: 18, get: (r) => r.issuedBy?.fullName },
+    { header: 'Link', type: 'link', width: 40, get: (r) => link(`/workshop/job-cards/${r.jobCardId}`) },
+  ],
+  async *rows(ctx, p, from) {
+    const reach = await reachWhere('workshop.job_card.view');
+    const where: Prisma.InvoiceWhereInput = { AND: [{ organisationId: ctx.organisationId ?? '__none__' }, reach as Prisma.InvoiceWhereInput, invoiceSearch(p.q?.trim())] };
+    const owingOnly = p.owing === 'yes' || p.overdue === 'yes';
+    const now = Date.now();
+    for await (const { rows: b, next } of blocks((c) => prisma.invoice.findMany({
+      where, orderBy: [{ issuedAt: 'desc' }, { id: 'desc' }], ...page(c),
+      include: {
+        branch: { select: { name: true } }, issuedBy: { select: { fullName: true } },
+        customer: { select: { fullName: true, externalId: true, customerCompany: { select: { companyName: true } } } },
+        jobCard: { select: { jobNumber: true, vehicle: { select: { plateNumber: true, chassisNumber: true, make: true, model: true } }, payments: { select: { amount: true } }, refunds: { select: { amount: true } } } },
+      },
+    }), from)) {
+      const rows = b.map((r) => {
+        const paid = Math.max(0, Math.round((r.jobCard.payments.reduce((x, y) => x + Number(y.amount), 0) - r.jobCard.refunds.reduce((x, y) => x + Number(y.amount), 0)) * 100) / 100);
+        const balance = Math.max(0, Math.round((Number(r.total) - paid) * 100) / 100);
+        const overdue = balance > 0 && r.dueDate !== null && r.dueDate.getTime() < now;
+        return { ...r, paid, balance, overdue, state: balance <= 0 ? 'Paid' : overdue ? 'Overdue' : 'Owing' };
+      });
+      yield { next, rows: owingOnly ? rows.filter((r) => r.balance > 0 && (p.overdue !== 'yes' || r.overdue)) : rows };
+    }
+  },
+};
+
 /** Job cards from SAP before EJO (P4): in the job card layout with the SAP names, as the open job cards import reads them. */
 const sapJobs: ExportKind = {
   key: 'sap-jobs', label: 'SAP job card history', view: ['crm.view', 'workshop.job_card.view'], sensitive: true, page: '/crm',
@@ -861,7 +920,7 @@ const headquarters: ExportKind<import('@/lib/actions/headquarters').HqRow> = {
 };
 
 export const EXPORT_KINDS: Record<string, ExportKind> = Object.fromEntries(
-  [customers, vehicles, parts, stock, suppliers, goodsReceipts, jobCards, services, warranties, sapInvoices, sapJobs, imports, exportsHistory, users, audit, security, plantVehicles, plantPdis, plantKits, plantKitIssues, plantStations, plantDefects, plantQaAudits, headquarters].map((k) => [k.key, k]),
+  [customers, vehicles, parts, stock, suppliers, goodsReceipts, jobCards, services, invoices, warranties, sapInvoices, sapJobs, imports, exportsHistory, users, audit, security, plantVehicles, plantPdis, plantKits, plantKitIssues, plantStations, plantDefects, plantQaAudits, headquarters].map((k) => [k.key, k]),
 );
 
 /** May this person export this list (open it, export, and — for contact details or payments — export those)? */

@@ -5,16 +5,20 @@
  * Every demo record carries externalSource "EJO-DEMO", so a reset deletes
  * exactly the records the last load made (their station visits, defects,
  * audits, PDIs, kits, checks and issues go with them) and never a record a
- * person made in EJO. The demo people are the demo organisation's people
- * (lib/demo/people.ts): kept, upserted by email; their sign-ins are made by
- * lib/demo/people-load.ts, not here. Used by `npm run demo:reset` and by the administrator's
- * button on the plant page; the callers decide who may run it and when.
+ * person made in EJO. The plant's people (./plan.ts DEMO_PEOPLE) are
+ * upserted by email. Used by the administrator's button on the plant page;
+ * the caller decides who may run it and when.
+ *
+ * The assembly plant is switched off in the D'Phoenix Autocare edition
+ * (lib/modules.ts): while it is off this loader refuses, so the plant demo
+ * never loads anywhere.
  */
 import { Prisma, prisma } from '@ejo/database';
 import { DEMO_PEOPLE, DEMO_SOURCE, planPlantDemo, type DemoPerson, type PlantDemoPlan } from './plan';
 import { normaliseVin } from '../../vin';
 import { lagosYear } from '../../utils/format-date';
 import { highestSequence } from '../../recycle-bin/numbers';
+import { moduleIsOn } from '../../modules';
 
 export type DemoLoadResult = { plantId: string; plantName: string; removed: { vehicles: number; shipments: number }; made: { people: number; shipments: number; kits: number; vehicles: number; visits: number; defects: number; audits: number; pdis: number }; figures: PlantDemoPlan['figures'] };
 
@@ -75,6 +79,7 @@ async function ensurePeople(organisationId: string, plantId: string): Promise<Ma
  * after removing the previous demo. `anchor` is "now" for the story.
  */
 export async function loadPlantDemo(organisationId: string, anchor: Date = new Date()): Promise<DemoLoadResult> {
+  if (!moduleIsOn('plant')) throw new Error('The assembly plant is switched off in this edition; the plant demo is not loaded.');
   const plant = await prisma.branch.findFirst({ where: { businessUnit: { organisationId }, type: 'ASSEMBLY_PLANT' }, orderBy: { createdAt: 'asc' }, select: { id: true, name: true, sapPlant: true } });
   if (!plant) throw new Error('This organisation has no assembly plant yet. Open it first (Assembly plant → Open the assembly plant now).');
   const plan = planPlantDemo(anchor);
@@ -136,7 +141,7 @@ export async function loadPlantDemo(organisationId: string, anchor: Date = new D
   const pdiIds = new Map((await prisma.pdiInspection.findMany({ where: { number: { in: pdiNumbers } }, select: { id: true, number: true } })).map((p) => [p.number, p.id]));
   await inChunks(pdis.flatMap(({ p }, i) => p.items.map((it) => ({ inspectionId: pdiIds.get(pdiNumbers[i]!)!, code: it.code, section: it.section, label: it.label, sort: it.sort, allowNa: it.allowNa, result: it.result, defect: it.defect, reworkNote: it.reworkNote, reworkedAt: it.reworkedAt, reworkedById: who(it.reworkedBy), checkedById: who(it.checkedBy), checkedAt: it.checkedAt }))), (rows) => prisma.pdiItem.createMany({ data: rows }));
 
-  // Vehicles the workshop demo (lib/workshop/demo) sold through Isolo stay sold: re-linked by VIN after a plant-only reload.
+  // Vehicles sold to the workshop's customers stay sold: re-linked by VIN after a plant-only reload.
   const sold = await prisma.customerVehicle.findMany({ where: { externalSource: DEMO_SOURCE, customer: { organisationId }, chassisNumber: { in: plan.vehicles.map((v) => v.vin) } }, select: { id: true, chassisNumber: true } });
   for (const cv of sold) await prisma.plantVehicle.updateMany({ where: { organisationId, vinKey: normaliseVin(cv.chassisNumber!) }, data: { stage: 'SOLD', customerVehicleId: cv.id } });
 

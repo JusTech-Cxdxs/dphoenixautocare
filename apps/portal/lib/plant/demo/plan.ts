@@ -1,5 +1,5 @@
 /**
- * The plant demo, planned: six weeks of the Afprint assembly plant as a
+ * The plant demo, planned: six weeks of an assembly plant as a
  * story that is the same on every run (a seeded generator), with nothing
  * taken from a real person or vehicle.
  *
@@ -18,7 +18,7 @@
  * Pure: no database here. `loadPlantDemo` (./load.ts) writes a plan, and
  * scripts/demo-files.ts writes the same plan as the plant's demo files.
  */
-import { PLANT_DEMO_STAFF } from '../../demo/people';
+import { DEMO_DOMAIN } from '../../demo/people';
 import { DEFAULT_ROUTES, DEFECT_TYPES, type AuditFinding, type CheckResult, type RouteStation, type Severity, type StationCheck, type StationKind } from '../line';
 import { PDI_TEMPLATES, PLANT_MODELS, type PdiFamily } from '../pdi';
 import { DEFAULT_KIT_TYPE, KIT_TEMPLATES, type KitType } from '../kits';
@@ -84,11 +84,27 @@ const plusMin = (d: Date, m: number) => new Date(d.getTime() + m * 60_000);
 // ── The people (invented) ──────────────────────────────────────────────
 export type DemoPerson = { key: string; fullName: string; employeeId: string; email: string; previousEmail?: string; role: string; department: string };
 /**
- * The plant's people are the demo organisation's people (lib/demo/people.ts,
- * the ones with a plantKey): the same accounts the sign-ins are made for, so
- * loading the plant demo never makes a second set.
+ * The plant's people: role names only, on the demo's reserved domain. The
+ * assembly plant is switched off in the D'Phoenix Autocare edition
+ * (lib/modules.ts), so these accounts are only ever made where the plant is
+ * switched back on.
  */
-export const DEMO_PEOPLE: DemoPerson[] = PLANT_DEMO_STAFF.map((s) => ({ key: s.plantKey!, fullName: s.name, employeeId: s.employeeId, email: s.email, previousEmail: s.previousEmail, role: s.role, department: s.dept ?? 'plant-production' }));
+const plantPerson = (key: string, local: string, fullName: string, n: number, role: string, department: string): DemoPerson => ({ key, fullName, employeeId: `DEMO-AP-${String(n).padStart(3, '0')}`, email: `${local}@${DEMO_DOMAIN}`, role, department });
+export const DEMO_PEOPLE: DemoPerson[] = [
+  plantPerson('pm', 'plant.manager', 'Plant Manager', 1, 'plant-manager', 'plant-production'),
+  plantPerson('prod', 'production', 'Production Supervisor', 2, 'production-supervisor', 'plant-production'),
+  plantPerson('op1', 'operator.1', 'Line Operator 1', 3, 'line-operator', 'plant-production'),
+  plantPerson('op2', 'operator.2', 'Line Operator 2', 4, 'line-operator', 'plant-production'),
+  plantPerson('op3', 'operator.3', 'Line Operator 3', 5, 'line-operator', 'plant-production'),
+  plantPerson('op4', 'operator.4', 'Line Operator 4', 6, 'line-operator', 'plant-production'),
+  plantPerson('qc', 'qc', 'QC Inspector', 7, 'qc-inspector', 'plant-quality'),
+  plantPerson('qs', 'quality', 'Quality Supervisor', 8, 'quality-supervisor', 'plant-quality'),
+  plantPerson('qa', 'qa', 'QA Auditor', 9, 'qa-auditor', 'plant-quality'),
+  plantPerson('kit1', 'kit.inspector.1', 'Kit Inspector 1', 10, 'kit-inspector', 'plant-kit-receiving'),
+  plantPerson('kit2', 'kit.inspector.2', 'Kit Inspector 2', 11, 'kit-inspector', 'plant-kit-receiving'),
+  plantPerson('pdi1', 'pdi', 'PDI Inspector', 12, 'pdi-inspector', 'plant-pdi'),
+  plantPerson('pdi2', 'pdi.supervisor', 'PDI Supervisor', 13, 'pdi-supervisor', 'plant-pdi'),
+];
 const OPERATORS = ['op1', 'op2', 'op3', 'op4'] as const;
 
 // ── What the plan holds ─────────────────────────────────────────────────

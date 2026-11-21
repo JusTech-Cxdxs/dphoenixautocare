@@ -16,6 +16,8 @@ export function customerLinks(site: string) {
     dashboard: `${base}/dashboard`,
     services: `${base}/dashboard/services`,
     jobCard: (jobCardId: string) => `${base}/dashboard/services/jc/${id(jobCardId)}`,
+    /** The Job Card's invoice, to view and print. */
+    invoice: (jobCardId: string) => `${base}/dashboard/services/jc/${id(jobCardId)}/invoice`,
     service: (vehicleServiceId: string) => `${base}/dashboard/services/vs/${id(vehicleServiceId)}`,
     vehicles: `${base}/dashboard/vehicles`,
     vehicle: (vehicleId: string) => `${base}/dashboard/vehicles/${id(vehicleId)}`,

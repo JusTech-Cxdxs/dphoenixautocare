@@ -4,9 +4,11 @@
  * server actions, the templates and the tests.
  *
  * Every field lists the column names it is recognised by: plain English as
- * people type them in Excel, and the SAP field names a standard SAP export
- * uses (KUNNR, NAME1, TELF1, SMTP_ADDR…), so an SAP extract maps itself.
- * Matching ignores case, spaces, dots, dashes and underscores.
+ * people type them in Excel, the column headers Zoho Books, Zoho Invoice and
+ * Zoho CRM write in their exports ("Display Name", "EmailID", "Billing City",
+ * "Invoice Number", "Account Name"…), and the SAP field names a standard SAP
+ * export uses (KUNNR, NAME1, TELF1, SMTP_ADDR…), so any of those files maps
+ * itself. Matching ignores case, spaces, dots, dashes and underscores.
  */
 import { featureOn, moduleIsOn } from '../modules';
 
@@ -66,13 +68,15 @@ export const ENTITIES: Record<EntityKey, EntityDef> = {
     approver: 'an Organisation Administrator',
     matchOrder: ['work email', 'employee ID'],
     fields: [
-      { key: 'fullName', label: 'Full name', help: 'As it should appear in EJO (SAP ENAME, or first and last name together).', aliases: ['ENAME', 'full name', 'name', 'employee name', 'staff name', 'employee'], example: 'Ngozi Okafor', required: true },
-      { key: 'email', label: 'Work email', help: 'The person’s own work address: they sign in with it and their invitation goes to it. Never a shared mailbox.', aliases: ['work email', 'email', 'e-mail', 'email address', 'USRID_LONG', 'official email'], example: 'ngozi.okafor@kewalram.com', required: true },
-      { key: 'phone', label: 'Phone', help: 'Optional: work phone.', aliases: ['phone', 'mobile', 'telephone', 'phone number', 'TELNR'], example: '0803 123 4567' },
+      { key: 'fullName', label: 'Full name', help: 'As it should appear in EJO (SAP ENAME, or first and last name together). A file with first and last names in two columns (Zoho People) needs no full-name column.', aliases: ['ENAME', 'full name', 'name', 'employee name', 'staff name', 'employee', 'display name'], example: 'Adaeze Obi', required: true },
+      { key: 'firstName', label: 'First name', help: 'Optional: when the file has first and last names in their own columns, they make the full name.', aliases: ['first name', 'firstname', 'given name', 'forename'], example: '' },
+      { key: 'lastName', label: 'Last name', help: 'Optional: see First name.', aliases: ['last name', 'lastname', 'surname', 'family name'], example: '' },
+      { key: 'email', label: 'Work email', help: 'The person’s own work address: they sign in with it and their invitation goes to it. Never a shared mailbox.', aliases: ['work email', 'email', 'e-mail', 'email address', 'email id', 'emailid', 'USRID_LONG', 'official email'], example: 'adaeze.obi@example.com', required: true },
+      { key: 'phone', label: 'Phone', help: 'Optional: work phone.', aliases: ['phone', 'mobile', 'telephone', 'phone number', 'work phone', 'mobile phone', 'TELNR'], example: '0803 123 4567' },
       { key: 'employeeId', label: 'Employee ID', help: 'Optional: the staff number EJO should use (the HR number). Empty: EJO issues one for the branch (ORG-BRANCH-NNNN). Open job cards and services find people by it.', aliases: ['employee id', 'employee number', 'employee no', 'staff id', 'staff number', 'staff no', 'emp id'], example: 'EMP-0042' },
       { key: 'personnelNumber', label: 'SAP personnel number', help: 'Optional: the SAP HR personnel number (PERNR). Kept and searchable.', aliases: ['PERNR', 'personnel number', 'personnel no', 'sap number', 'hr number'], example: '00012345' },
-      { key: 'branch', label: 'Branch', help: 'The branch they work at: its name, its code, or its SAP plant (WERKS).', aliases: ['branch', 'branch name', 'location', 'site', 'WERKS', 'plant', 'BTRTL', 'work location'], example: 'Isolo Branch', required: true },
-      { key: 'department', label: 'Department', help: 'Optional: their department in that branch, by name (as on the Structure page).', aliases: ['department', 'dept', 'unit', 'section', 'ORGEH', 'org unit'], example: 'Workshop — Commercial' },
+      { key: 'branch', label: 'Branch', help: 'The branch they work at: its name, its code, or its SAP plant (WERKS).', aliases: ['branch', 'branch name', 'location', 'location name', 'site', 'WERKS', 'plant', 'BTRTL', 'work location'], example: 'Victoria Island Workshop', required: true },
+      { key: 'department', label: 'Department', help: 'Optional: their department in that branch, by name (as on the Structure page).', aliases: ['department', 'dept', 'unit', 'section', 'ORGEH', 'org unit'], example: 'Cars and SUVs' },
       { key: 'roles', label: 'Roles', help: 'Optional: their EJO roles by name, separated by ";" — e.g. "Technician; Front Desk". They must exist (Roles). Administrator roles are given by hand, never by a file. Empty: no role yet (they see only their own account).', aliases: ['roles', 'role', 'ejo role', 'ejo roles', 'access', 'position', 'job role'], example: 'Technician' },
     ],
   },
@@ -81,26 +85,29 @@ export const ENTITIES: Record<EntityKey, EntityDef> = {
     label: 'Customers',
     noun: 'customer',
     plural: 'customers',
-    description: 'People and organisations you serve: names, phone numbers, emails, addresses, SAP customer numbers.',
+    description: 'People and organisations you serve: names, phone numbers, emails, addresses, customer numbers — from Zoho Books or Zoho Invoice (Contacts → Export), Zoho CRM (Contacts or Accounts → Export), SAP or your own spreadsheet.',
     needs: 'crm.manage',
     approver: 'a Workshop manager, the Customer care lead or an administrator',
     matchOrder: ['SAP / old system number', 'email', 'phone'],
     fields: [
       { key: 'ejoRecord', label: 'EJO record', help: 'Only to update records from an edited export: the record’s EJO number, as the export writes it (“EJO record”, ZZ_EJO_ID). Leave it out to add new records.', aliases: ['EJO record', 'ZZ_EJO_ID', 'EJO ID', 'EJO record id', 'EJO number'], example: '', roundTrip: true },
-      { key: 'externalId', label: 'Customer number (SAP or old system)', help: 'The customer number in SAP (business partner / KUNNR) or your old system. Used to recognise the customer again in later files.', aliases: ['KUNNR', 'PARTNER', 'BU_PARTNER', 'SAP / old-system number', 'customer SAP number', 'customer number', 'customer no', 'customer id', 'customer code', 'account number', 'account no', 'debtor', 'debtor number', 'bp number', 'business partner'], example: '1000123' },
-      { key: 'fullName', label: 'Name', help: 'The person’s full name, or the organisation’s name.', aliases: ['NAME1', 'NAME_ORG1', 'name', 'full name', 'customer name', 'customer', 'client name', 'client'], example: 'Ada Okafor', required: true },
+      { key: 'externalId', label: 'Customer number (SAP or old system)', help: 'The customer number in SAP (business partner / KUNNR) or your old system. Used to recognise the customer again in later files.', aliases: ['KUNNR', 'PARTNER', 'BU_PARTNER', 'SAP / old-system number', 'customer SAP number', 'customer number', 'customer no', 'customer id', 'customer code', 'contact id', 'account id', 'record id', 'account number', 'account no', 'debtor', 'debtor number', 'bp number', 'business partner'], example: '1000123' },
+      { key: 'fullName', label: 'Name', help: 'The person’s full name, or the organisation’s name (Zoho: Display Name). A file with first and last names in two columns, or only a company name, needs no name column.', aliases: ['NAME1', 'NAME_ORG1', 'name', 'full name', 'display name', 'contact name', 'customer name', 'customer', 'client name', 'client'], example: 'Ada Okafor', required: true },
+      { key: 'firstName', label: 'First name', help: 'Optional (Zoho First Name): with Last name, makes the name when there is no name column.', aliases: ['first name', 'firstname', 'contact first name', 'given name'], example: '' },
+      { key: 'lastName', label: 'Last name', help: 'Optional (Zoho Last Name).', aliases: ['last name', 'lastname', 'contact last name', 'surname'], example: '' },
       { key: 'name2', label: 'Name, second line', help: 'Optional: added after the name (SAP NAME2, e.g. a branch or "Attn" line).', aliases: ['NAME2', 'NAME_ORG2', 'name 2', 'second name', 'name line 2'], example: '' },
-      { key: 'customerType', label: 'Type', help: 'Individual or Organisation. Left empty: Organisation when a company name is given, otherwise Individual.', aliases: ['customer type', 'type', 'category', 'customer category', 'BPKIND', 'KTOKD'], example: 'Individual', choices: ['Individual', 'Organisation'] },
-      { key: 'companyName', label: 'Company name', help: 'For organisations: the registered company name, if different from the name.', aliases: ['company', 'company name', 'organisation', 'organization', 'organisation name', 'business name', 'employer'], example: '' },
-      { key: 'email', label: 'Email', help: 'Optional. Only the customer’s own address: it is how they sign in to the customer portal. Leave empty if there is none — never a made-up one.', aliases: ['SMTP_ADDR', 'email', 'e-mail', 'email address', 'mail', 'e mail'], example: 'ada.okafor@example.ng' },
+      { key: 'customerType', label: 'Type', help: 'Individual or Organisation. Left empty: Organisation when a company name is given, otherwise Individual.', aliases: ['customer type', 'customer sub type', 'customer subtype', 'type', 'category', 'customer category', 'BPKIND', 'KTOKD'], example: 'Individual', choices: ['Individual', 'Organisation'] },
+      { key: 'companyName', label: 'Company name', help: 'For organisations: the registered company name, if different from the name.', aliases: ['company', 'company name', 'account name', 'organisation', 'organization', 'organisation name', 'business name', 'employer'], example: '' },
+      { key: 'email', label: 'Email', help: 'Optional. Only the customer’s own address: it is how they sign in to the customer portal. Leave empty if there is none — never a made-up one.', aliases: ['SMTP_ADDR', 'email', 'e-mail', 'email address', 'email id', 'emailid', 'mail', 'e mail'], example: 'ada.okafor@example.com' },
       { key: 'phone', label: 'Phone', help: 'The main number, e.g. 0803 123 4567 or +234 803 123 4567.', aliases: ['TELF1', 'TEL_NUMBER', 'phone', 'phone number', 'telephone', 'tel', 'mobile', 'mobile number', 'gsm', 'cell', 'contact number'], example: '0803 123 4567' },
-      { key: 'altPhone', label: 'Second phone', help: 'Optional second number.', aliases: ['TELF2', 'MOB_NUMBER', 'second phone', 'alt phone', 'alternative phone', 'phone 2', 'mobile 2', 'other phone'], example: '' },
-      { key: 'address', label: 'Address', help: 'Street and area, one line (e.g. "Plot 3, Cheesebrough"). Long addresses are kept in full as an extra address.', aliases: ['STRAS', 'STREET', 'address', 'address line 1', 'street', 'street address', 'address 1'], example: 'Plot 3, Cheesebrough Road' },
-      { key: 'city', label: 'City', help: 'Optional.', aliases: ['ORT01', 'CITY1', 'city', 'town'], example: 'Lagos' },
-      { key: 'state', label: 'State', help: 'Optional.', aliases: ['REGIO', 'REGION', 'state', 'region', 'province'], example: 'Lagos' },
-      { key: 'taxId', label: 'Tax ID', help: 'Optional, for organisations (TIN / VAT number).', aliases: ['STCD1', 'STCEG', 'TAXNUM', 'tin', 'tax id', 'tax number', 'vat', 'vat number'], example: '' },
+      { key: 'altPhone', label: 'Second phone', help: 'Optional second number.', aliases: ['TELF2', 'MOB_NUMBER', 'second phone', 'alt phone', 'alternative phone', 'phone 2', 'mobile 2', 'other phone', 'mobile phone', 'mobilephone'], example: '' },
+      { key: 'address', label: 'Address', help: 'Street and area, one line (e.g. "Plot 3, Cheesebrough"). Long addresses are kept in full as an extra address.', aliases: ['STRAS', 'STREET', 'address', 'address line 1', 'street', 'street address', 'address 1', 'billing address', 'billing street', 'billing address line 1', 'mailing street', 'mailing address'], example: 'Plot 3, Adeola Odeku Street' },
+      { key: 'city', label: 'City', help: 'Optional.', aliases: ['ORT01', 'CITY1', 'city', 'town', 'billing city', 'mailing city'], example: 'Lagos' },
+      { key: 'state', label: 'State', help: 'Optional.', aliases: ['REGIO', 'REGION', 'state', 'region', 'province', 'billing state', 'mailing state'], example: 'Lagos' },
+      { key: 'taxId', label: 'Tax ID', help: 'Optional, for organisations (TIN / VAT number).', aliases: ['STCD1', 'STCEG', 'TAXNUM', 'tin', 'tax id', 'tax number', 'vat', 'vat number', 'tax registration number', 'tax reg no'], example: '' },
+      { key: 'paymentTerms', label: 'Payment terms', help: 'Optional (Zoho Payment Terms, e.g. "Net 30"). Kept on the customer as a tag; credit terms themselves are set in EJO by Finance or the Manager (Customers → the organisation’s page).', aliases: ['payment terms', 'payment terms label', 'terms', 'credit terms'], example: '' },
       { key: 'tags', label: 'Tags', help: 'Optional labels separated by commas, e.g. "Fleet, VIP".', aliases: ['tags', 'labels', 'group', 'segment', 'customer group', 'KDGRP'], example: 'Fleet' },
-      { key: 'customerSince', label: 'Customer since', help: 'Optional: when they became a customer — SAP’s creation date of the business partner (ERDAT), e.g. 14.03.2019. Used for “customer since” and the analytics instead of the day of the import.', aliases: ['ERDAT', 'CRDAT', 'customer since', 'created on', 'creation date', 'date created', 'created', 'opened on', 'account opened', 'first purchase', 'since'], example: '14.03.2019' },
+      { key: 'customerSince', label: 'Customer since', help: 'Optional: when they became a customer — SAP’s creation date of the business partner (ERDAT), e.g. 14.03.2019. Used for “customer since” and the analytics instead of the day of the import.', aliases: ['ERDAT', 'CRDAT', 'customer since', 'created on', 'creation date', 'date created', 'created', 'created time', 'opened on', 'account opened', 'first purchase', 'since'], example: '14.03.2019' },
     ],
   },
   vehicles: {
@@ -119,12 +126,12 @@ export const ENTITIES: Record<EntityKey, EntityDef> = {
       { key: 'customerEmail', label: 'Customer email', help: 'Alternative way to find the customer.', aliases: ['customer email', 'owner email', 'email'], example: '' },
       { key: 'customerPhone', label: 'Customer phone', help: 'Alternative way to find the customer.', aliases: ['customer phone', 'owner phone', 'phone', 'telephone', 'mobile'], example: '' },
       { key: 'externalId', label: 'Vehicle number (SAP or old system)', help: 'Optional: the vehicle or equipment number in SAP (EQUNR) or your old system.', aliases: ['EQUNR', 'SAP / old-system number', 'equipment', 'equipment number', 'vehicle id', 'vehicle number', 'asset number', 'fleet number'], example: '' },
-      { key: 'chassisNumber', label: 'Chassis number (VIN)', help: 'The 17-character VIN. A chassis number or a plate is needed for every vehicle.', aliases: ['VIN', 'VHVIN', 'FIN', 'chassis', 'chassis number', 'chassis no', 'vin number', 'frame number'], example: 'JAANLR85EL7100001' },
+      { key: 'chassisNumber', label: 'Chassis number (VIN)', help: 'The 17-character VIN. A chassis number or a plate is needed for every vehicle.', aliases: ['VIN', 'VHVIN', 'FIN', 'chassis', 'chassis number', 'chassis no', 'vin number', 'frame number'], example: 'AHTGB3CD401234567' },
       { key: 'plateNumber', label: 'Plate number', help: 'The registration plate, e.g. LND 123 AB.', aliases: ['plate', 'plate number', 'plate no', 'registration', 'registration number', 'reg no', 'reg number', 'LICENSE_NUM', 'LICNUM', 'number plate'], example: 'LND 123 AB' },
-      { key: 'engineNumber', label: 'Engine number', help: 'Optional.', aliases: ['engine number', 'engine no', 'ENGINE_NO', 'motor number'], example: '4JJ1-123456' },
-      { key: 'engineType', label: 'Engine type', help: 'Optional, e.g. 4JJ1, 1.5T petrol.', aliases: ['engine type', 'engine', 'engine model'], example: '4JJ1' },
-      { key: 'make', label: 'Make', help: 'e.g. Isuzu, Soueast, Mitsubishi, Foton.', aliases: ['make', 'brand', 'manufacturer', 'MAKE', 'vehicle make'], example: 'Isuzu' },
-      { key: 'model', label: 'Model', help: 'e.g. NQR, NPR, QLR, QMR, S07.', aliases: ['model', 'MODEL', 'vehicle model', 'model name', 'model description'], example: 'NQR' },
+      { key: 'engineNumber', label: 'Engine number', help: 'Optional.', aliases: ['engine number', 'engine no', 'ENGINE_NO', 'motor number'], example: '2GD-1234567' },
+      { key: 'engineType', label: 'Engine type', help: 'Optional, e.g. 2GD-FTV, 2.5 petrol.', aliases: ['engine type', 'engine', 'engine model'], example: '2GD-FTV' },
+      { key: 'make', label: 'Make', help: 'e.g. Toyota, Ford, Nissan, Mitsubishi, Hyundai, Mercedes-Benz.', aliases: ['make', 'brand', 'manufacturer', 'MAKE', 'vehicle make'], example: 'Toyota' },
+      { key: 'model', label: 'Model', help: 'e.g. Hilux, Hiace, Land Cruiser, Camry, Ranger.', aliases: ['model', 'MODEL', 'vehicle model', 'model name', 'model description'], example: 'Hilux' },
       { key: 'year', label: 'Year', help: 'Year of manufacture, e.g. 2024.', aliases: ['year', 'model year', 'MODEL_YEAR', 'year of manufacture', 'yom', 'manufacture year'], example: '2024' },
       { key: 'vehicleType', label: 'Passenger or Commercial', help: 'Passenger (cars, SUVs) or Commercial (trucks, buses, vans). Left empty: worked out from the model where it is obvious, otherwise left blank.', aliases: ['vehicle type', 'category', 'vehicle category', 'type', 'segment'], example: 'Commercial', choices: ['Passenger', 'Commercial'] },
       { key: 'mileage', label: 'Mileage (km)', help: 'Last known odometer reading in kilometres.', aliases: ['mileage', 'odometer', 'km', 'kilometres', 'kilometers', 'odometer reading', 'last mileage'], example: '45200' },
@@ -207,7 +214,7 @@ export const ENTITIES: Record<EntityKey, EntityDef> = {
     label: 'Invoice history',
     noun: 'invoice',
     plural: 'invoices',
-    description: 'Invoices from SAP before EJO 100 (billing documents or customer line items): date, number, customer, vehicle, amount. Read-only history that counts in each customer’s spend, last visit and the analytics.',
+    description: 'Invoices from before EJO 100 — Zoho Books or Zoho Invoice (Invoices → Export), SAP billing documents or your own spreadsheet: date, number, customer, vehicle, amount. Read-only history that counts in each customer’s spend, last visit and the analytics. A Zoho export with one row per item is understood: the first row of each invoice is loaded with the invoice total; its other rows are reported as the same invoice.',
     needs: 'crm.manage',
     approver: 'a Workshop manager, the Customer care lead or an administrator, then Finance confirms the totals',
     branch: true,
@@ -216,18 +223,24 @@ export const ENTITIES: Record<EntityKey, EntityDef> = {
     matchOrder: ['invoice number'],
     after: 'customers',
     fields: [
-      { key: 'invoiceNumber', label: 'Invoice number', help: 'The SAP billing document (VBELN) or accounting document (BELNR). Each invoice is loaded once.', aliases: ['VBELN', 'BELNR', 'invoice number (SAP)', 'invoice number', 'invoice no', 'invoice', 'billing document', 'document number', 'doc no', 'document no', 'reference'], example: '90001234', required: true },
+      { key: 'invoiceNumber', label: 'Invoice number', help: 'The SAP billing document (VBELN) or accounting document (BELNR). Each invoice is loaded once.', aliases: ['VBELN', 'BELNR', 'invoice number (SAP)', 'invoice number', 'invoice no', 'invoice#', 'invoice', 'billing document', 'document number', 'doc no', 'document no', 'reference'], example: 'INV-000123', required: true },
       { key: 'invoiceDate', label: 'Invoice date', help: 'The billing date (SAP FKDAT) or posting date (BUDAT), e.g. 14.03.2023.', aliases: ['FKDAT', 'BUDAT', 'BLDAT', 'invoice date', 'billing date', 'posting date', 'document date', 'date'], example: '14.03.2023', required: true },
-      { key: 'customerExternalId', label: 'Customer number (SAP)', help: 'The customer the invoice is for: SAP sold-to (KUNAG), payer (KUNRG) or customer (KUNNR). The customer must be imported first.', aliases: ['KUNAG', 'KUNRG', 'KUNNR', 'customer SAP number', 'customer number', 'customer no', 'customer', 'sold-to', 'sold to party', 'payer', 'account number', 'bp number'], example: '1000123' },
+      { key: 'customerExternalId', label: 'Customer number', help: 'The customer the invoice is for, by the number in the customers file: Zoho Customer ID, SAP sold-to (KUNAG), payer (KUNRG) or customer (KUNNR). The customer must be imported first.', aliases: ['KUNAG', 'KUNRG', 'KUNNR', 'customer number (SAP)', 'customer SAP number', 'customer number', 'customer no', 'customer id', 'contact id', 'customer', 'sold-to', 'sold to party', 'payer', 'account number', 'bp number'], example: '1000123' },
       { key: 'customerPhone', label: 'Customer phone', help: 'Alternative way to find the customer.', aliases: ['customer phone', 'phone', 'telephone', 'mobile'], example: '' },
-      { key: 'amount', label: 'Amount (₦)', help: 'The invoice amount in naira: SAP net value (NETWR) — add the tax column below to make it gross — or the line item amount (DMBTR / WRBTR). Negative for a credit note (100- is understood).', aliases: ['NETWR', 'DMBTR', 'WRBTR', 'amount (incl. tax)', 'amount', 'total', 'invoice total', 'invoice amount', 'gross amount', 'net value', 'value'], example: '485000.00', required: true },
+      { key: 'customerName', label: 'Customer name', help: 'Optional (Zoho Customer Name): finds the customer when there is no number or phone, if exactly one customer has that name.', aliases: ['customer name', 'contact name', 'client name', 'display name', 'bill to'], example: '' },
+      { key: 'amount', label: 'Amount (₦)', help: 'The invoice amount in naira: SAP net value (NETWR) — add the tax column below to make it gross — or the line item amount (DMBTR / WRBTR). Negative for a credit note (100- is understood).', aliases: ['NETWR', 'DMBTR', 'WRBTR', 'amount (incl. tax)', 'amount', 'total', 'invoice total', 'invoice amount', 'grand total', 'gross amount', 'net value', 'value'], example: '485000.00', required: true },
+      { key: 'balance', label: 'Balance (₦)', help: 'Optional (Zoho Balance): what was still owed when the file was made. Shown with the invoice.', aliases: ['balance', 'balance due', 'amount due', 'outstanding', 'open amount'], example: '' },
+      { key: 'dueDate', label: 'Due date', help: 'Optional (Zoho Due Date). Shown with the invoice.', aliases: ['due date', 'payment due date', 'due on', 'ZFBDT'], example: '' },
+      { key: 'invoiceStatus', label: 'Status', help: 'Optional (Zoho Invoice Status: Paid, Overdue, Sent, Partially Paid, Void). Shown with the invoice; a void invoice is reported, never loaded.', aliases: ['invoice status', 'status', 'payment status'], example: '' },
       { key: 'tax', label: 'Tax (₦)', help: 'Optional: the tax amount (SAP MWSBK), added to a net amount.', aliases: ['MWSBK', 'MWSTS', 'tax', 'tax amount', 'vat', 'vat amount'], example: '36375.00' },
-      { key: 'currency', label: 'Currency', help: 'Optional: SAP WAERK. Only naira (NGN) is loaded.', aliases: ['WAERK', 'WAERS', 'currency', 'curr'], example: 'NGN' },
-      { key: 'vin', label: 'Chassis number (VIN)', help: 'Optional: the vehicle the work was on. Links the invoice to the vehicle when it is in the system.', aliases: ['VHVIN', 'VIN', 'chassis', 'chassis number', 'chassis no', 'vehicle', 'frame number'], example: 'JAANLR85EL7100001' },
+      { key: 'currency', label: 'Currency', help: 'Optional: SAP WAERK. Only naira (NGN) is loaded.', aliases: ['WAERK', 'WAERS', 'currency', 'currency code', 'curr'], example: 'NGN' },
+      { key: 'vin', label: 'Chassis number (VIN)', help: 'Optional: the vehicle the work was on. Links the invoice to the vehicle when it is in the system.', aliases: ['VHVIN', 'VIN', 'chassis', 'chassis number', 'chassis no', 'vehicle', 'frame number'], example: 'AHTGB3CD401234567' },
       { key: 'companyCode', label: 'Company code', help: 'Optional: SAP company code (BUKRS). SAP numbers documents per company code and fiscal year, so give these when the same number can appear twice.', aliases: ['BUKRS', 'company code', 'company', 'cocd'], example: '1000' },
       { key: 'fiscalYear', label: 'Fiscal year', help: 'Optional: SAP fiscal year (GJAHR). Empty: the year of the invoice date.', aliases: ['GJAHR', 'fiscal year', 'fy', 'year'], example: '2023' },
       { key: 'documentType', label: 'Document type', help: 'Optional: SAP billing type (FKART, e.g. F2 invoice, G2 credit) or document type (BLART).', aliases: ['FKART', 'BLART', 'document type', 'billing type', 'doc type', 'type'], example: 'F2' },
-      { key: 'description', label: 'Description', help: 'Optional: what the invoice was for.', aliases: ['ARKTX', 'SGTXT', 'BKTXT', 'description', 'text', 'item text', 'narration', 'details'], example: 'Service 40,000 km and brake pads' },
+      { key: 'description', label: 'Description', help: 'Optional: what the invoice was for (Zoho Item Name or Item Desc).', aliases: ['ARKTX', 'SGTXT', 'BKTXT', 'description', 'item name', 'item desc', 'item description', 'text', 'item text', 'narration', 'details'], example: 'Routine service and brake pads' },
+      { key: 'itemQuantity', label: 'Quantity', help: 'Optional (Zoho Quantity): added to the description.', aliases: ['quantity', 'qty', 'item quantity'], example: '' },
+      { key: 'itemPrice', label: 'Item price (₦)', help: 'Optional (Zoho Item Price or Rate): added to the description.', aliases: ['item price', 'rate', 'unit price', 'price'], example: '' },
     ],
   },
   jobs: {
@@ -250,7 +263,7 @@ export const ENTITIES: Record<EntityKey, EntityDef> = {
       { key: 'customerExternalId', label: 'Customer number (SAP)', help: 'Whose vehicle it was: the SAP customer (KUNUM / KUNNR). Or give the customer’s phone or email. When the vehicle is already in EJO, its owner is used.', aliases: ['KUNUM', 'KUNNR', 'KUNAG', 'customer SAP number', 'customer number', 'customer no', 'customer', 'sold-to', 'account number', 'bp number', 'partner'], example: '1000123' },
       { key: 'customerPhone', label: 'Customer phone', help: 'Alternative way to find the customer.', aliases: ['customer phone', 'phone', 'telephone', 'mobile'], example: '' },
       { key: 'customerEmail', label: 'Customer email', help: 'Alternative way to find the customer.', aliases: ['customer email', 'email', 'e-mail'], example: '' },
-      { key: 'vin', label: 'Chassis number (VIN)', help: 'The vehicle the work was on (SAP VHVIN). Links the job card to the vehicle when it is in EJO; a VIN or a plate is needed for the service clock.', aliases: ['VHVIN', 'VIN', 'chassis', 'chassis number', 'chassis no', 'frame number', 'vehicle'], example: 'JAANLR85EL7100001' },
+      { key: 'vin', label: 'Chassis number (VIN)', help: 'The vehicle the work was on (SAP VHVIN). Links the job card to the vehicle when it is in EJO; a VIN or a plate is needed for the service clock.', aliases: ['VHVIN', 'VIN', 'chassis', 'chassis number', 'chassis no', 'frame number', 'vehicle'], example: 'AHTGB3CD401234567' },
       { key: 'plateNumber', label: 'Plate number', help: 'Optional: the registration plate (SAP LICENSE_NUM), used to find the vehicle when there is no VIN.', aliases: ['LICENSE_NUM', 'LICNUM', 'plate', 'plate number', 'plate no', 'registration', 'registration number', 'reg no'], example: 'LND 123 AB' },
       { key: 'equipmentNumber', label: 'Equipment number', help: 'Optional: the vehicle’s SAP equipment (EQUNR).', aliases: ['EQUNR', 'equipment', 'equipment number', 'equipment no'], example: '' },
       { key: 'openedAt', label: 'Opened on', help: 'When the job card was opened — SAP created on (ERDAT) or basic start (GSTRP), e.g. 14.03.2023.', aliases: ['ERDAT', 'GSTRP', 'opened on', 'opened', 'date opened', 'created on', 'creation date', 'start date', 'date in', 'check-in date', 'received', 'date'], example: '14.03.2023', required: true },
@@ -263,9 +276,9 @@ export const ENTITIES: Record<EntityKey, EntityDef> = {
       { key: 'labourAmount', label: 'Labour (₦)', help: 'Optional: labour charged, in naira.', aliases: ['labour', 'labor', 'labour amount', 'labour charge', 'labour cost'], example: '35000' },
       { key: 'partsAmount', label: 'Parts (₦)', help: 'Optional: parts charged, in naira.', aliases: ['parts', 'parts amount', 'parts charge', 'parts cost', 'materials'], example: '128500' },
       { key: 'totalAmount', label: 'Total (₦)', help: 'Optional: the total charged (SAP NETWR of the billing document). Empty: labour + parts when either is given.', aliases: ['NETWR', 'total', 'total amount', 'amount', 'invoice amount', 'invoice total', 'value', 'gross amount'], example: '163500' },
-      { key: 'invoiceNumber', label: 'Invoice number', help: 'Optional: the SAP billing document (VBELN) the job card was invoiced on — shown beside it, and matched to the invoice history when it is loaded.', aliases: ['VBELN', 'invoice', 'invoice number', 'invoice no', 'billing document', 'bill number'], example: '90001234' },
+      { key: 'invoiceNumber', label: 'Invoice number', help: 'Optional: the SAP billing document (VBELN) the job card was invoiced on — shown beside it, and matched to the invoice history when it is loaded.', aliases: ['VBELN', 'invoice', 'invoice number', 'invoice no', 'invoice#', 'billing document', 'bill number'], example: 'INV-000123' },
       { key: 'status', label: 'Status', help: 'Optional: Closed or Cancelled (SAP TECO / CLSD close; CNCL / DLFL cancel). Empty: Closed. A job card still open belongs in the open job cards file, not here.', aliases: ['status', 'order status', 'system status', 'ISTAT', 'STAT', 'user status'], example: 'Closed', choices: ['Closed', 'Cancelled'] },
-      { key: 'branch', label: 'Branch', help: 'Optional: the branch (or SAP plant, WERKS) the work was done at. When given it must be the branch chosen for this import.', aliases: ['branch', 'branch name', 'workshop', 'location', 'WERKS', 'IWERK', 'plant'], example: 'Isolo Branch' },
+      { key: 'branch', label: 'Branch', help: 'Optional: the branch (or SAP plant, WERKS) the work was done at. When given it must be the branch chosen for this import.', aliases: ['branch', 'branch name', 'workshop', 'location', 'WERKS', 'IWERK', 'plant'], example: 'Victoria Island Workshop' },
     ],
   },
   openJobs: {
@@ -286,7 +299,7 @@ export const ENTITIES: Record<EntityKey, EntityDef> = {
       { key: 'customerExternalId', label: 'Customer number (SAP)', help: 'Whose vehicle it is (KUNUM / KUNNR), or give the phone or email. When the vehicle is in EJO, its owner is used.', aliases: ['KUNUM', 'KUNNR', 'KUNAG', 'customer SAP number', 'customer number', 'customer no', 'customer', 'account number', 'bp number', 'partner'], example: '1000123' },
       { key: 'customerPhone', label: 'Customer phone', help: 'Alternative way to find the customer.', aliases: ['customer phone', 'phone', 'telephone', 'mobile'], example: '' },
       { key: 'customerEmail', label: 'Customer email', help: 'Alternative way to find the customer.', aliases: ['customer email', 'email', 'e-mail'], example: '' },
-      { key: 'vin', label: 'Chassis number (VIN)', help: 'The vehicle in the workshop (VHVIN). It must already be in EJO (load the vehicles file first); give the VIN or the plate.', aliases: ['VHVIN', 'VIN', 'chassis', 'chassis number', 'chassis no', 'frame number', 'vehicle'], example: 'JAANLR85EL7100001' },
+      { key: 'vin', label: 'Chassis number (VIN)', help: 'The vehicle in the workshop (VHVIN). It must already be in EJO (load the vehicles file first); give the VIN or the plate.', aliases: ['VHVIN', 'VIN', 'chassis', 'chassis number', 'chassis no', 'frame number', 'vehicle'], example: 'AHTGB3CD401234567' },
       { key: 'plateNumber', label: 'Plate number', help: 'Alternative way to find the vehicle (LICENSE_NUM).', aliases: ['LICENSE_NUM', 'LICNUM', 'plate', 'plate number', 'plate no', 'registration', 'registration number', 'reg no'], example: 'LND 123 AB' },
       { key: 'openedAt', label: 'Opened on', help: 'When the vehicle came in — SAP created on (ERDAT), e.g. 28.10.2026. The EJO job card carries this date.', aliases: ['ERDAT', 'GSTRP', 'opened on', 'opened', 'date opened', 'created on', 'check-in date', 'date in', 'received', 'date'], example: '28.10.2026', required: true },
       { key: 'status', label: 'Stage', help: 'Where the job card is: Checked in, In progress, Awaiting parts, Quality check, Awaiting customer approval, Completed or Ready for collection. SAP statuses are understood (CRTD → checked in, REL → in progress, TECO → completed). A closed or cancelled job card belongs in the job card history file.', aliases: ['stage', 'status', 'job status', 'order status', 'system status', 'user status', 'ISTAT', 'STAT'], example: 'In progress', choices: ['Checked in', 'In progress', 'Awaiting parts', 'Quality check', 'Awaiting customer approval', 'Completed', 'Ready for collection'] },
@@ -305,7 +318,7 @@ export const ENTITIES: Record<EntityKey, EntityDef> = {
       { key: 'paymentReference', label: 'Payment reference', help: 'Optional: the receipt or transfer reference from the old system.', aliases: ['payment reference', 'receipt', 'receipt number', 'receipt no', 'transfer reference', 'reference'], example: 'RCPT-2026-0412' },
       { key: 'paidOn', label: 'Paid on', help: 'Optional: when the deposit was taken. Empty: the opening date.', aliases: ['paid on', 'payment date', 'receipt date', 'date paid'], example: '28.10.2026' },
       { key: 'notes', label: 'Notes', help: 'Optional: anything the workshop should know (kept on the job card’s notes).', aliases: ['note', 'internal notes', 'comments', 'memo'], example: 'Customer wants the old parts back' },
-      { key: 'branch', label: 'Branch', help: 'Optional: the branch (or SAP plant, WERKS) the job card is in. When given it must be the branch chosen for this import.', aliases: ['branch', 'branch name', 'workshop', 'location', 'WERKS', 'IWERK', 'plant'], example: 'Isolo Branch' },
+      { key: 'branch', label: 'Branch', help: 'Optional: the branch (or SAP plant, WERKS) the job card is in. When given it must be the branch chosen for this import.', aliases: ['branch', 'branch name', 'workshop', 'location', 'WERKS', 'IWERK', 'plant'], example: 'Victoria Island Workshop' },
     ],
   },
   openServices: {
@@ -325,7 +338,7 @@ export const ENTITIES: Record<EntityKey, EntityDef> = {
       { key: 'customerExternalId', label: 'Customer number (SAP)', help: 'Whose vehicle it is (KUNUM / KUNNR), or give the phone or email. When the vehicle is in EJO, its owner is used.', aliases: ['KUNUM', 'KUNNR', 'customer SAP number', 'customer number', 'customer no', 'customer', 'account number'], example: '1000123' },
       { key: 'customerPhone', label: 'Customer phone', help: 'Alternative way to find the customer.', aliases: ['customer phone', 'phone', 'telephone', 'mobile'], example: '' },
       { key: 'customerEmail', label: 'Customer email', help: 'Alternative way to find the customer.', aliases: ['customer email', 'email', 'e-mail'], example: '' },
-      { key: 'vin', label: 'Chassis number (VIN)', help: 'The vehicle (VHVIN). It must already be in EJO; give the VIN or the plate.', aliases: ['VHVIN', 'VIN', 'chassis', 'chassis number', 'chassis no', 'frame number', 'vehicle'], example: 'JAANLR85EL7100001' },
+      { key: 'vin', label: 'Chassis number (VIN)', help: 'The vehicle (VHVIN). It must already be in EJO; give the VIN or the plate.', aliases: ['VHVIN', 'VIN', 'chassis', 'chassis number', 'chassis no', 'frame number', 'vehicle'], example: 'AHTGB3CD401234567' },
       { key: 'plateNumber', label: 'Plate number', help: 'Alternative way to find the vehicle (LICENSE_NUM).', aliases: ['LICENSE_NUM', 'LICNUM', 'plate', 'plate number', 'plate no', 'registration', 'registration number'], example: 'LND 123 AB' },
       { key: 'status', label: 'Stage', help: 'Booked (the default: the customer is expected), Checked in, In service, Completed or Ready for collection. A closed, collected or cancelled service is history.', aliases: ['stage', 'status', 'booking status', 'service status', 'STAT'], example: 'Booked', choices: ['Booked', 'Checked in', 'In service', 'Completed', 'Ready for collection'] },
       { key: 'bookedFor', label: 'Booked for (date)', help: 'For a booking: the day the customer is expected, e.g. 12.11.2026 (SAP GSTRP).', aliases: ['GSTRP', 'booked for', 'booking date', 'appointment date', 'date booked for', 'due date', 'date'], example: '12.11.2026' },
@@ -336,7 +349,7 @@ export const ENTITIES: Record<EntityKey, EntityDef> = {
       { key: 'supervisor', label: 'Supervisor (employee ID)', help: 'Optional: the supervising person’s employee ID in EJO (a name is tried too). Empty: left for the workshop to set.', aliases: ['supervisor', 'supervisor id', 'service advisor', 'advisor', 'foreman'], example: 'EMP-0007' },
       { key: 'technician', label: 'Technician (employee ID)', help: 'Optional, for a service in the workshop: the technician’s employee ID (PERNR) or name.', aliases: ['PERNR', 'technician', 'technician id', 'mechanic', 'assigned to'], example: 'EMP-0042' },
       { key: 'notes', label: 'Notes', help: 'Optional: anything the workshop should know.', aliases: ['note', 'notes', 'remarks', 'comments'], example: 'Customer will wait' },
-      { key: 'branch', label: 'Branch', help: 'Optional: the branch (or SAP plant, WERKS). When given it must be the branch chosen for this import.', aliases: ['branch', 'branch name', 'workshop', 'location', 'WERKS', 'IWERK', 'plant'], example: 'Isolo Branch' },
+      { key: 'branch', label: 'Branch', help: 'Optional: the branch (or SAP plant, WERKS). When given it must be the branch chosen for this import.', aliases: ['branch', 'branch name', 'workshop', 'location', 'WERKS', 'IWERK', 'plant'], example: 'Victoria Island Workshop' },
     ],
   },
   warranties: {
@@ -352,7 +365,7 @@ export const ENTITIES: Record<EntityKey, EntityDef> = {
     fields: [
       { key: 'warrantyNumber', label: 'Warranty number', help: 'The warranty’s number in SAP (master warranty MGANR, or the warranty counter) or the old system. Kept on the EJO warranty and searchable; EJO gives it its own WR number.', aliases: ['MGANR', 'warranty number', 'warranty no', 'warranty', 'warranty id', 'certificate', 'certificate number', 'certificate no', 'master warranty'], example: 'W-2024-0412', required: true },
       { key: 'kind', label: 'Covers', help: 'Vehicle (the default) or Part. A part warranty names the part number and, when it has one, its serial.', aliases: ['covers', 'kind', 'type', 'warranty type', 'object type'], example: 'Vehicle', choices: ['Vehicle', 'Part'] },
-      { key: 'vin', label: 'Chassis number (VIN)', help: 'The vehicle covered (VHVIN). It must already be in EJO (load the vehicles file first); give the VIN or the plate. For a part, the vehicle it is fitted to, when known.', aliases: ['VHVIN', 'VIN', 'chassis', 'chassis number', 'chassis no', 'frame number', 'vehicle', 'EQUNR', 'equipment'], example: 'JAANLR85EL7100001' },
+      { key: 'vin', label: 'Chassis number (VIN)', help: 'The vehicle covered (VHVIN). It must already be in EJO (load the vehicles file first); give the VIN or the plate. For a part, the vehicle it is fitted to, when known.', aliases: ['VHVIN', 'VIN', 'chassis', 'chassis number', 'chassis no', 'frame number', 'vehicle', 'EQUNR', 'equipment'], example: 'AHTGB3CD401234567' },
       { key: 'plateNumber', label: 'Plate number', help: 'Alternative way to find the vehicle (LICENSE_NUM).', aliases: ['LICENSE_NUM', 'LICNUM', 'plate', 'plate number', 'plate no', 'registration', 'registration number', 'reg no'], example: 'LND 123 AB' },
       { key: 'customerExternalId', label: 'Customer number (SAP)', help: 'Whose warranty it is (KUNNR), or give the phone or email. For a vehicle, its owner in EJO is used.', aliases: ['KUNNR', 'KUNUM', 'customer SAP number', 'customer number', 'customer no', 'customer', 'account number', 'bp number', 'partner'], example: '1000123' },
       { key: 'customerPhone', label: 'Customer phone', help: 'Alternative way to find the customer.', aliases: ['customer phone', 'phone', 'telephone', 'mobile'], example: '' },
@@ -384,7 +397,7 @@ export const ENTITIES: Record<EntityKey, EntityDef> = {
     fields: [
       { key: 'claimNumber', label: 'Claim number', help: 'The claim’s number in SAP (CLMNO, or the notification QMNUM) or the old system. Kept on the EJO claim and searchable; EJO gives it its own WC number.', aliases: ['CLMNO', 'QMNUM', 'claim number', 'claim no', 'claim', 'claim id', 'notification', 'notification number'], example: 'C-2026-0187', required: true },
       { key: 'warrantyNumber', label: 'Warranty number', help: 'The warranty it is claimed on: its old number (as in the warranties file) or its EJO WR number. Empty: the vehicle’s warranty in force on the failure date, when there is exactly one.', aliases: ['MGANR', 'warranty number', 'warranty no', 'warranty', 'certificate', 'certificate number'], example: 'W-2024-0412' },
-      { key: 'vin', label: 'Chassis number (VIN)', help: 'Optional: the vehicle, to find its warranty when no warranty number is given.', aliases: ['VHVIN', 'VIN', 'chassis', 'chassis number', 'chassis no', 'vehicle'], example: 'JAANLR85EL7100001' },
+      { key: 'vin', label: 'Chassis number (VIN)', help: 'Optional: the vehicle, to find its warranty when no warranty number is given.', aliases: ['VHVIN', 'VIN', 'chassis', 'chassis number', 'chassis no', 'vehicle'], example: 'AHTGB3CD401234567' },
       { key: 'plateNumber', label: 'Plate number', help: 'Optional: alternative way to find the vehicle.', aliases: ['LICENSE_NUM', 'plate', 'plate number', 'registration'], example: 'LND 123 AB' },
       { key: 'status', label: 'Stage', help: 'Where the claim is: Draft, With the Warranty HOD, With the Manager, Approved to submit, Submitted to the provider, Accepted, Partially accepted or Rejected. A settled or cancelled claim is history and is refused.', aliases: ['stage', 'status', 'claim status', 'state', 'ISTAT'], example: 'Submitted', choices: ['Draft', 'With the Warranty HOD', 'With the Manager', 'Approved to submit', 'Submitted', 'Accepted', 'Partially accepted', 'Rejected'] },
       { key: 'failureDate', label: 'Failure date', help: 'When it failed or was repaired (REPDA), e.g. 21.10.2026.', aliases: ['REPDA', 'failure date', 'date of failure', 'repair date', 'damage date', 'date', 'claim date'], example: '21.10.2026', required: true },
@@ -575,7 +588,7 @@ export const EDITION_ENTITY_KEYS: EntityKey[] = ENTITY_KEYS.filter((k) => entity
 
 /** Where an import's file came from, in words: "SAP" only while this edition links with SAP. */
 export function sourceWords(sourceSystem: string, sap: boolean = featureOn('sap')): string {
-  return sap && sourceSystem === 'SAP' ? 'SAP' : 'an old system or spreadsheet';
+  return sap && sourceSystem === 'SAP' ? 'SAP' : sap ? 'an old system or spreadsheet' : 'Zoho, an old system or a spreadsheet';
 }
 
 /** SAP's unit codes (ISO and German) → the words the Store uses. Anything else is kept as written. */
@@ -660,9 +673,11 @@ export function cleanMapping(entity: EntityKey, raw: unknown, columnCount: numbe
 /** What is missing before checking can start (a required field, or no way to find a vehicle's customer). */
 export function mappingProblems(entity: EntityKey, mapping: Mapping): string[] {
   const out: string[] = [];
-  for (const f of ENTITIES[entity].fields) if (f.required && mapping[f.key] == null) out.push(`Choose the column for “${f.label}”.`);
+  // A name from first and last name (Zoho, staff lists), or a company's name alone, stands in for the name column.
+  const nameFromParts = (entity === 'customers' || entity === 'staff') && (mapping.firstName != null || mapping.lastName != null || (entity === 'customers' && mapping.companyName != null));
+  for (const f of ENTITIES[entity].fields) if (f.required && mapping[f.key] == null && !(f.key === 'fullName' && nameFromParts)) out.push(`Choose the column for “${f.label}”.`);
   if (entity === 'stock' && mapping.totalValue == null && mapping.unitCost == null) out.push('Choose the column for the stock value or the unit cost: stock is valued at what it cost.');
-  if (entity === 'invoices' && mapping.customerExternalId == null && mapping.customerPhone == null) out.push('Choose how to find each invoice’s customer: their SAP customer number or phone.');
+  if (entity === 'invoices' && mapping.customerExternalId == null && mapping.customerPhone == null && mapping.customerName == null) out.push('Choose how to find each invoice’s customer: their customer number, phone or name.');
   if (entity === 'openJobs' && mapping.vin == null && mapping.plateNumber == null) out.push('Choose the column for the vehicle’s chassis number (VIN) or plate: an open job card is on a vehicle.');
   if (entity === 'openServices' && mapping.vin == null && mapping.plateNumber == null) out.push('Choose the column for the vehicle’s chassis number (VIN) or plate: a service or a booking is for a vehicle.');
   if (entity === 'warranties' && mapping.vin == null && mapping.plateNumber == null && mapping.partNumber == null) out.push('Choose the column for the vehicle’s chassis number (VIN) or plate, or the part number: a warranty covers a vehicle or a part.');

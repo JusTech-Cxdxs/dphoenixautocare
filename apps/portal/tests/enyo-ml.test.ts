@@ -130,7 +130,7 @@ test('ladder: stored levels are checked against what each capability allows; non
 
 test('uploads: the trainer\'s payload is checked field by field', () => {
   const artifact = fixture<unknown>('complaint_themes.json').artifact;
-  const good = { organisation: 'kewalram-nigeria', task: 'COMPLAINT_THEMES', version: 'complaint-themes-tfidf-kmeans-20261015-abc123', algorithm: 'tfidf-kmeans', metrics: { rows: 600 }, baseline: null, gate: { passed: true, reasons: ['ok'] }, artifact, rows: 600, dataFrom: '2024-01-08', dataTo: '2025-10-01', trainer: 'ejo-ml 0.1.0', trainedAt: '2026-10-15T01:00:00Z' };
+  const good = { organisation: 'dphoenix-autocare', task: 'COMPLAINT_THEMES', version: 'complaint-themes-tfidf-kmeans-20261015-abc123', algorithm: 'tfidf-kmeans', metrics: { rows: 600 }, baseline: null, gate: { passed: true, reasons: ['ok'] }, artifact, rows: 600, dataFrom: '2024-01-08', dataTo: '2025-10-01', trainer: 'ejo-ml 0.1.0', trainedAt: '2026-10-15T01:00:00Z' };
   const now = new Date('2026-10-15T02:00:00Z');
   const up = parseUpload(good, JSON.stringify(good).length, now);
   assert.equal(up.task, 'COMPLAINT_THEMES');

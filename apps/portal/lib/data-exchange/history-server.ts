@@ -126,7 +126,13 @@ function invoiceCustomers(db: Db, job: HistoryJob, checked: { c: ReturnType<type
     ext: checked.map((x) => x.c.values?.customer.externalId?.toUpperCase()).filter((v): v is string => Boolean(v)),
     email: [],
     phone: checked.map((x) => x.c.values?.customer.phone).filter((v): v is string => Boolean(v)),
+    name: checked.map((x) => x.c.values?.customer.name).filter((v): v is string => Boolean(v)),
   });
+}
+
+/** Whose invoice: by number, then phone, then (only when neither is given) a name exactly one customer has. */
+function invoiceOwner(cust: Awaited<ReturnType<typeof invoiceCustomers>>, v: { customer: { externalId: string | null; phone: string | null; name?: string | null } }): string | null {
+  return (v.customer.externalId && cust.ext.get(v.customer.externalId.toUpperCase())) || (v.customer.phone && cust.phone.get(v.customer.phone.slice(-10))) || (!v.customer.externalId && !v.customer.phone && v.customer.name ? cust.name.get(v.customer.name.trim().toLowerCase()) ?? null : null) || null;
 }
 
 // ── Check (nothing live changes) ──────────────────────────────────────
@@ -147,7 +153,7 @@ export async function checkHistoryRows(entity: HistoryEntity, job: HistoryJob, m
       let matchedBy: string | null = null;
       const v = c.values;
       if (v && status !== 'REJECTED') {
-        const owner = (v.customer.externalId && cust.ext.get(v.customer.externalId.toUpperCase())) || (v.customer.phone && cust.phone.get(v.customer.phone.slice(-10))) || null;
+        const owner = invoiceOwner(cust, v);
         if (!owner) { issues.push({ field: 'customer', level: 'error', message: 'The customer was not found. Import the customers file first, or check the customer number.' }); status = 'REJECTED'; }
         else {
           const veh = v.vinKey ? vehicles.get(v.vinKey) : undefined;
@@ -312,7 +318,7 @@ async function loadInvoices(tx: Tx, job: HistoryJob, mapping: Mapping, rows: Loa
   for (const { r, c } of checked) {
     const v = c.values;
     if (!v) { results.push({ id: r.id, status: 'SKIPPED', resultId: null, note: 'Could not be read again when loading.' }); continue; }
-    const owner = (v.customer.externalId && cust.ext.get(v.customer.externalId.toUpperCase())) || (v.customer.phone && cust.phone.get(v.customer.phone.slice(-10))) || null;
+    const owner = invoiceOwner(cust, v);
     if (!owner) { results.push({ id: r.id, status: 'SKIPPED', resultId: null, note: 'The customer is no longer in the system; not loaded.' }); continue; }
     const k = invKey(rangeOf(job, v), v.invoiceNumber);
     const hit = existing.get(k);

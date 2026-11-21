@@ -7,7 +7,7 @@ test('the organisation background is found by slug or name, and nothing is claim
   assert.ok(organisationKnowledge("D'Phoenix Autocare"));
   assert.ok(organisationKnowledge("D'PHOENIX AUTOCARE LIMITED"));
   assert.equal(organisationKnowledge('other-motors'), null);
-  assert.equal(organisationKnowledge('kewalram-nigeria'), null, 'no other organisation\'s background');
+  assert.equal(organisationKnowledge('another-organisation'), null, 'no other organisation\'s background');
   assert.equal(organisationKnowledge(null), null);
 });
 

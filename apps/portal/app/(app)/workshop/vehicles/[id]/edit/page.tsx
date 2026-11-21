@@ -22,6 +22,9 @@ import { getVehicleServiceHealth, getVehicleAnalytics } from '@/lib/actions/vehi
 import { getVehicleReminderHistory } from '@/lib/actions/vehicle-service-reminders';
 import { updateVehicleFormAction } from '@/lib/actions/workshop-form-handlers';
 import { sendManualServiceReminderFormAction } from '@/lib/actions/vehicle-service-form-handlers';
+import { WhatsAppLink } from '@/components/WhatsAppLink';
+import { customerWhatsAppUrl, serviceReminderMessage } from '@/lib/whatsapp-messages';
+import { getWorkshopBranchId, workshopContactFor } from '@/lib/workshop-core';
 import { LoadingLink } from '@/components/LoadingLink';
 import { SubmitButton } from '@/components/SubmitButton';
 import { FormPendingOverlay } from '@/components/FormPendingOverlay';
@@ -464,6 +467,15 @@ export default async function VehiclePage({
                     className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] px-3 py-1.5 text-xs font-medium text-[var(--ejo-text)] hover:bg-[var(--ejo-bg)]"
                   />
                 </form>
+              ) : null}
+              {(serviceHealth.status === 'DUE_SOON' || serviceHealth.status === 'OVERDUE') && !serviceHealth.inWorkshop && !serviceHealth.attendedAt ? (
+                // The same reminder on WhatsApp, sent by the colleague from their own phone.
+                <div className="mt-2">
+                  <WhatsAppLink
+                    href={customerWhatsAppUrl(serviceHealth.customer, serviceReminderMessage({ customerName: serviceHealth.customer.name, organisation: serviceHealth.customer.organisation, vehicle: { make: serviceHealth.vehicle.description, plateNumber: serviceHealth.vehicle.plateNumber }, dueOdometer: serviceHealth.nextServiceDueOdometer, dueDate: serviceHealth.nextServiceDueDate, overdue: serviceHealth.status === 'OVERDUE', workshop: await workshopContactFor(await getWorkshopBranchId().catch(() => null)) }))}
+                    testId="service-reminder-whatsapp"
+                  />
+                </div>
               ) : null}
               <div className="mt-3 flex flex-wrap gap-3 text-xs">
                 <LoadingLink href={serviceHealth.serviceHref} className="text-[var(--ejo-primary)] hover:underline">

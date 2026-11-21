@@ -741,11 +741,10 @@ no real person or vehicle in it).
 - Every demo record carries `externalSource = EJO-DEMO`; a reload or a
   removal deletes exactly those records (and what hangs off them: checks,
   issues, station visits, defects, audits, PDI items) and never a record a
-  person made. The demo people on the plant are the demo organisation's
-  own people (`apps/portal/lib/demo/people.ts`: invented names, employee
-  numbers DEMO-AP-001…, addresses on the reserved `demo.kewalram.local`
-  name) — kept by a removal; their sign-ins come from the demo people step
-  ([KEWALRAM_DEMO.md](KEWALRAM_DEMO.md)), never from the plant demo itself.
+  person made. The plant's demo people (`apps/portal/lib/plant/demo/plan.ts`:
+  role names only, employee numbers DEMO-AP-001…, addresses on the
+  reserved `demo.dphoenix.example` name) are kept by a removal. The plant
+  is off in the D'Phoenix edition, so its demo never loads there.
 - The workshop demo's records carry no `externalSource` of their own (job
   cards, services, receipts, warranties, security, scheduling, support…):
   each is listed in **`demo_records`** (model and id) when made, and a
