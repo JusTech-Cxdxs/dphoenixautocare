@@ -3,6 +3,7 @@
  * sentence, worked out from the record's own state (the same order of steps
  * the pages enforce). Pure, so it is unit-tested.
  */
+import { featureOn, moduleIsOn } from '../modules';
 
 export type JobState = {
   kind: 'JC' | 'SV';
@@ -46,7 +47,11 @@ export function nextStep(s: JobState): string {
   if (s.estimateStatus === 'MANAGER_APPROVED' && !s.customerNotified) return 'The front desk sends the approved estimate to the customer ("Notify customer").';
   const deposit = r2(s.total * s.depositFraction);
   if (s.status === 'AWAITING_CUSTOMER_APPROVAL' && s.paid < deposit - 0.004) return `Waiting for the customer's deposit: ${naira(deposit)} (${Math.round(s.depositFraction * 100)}% of ${naira(s.total)}); ${naira(s.paid)} paid so far.`;
-  if (s.status === 'AWAITING_PARTS') return 'Waiting for parts (Store release or an outside purchase).';
+  // The Store and outside purchases are switched off in some editions (lib/modules.ts).
+  if (s.status === 'AWAITING_PARTS') {
+    const how = [moduleIsOn('inventory') ? 'Store release' : null, featureOn('externalProcurement') ? 'an outside purchase' : null].filter(Boolean);
+    return how.length ? `Waiting for parts (${how.join(' or ')}).` : 'Waiting for parts.';
+  }
   if (s.status === 'QUALITY_CHECK') return 'In quality check: the supervisor confirms the work.';
   return 'Work in progress with the technician.';
 }

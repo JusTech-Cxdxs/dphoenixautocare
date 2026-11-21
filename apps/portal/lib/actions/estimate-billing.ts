@@ -5,14 +5,19 @@ import { prisma } from '@ejo/database';
 import { requireUser } from './workshop';
 import { writeAuditLog } from '@/lib/workshop-core';
 import { getWarrantyRoles } from './warranty';
-import { authorizeOnJobCard, seeJobCard } from '@/lib/authz/server';
+import { allows, authorizeOnJobCard, seeJobCard } from '@/lib/authz/server';
 import { warrantyCoverage } from '@/lib/warranty-state';
 import { BILL_TO_LABEL, billingSplit, type BillTo } from '@/lib/estimate-billing';
+import { moduleIsOn } from '@/lib/modules';
 
 class BillingError extends Error {}
 
 const BILL_TOS: BillTo[] = ['CUSTOMER', 'WARRANTY', 'GOODWILL', 'INTERNAL'];
 const CLOSED = ['CHECKED_OUT', 'CANCELLED'];
+
+// Who decides who pays: the Warranty HOD or a Branch Manager while Warranty
+// is on; with Warranty switched off, the Manager (final approval of estimates).
+const WHO_PAYS_KEY = () => (moduleIsOn('warranty') ? 'warranty.claim.approve' : 'workshop.estimate.final_approve') as 'warranty.claim.approve' | 'workshop.estimate.final_approve';
 
 /** Warranties that can cover work on this Job Card's vehicle right now:
  * active and still covering (by date and odometer). */
@@ -35,7 +40,7 @@ export async function getJobCardBilling(jobCardId: string) {
   const jc = await prisma.jobCard.findUnique({
     where: { id: jobCardId },
     select: {
-      id: true, status: true, vehicleId: true, mileageAtCheckIn: true,
+      id: true, status: true, vehicleId: true, mileageAtCheckIn: true, branchId: true,
       payments: { select: { amount: true } },
       refunds: { select: { amount: true } },
       estimate: {
@@ -49,7 +54,12 @@ export async function getJobCardBilling(jobCardId: string) {
     },
   });
   if (!jc) return null;
-  const [warranties, roles] = await Promise.all([eligibleWarranties(jc.vehicleId, jc.mileageAtCheckIn), getWarrantyRoles()]);
+  // With Warranty switched off no warranty is offered to cover a line.
+  const warrantyOn = moduleIsOn('warranty');
+  const [warranties, canDecide] = await Promise.all([
+    warrantyOn ? eligibleWarranties(jc.vehicleId, jc.mileageAtCheckIn) : Promise.resolve([]),
+    warrantyOn ? getWarrantyRoles().then((r) => r.canApprove) : allows(WHO_PAYS_KEY(), { branchId: jc.branchId }),
+  ]);
   const lines = jc.estimate?.lineItems ?? [];
   const split = billingSplit(lines);
   const paid = jc.payments.reduce((s: number, p: { amount: unknown }) => s + Number(p.amount), 0) - jc.refunds.reduce((s: number, r: { amount: unknown }) => s + Number(r.amount), 0);
@@ -59,7 +69,7 @@ export async function getJobCardBilling(jobCardId: string) {
     netPaid: Math.round(paid * 100) / 100,
     overpaid: Math.max(0, Math.round((paid - split.customer) * 100) / 100),
     warranties: warranties.map((w: (typeof warranties)[number]) => ({ id: w.id, warrantyNumber: w.warrantyNumber, kind: w.kind, subject: w.subjectDescription, provider: w.provider.name })),
-    canEdit: roles.canApprove && !CLOSED.includes(jc.status),
+    canEdit: canDecide && !CLOSED.includes(jc.status),
     isClosed: CLOSED.includes(jc.status),
   };
 }
@@ -72,9 +82,10 @@ export async function getJobCardBilling(jobCardId: string) {
  */
 export async function setEstimateLineBillTo(lineId: string, billTo: BillTo, warrantyId: string | null, note: string): Promise<void> {
   const user = await requireUser();
-  const roles = await getWarrantyRoles();
-  if (!roles.canApprove) throw new BillingError('Only the Warranty HOD or a Branch Manager can decide who pays for a line.');
+  if (moduleIsOn('warranty') && !(await getWarrantyRoles()).canApprove) throw new BillingError('Only the Warranty HOD or a Branch Manager can decide who pays for a line.');
   if (!BILL_TOS.includes(billTo)) throw new BillingError('Choose who pays for this line.');
+  // Warranty switched off: Customer, Goodwill or Internal only.
+  if (billTo === 'WARRANTY' && !moduleIsOn('warranty')) throw new BillingError('Warranty is not used here. Choose Customer, Goodwill or Internal.');
   const why = note.trim();
   const line = await prisma.estimateLineItem.findUnique({
     where: { id: lineId },
@@ -84,7 +95,7 @@ export async function setEstimateLineBillTo(lineId: string, billTo: BillTo, warr
   const jc = line.estimate.jobCard;
   if (CLOSED.includes(jc.status)) throw new BillingError('This Job Card is closed — who pays can no longer change.');
   // The Job Card must also be within this person's reach (its branch).
-  await authorizeOnJobCard('warranty.claim.approve', jc.id, 'setEstimateLineBillTo');
+  await authorizeOnJobCard(WHO_PAYS_KEY(), jc.id, 'setEstimateLineBillTo');
   let coveringWarrantyId: string | null = null;
   let warrantyNumber: string | null = null;
   if (billTo === 'WARRANTY') {
@@ -123,6 +134,7 @@ export async function setEstimateLineBillTo(lineId: string, billTo: BillTo, warr
  * split into parts / labour / other for the claim form. */
 export async function getCoveredAmountsForClaim(jobCardId: string, warrantyId: string): Promise<{ parts: number; labour: number; other: number; lines: string[] } | null> {
   await requireUser();
+  if (!moduleIsOn('warranty')) return null;
   await authorizeOnJobCard('warranty.manage', jobCardId, 'getCoveredAmountsForClaim');
   const lines = await prisma.estimateLineItem.findMany({
     where: { estimate: { jobCardId }, billTo: 'WARRANTY', coveringWarrantyId: warrantyId },

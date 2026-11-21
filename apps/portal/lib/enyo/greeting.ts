@@ -3,6 +3,12 @@
  * questions by role, and the person's first name. No browser or server APIs,
  * so they are unit-tested directly.
  */
+import { moduleIsOn } from '../modules';
+
+// The Store and Warranty are switched off in some editions (lib/modules.ts): no question about them is offered then.
+const STORE_ON = moduleIsOn('inventory');
+const WARRANTY_ON = moduleIsOn('warranty');
+const PARTS_Q = (what: string) => (STORE_ON ? `Are the parts on this ${what} in stock?` : `What parts did similar jobs need?`);
 
 /** The hour (0–23) in Lagos for a moment. */
 export function lagosHour(at: Date): number {
@@ -44,17 +50,19 @@ export function greetingText(opts: { name: string; hour: number; approvals: numb
  * the list. Every one is something Enyo's tools can actually answer.
  */
 const PAGE_PROMPTS: [RegExp, string[]][] = [
-  [/^\/workshop\/job-cards\/[^/]+$/, ['Summarise this Job Card and what happens next', 'Are the parts on this job in stock?', 'When is this vehicle likely to be ready?']],
-  [/^\/workshop\/vehicle-service\/[^/]+$/, ['Summarise this service and what happens next', 'Are the parts on this service in stock?', 'When is this vehicle likely to be ready?']],
+  [/^\/workshop\/job-cards\/[^/]+$/, ['Summarise this Job Card and what happens next', PARTS_Q('job'), 'When is this vehicle likely to be ready?']],
+  [/^\/workshop\/vehicle-service\/[^/]+$/, ['Summarise this service and what happens next', PARTS_Q('service'), 'When is this vehicle likely to be ready?']],
   [/^\/workshop/, ['Which jobs are waiting on approval or parts?', 'How do I open a Job Card?']],
-  [/^\/inventory\/reorder/, ['Which parts should we reorder first, and why?', 'Explain how the reorder quantity is worked out']],
-  [/^\/inventory/, ['Which parts are out of stock or below their reorder point?', 'Is a brake pad set in stock at my branch?']],
+  ...(STORE_ON ? [
+    [/^\/inventory\/reorder/, ['Which parts should we reorder first, and why?', 'Explain how the reorder quantity is worked out']],
+    [/^\/inventory/, ['Which parts are out of stock or below their reorder point?', 'Is a brake pad set in stock at my branch?']],
+  ] as [RegExp, string[]][] : []),
   [/^\/(analytics|dashboard)/, ['How is this month going compared with last month?', 'Brief me on my day']],
   [/^\/mail/, ['Anything important in my email?', 'Which emails still need a reply from me?']],
   [/^\/reminders/, ['What is due for me this week?', 'Remind me tomorrow at 9 am to follow up on approvals']],
   [/^\/approvals/, ['Which approvals have waited longest?', 'How do I approve or return a request?']],
   [/^\/(crm|support)/, ['How do I log a customer complaint?', 'Which customers are due a service soon?']],
-  [/^\/warranty/, ['Which warranty claims need attention?', 'How do I raise a warranty claim?']],
+  ...(WARRANTY_ON ? [[/^\/warranty/, ['Which warranty claims need attention?', 'How do I raise a warranty claim?']] as [RegExp, string[]]] : []),
   [/^\/security/, ['Which visitors are expected today?', 'How do I check a visitor in?']],
   [/^\/(users|roles|permissions|settings|organisation|branches|structure)/, ['How do I add a user and give them a role?', 'What can each role see and do?']],
   [/^\/enyo/, ['How do Enyo\'s models learn, and who decides what is used?', 'What does Shadow mode mean?']],
@@ -64,7 +72,7 @@ const PAGE_PROMPTS: [RegExp, string[]][] = [
 function rolePrompts(roleName: string): string[] {
   const r = roleName.toLowerCase();
   const out: string[] = [];
-  if (/store|inventory|parts|procure/.test(r)) out.push('Which parts are out of stock or below their reorder point?', 'What should we reorder this week?');
+  if (STORE_ON && /store|inventory|parts|procure/.test(r)) out.push('Which parts are out of stock or below their reorder point?', 'What should we reorder this week?');
   if (/workshop|front ?desk|reception|supervisor|technician|service|department head|branch/.test(r)) out.push('Which jobs are waiting on approval or parts?', 'How do I open a Job Card?');
   if (/finance|account|cashier/.test(r)) out.push("Today's takings", 'How is this month going compared with last month?');
   if (/manager|admin|director|owner/.test(r)) out.push('How is this month going compared with last month?', 'What do customers come in for most?');

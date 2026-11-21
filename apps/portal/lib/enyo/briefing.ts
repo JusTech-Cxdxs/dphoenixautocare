@@ -3,9 +3,10 @@ import { prisma } from '@ejo/database';
 import { LlmError, lagosNow, stream, type ChatMessage, type EnyoEvent, type LlmConfig, type Source, type ToolResult, type Usage } from '@ejo/enyo';
 import { getPrincipal } from '@/lib/authz/server';
 import { scopeFor } from '@/lib/authz/catalogue';
+import { featureOn } from '@/lib/modules';
 import { staffTools } from './tools';
 import type { StaffCtx, StaffTool } from './types';
-import { isBriefingRequest, packToText, renderBriefing, type BriefingPack, type Section } from './briefing-core';
+import { packToText, renderBriefing, type BriefingPack, type Section } from './briefing-core';
 
 export { isBriefingRequest } from './briefing-core';
 
@@ -61,7 +62,8 @@ async function websiteLeads(ctx: StaffCtx): Promise<unknown> {
   const since = new Date(Date.now() - 7 * 86_400_000);
   const [tickets, stories] = await Promise.all([
     prisma.supportTicket.findMany({ where: { organisationId: ctx.organisationId, channel: 'WEBSITE', createdAt: { gte: since } }, select: { tags: true, status: true }, take: 500 }),
-    prisma.newsPost.findMany({ where: { organisationId: ctx.organisationId, status: 'PUBLISHED' }, orderBy: { publishedAt: 'desc' }, take: 1, select: { title: true, publishedAt: true } }).catch(() => []),
+    // News & media is switched off in some editions (lib/modules.ts): no story is read then.
+    featureOn('news') ? prisma.newsPost.findMany({ where: { organisationId: ctx.organisationId, status: 'PUBLISHED' }, orderBy: { publishedAt: 'desc' }, take: 1, select: { title: true, publishedAt: true } }).catch(() => []) : Promise.resolve([]),
   ]);
   const by: Record<string, number> = {};
   for (const t of tickets) {

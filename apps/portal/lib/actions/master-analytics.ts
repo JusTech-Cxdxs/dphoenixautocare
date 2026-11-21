@@ -5,6 +5,7 @@ import { requireUser } from './workshop';
 import { allows, orgWhere, reachWhere } from '@/lib/authz/server';
 import { computeMasterAnalytics, type Job } from '@/lib/master-analytics';
 import { lagosYmd } from '@/lib/nigeria-calendar';
+import { featureOn, moduleIsOn } from '@/lib/modules';
 
 const num = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
 
@@ -52,6 +53,11 @@ export async function getMasterAnalytics(periodKey?: string, custom?: { from?: s
   const viaJob = reach.branchId ? { OR: [{ jobCard: reach }, { vehicleService: reach }] } : {};
   // Claims belong to the organisation through their customer (a claim need not have a job).
   const claimsMine = reach.branchId && typeof reach.branchId === 'string' ? viaJob : { customer: await orgWhere() };
+  // Store (goods receipts, parts issued), outside purchases (EPR) and warranty
+  // settlements only where they are part of this edition (lib/modules.ts):
+  // otherwise not queried, and the parts cost is said plainly to be not tracked.
+  const storeOn = moduleIsOn('inventory'), eprOn = featureOn('externalProcurement'), warrantyOn = moduleIsOn('warranty');
+  const partsCostNote = eprOn ? null : storeOn ? 'Outside parts cost not tracked' : 'Parts cost not tracked';
 
   const [jcs, svs, grn, claims] = await Promise.all([
     prisma.jobCard.findMany({
@@ -62,8 +68,8 @@ export async function getMasterAnalytics(periodKey?: string, custom?: { from?: s
       where: { ...reach, OR: [{ createdAt: { gte: since } }, { status: { notIn: ['COLLECTED', 'CANCELLED', 'ESCALATED'] } }, { collectedAt: { gte: since } }, { completedAt: { gte: since } }, { closedAt: { gte: since } }, { payments: { some: { recordedAt: { gte: since } } } }, { refunds: { some: { recordedAt: { gte: since } } } }] },
       select: { id: true, serviceNumber: true, status: true, createdAt: true, checkedInAt: true, completedAt: true, collectedAt: true, closedAt: true, cancelledAt: true, customerId: true, customer: { select: { fullName: true } }, serviceEstimate: { select: { lineItems: { select: { type: true, amount: true } } } }, payments: { select: { amount: true, recordedAt: true } }, refunds: { select: { amount: true, recordedAt: true } } },
     }),
-    prisma.goodsReceiptLine.findMany({ where: { goodsReceipt: { ...reach, receivedAt: { gte: since } } }, select: { totalCost: true, goodsReceipt: { select: { receivedAt: true } } } }),
-    prisma.warrantyClaim.findMany({ where: { ...claimsMine, settledAt: { gte: since } }, select: { settledAt: true, settledAmount: true } }),
+    storeOn ? prisma.goodsReceiptLine.findMany({ where: { goodsReceipt: { ...reach, receivedAt: { gte: since } } }, select: { totalCost: true, goodsReceipt: { select: { receivedAt: true } } } }) : [],
+    warrantyOn ? prisma.warrantyClaim.findMany({ where: { ...claimsMine, settledAt: { gte: since } }, select: { settledAt: true, settledAmount: true } }) : [],
   ]);
 
   // Parts and sublet cost of EXACTLY the jobs loaded above — whenever the parts
@@ -73,10 +79,10 @@ export async function getMasterAnalytics(periodKey?: string, custom?: { from?: s
   const svIds = svs.map((v: { id: string }) => v.id);
   const ofLoadedJobs = { OR: [{ jobCardId: { in: jcIds } }, { vehicleServiceId: { in: svIds } }] };
   const [qty, batch, serial, eprs] = jcIds.length + svIds.length === 0 ? [[], [], [], []] as const : await Promise.all([
-    prisma.partQuantityConsumption.findMany({ where: { slipLine: { slip: ofLoadedJobs } }, select: { quantityTaken: true, goodsReceiptLine: { select: { unitCost: true } }, ...SLIP_JOB } }),
-    prisma.partBatchConsumption.findMany({ where: { slipLine: { slip: ofLoadedJobs } }, select: { quantityTaken: true, batch: { select: { goodsReceiptLine: { select: { unitCost: true } } } }, ...SLIP_JOB } }),
-    prisma.partSerial.findMany({ where: { issuedToSlipLine: { slip: ofLoadedJobs } }, select: { goodsReceiptLine: { select: { unitCost: true } }, issuedToSlipLine: { select: { slip: { select: { jobCardId: true, vehicleServiceId: true } } } } } }),
-    prisma.externalProcurementRequest.findMany({ where: { jobCardId: { in: jcIds }, disbursedAmount: { not: null } }, select: { jobCardId: true, disbursedAmount: true } }),
+    storeOn ? prisma.partQuantityConsumption.findMany({ where: { slipLine: { slip: ofLoadedJobs } }, select: { quantityTaken: true, goodsReceiptLine: { select: { unitCost: true } }, ...SLIP_JOB } }) : [],
+    storeOn ? prisma.partBatchConsumption.findMany({ where: { slipLine: { slip: ofLoadedJobs } }, select: { quantityTaken: true, batch: { select: { goodsReceiptLine: { select: { unitCost: true } } } }, ...SLIP_JOB } }) : [],
+    storeOn ? prisma.partSerial.findMany({ where: { issuedToSlipLine: { slip: ofLoadedJobs } }, select: { goodsReceiptLine: { select: { unitCost: true } }, issuedToSlipLine: { select: { slip: { select: { jobCardId: true, vehicleServiceId: true } } } } } }) : [],
+    eprOn ? prisma.externalProcurementRequest.findMany({ where: { jobCardId: { in: jcIds }, disbursedAmount: { not: null } }, select: { jobCardId: true, disbursedAmount: true } }) : [],
   ]);
 
   // Parts cost per job (actual goods-receipt cost), and issues with no cost.
@@ -131,7 +137,7 @@ export async function getMasterAnalytics(periodKey?: string, custom?: { from?: s
     settlements: claims.map((c: (typeof claims)[number]) => ({ at: c.settledAt as Date, amount: num(c.settledAmount) })),
     from, to, now,
   });
-  // Invoices from SAP before EJO 100 (v-A3): read-only history, reported beside EJO's own figures (never mixed into
+  // Invoices from SAP (or, with no SAP link, from the previous system through Data Exchange) before EJO 100 (v-A3): read-only history, reported beside EJO's own figures (never mixed into
   // sales, margins or projections, which are EJO's) and added to the top customers, marked.
   const day = (d: Date) => new Date(`${lagosYmd(d)}T00:00:00.000Z`);
   const prevFrom = new Date(+from - (+to - +from));
@@ -161,5 +167,5 @@ export async function getMasterAnalytics(periodKey?: string, custom?: { from?: s
     }
     topCustomers = [...by.values()].sort((a, b) => b.value - a.value).slice(0, 8);
   }
-  return { ...analytics, diagnostic: { ...analytics.diagnostic, topCustomers }, sapHistory, periodKey: key, periodLabel: label };
+  return { ...analytics, diagnostic: { ...analytics.diagnostic, topCustomers }, sapHistory, partsCostNote, periodKey: key, periodLabel: label };
 }

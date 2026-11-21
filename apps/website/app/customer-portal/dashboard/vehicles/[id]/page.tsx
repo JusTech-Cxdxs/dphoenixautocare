@@ -8,6 +8,7 @@ import { BackLink, Badge, Card, EmptyState, KeyValue, Notice, SectionTitle } fro
 import { ServiceCard } from '@/components/customer/ServiceCard';
 import { Icon } from '@/components/customer/Icon';
 import Link from 'next/link';
+import { moduleOn } from '@/lib/edition';
 
 export const metadata = { title: 'Vehicle' };
 
@@ -21,7 +22,9 @@ export default async function VehiclePage({ params }: { params: Promise<{ id: st
     select: { id: true, make: true, model: true, year: true, plateNumber: true, chassisNumber: true, engineType: true, mileage: true, vehicleType: true, createdAt: true },
   });
   if (!v) notFound();
-  const [items, warranties] = await Promise.all([loadServices(me.id), loadWarranties(me.id)]);
+  // Warranties are read and shown only while the warranty module is on (lib/edition.ts).
+  const warrantyOn = moduleOn('warranty');
+  const [items, warranties] = await Promise.all([loadServices(me.id), warrantyOn ? loadWarranties(me.id) : Promise.resolve([] as Awaited<ReturnType<typeof loadWarranties>>)]);
   const history = items.filter((i) => i.vehicle.id === v.id);
   const mine = warranties.filter((w) => w.vehicle?.id === v.id);
   const next = nextServiceFor(v.id, items);
@@ -71,6 +74,7 @@ export default async function VehiclePage({ params }: { params: Promise<{ id: st
         )}
       </Card>
 
+      {warrantyOn ? (
       <section>
         <SectionTitle icon="shield" title="Warranties" />
         {mine.length ? (
@@ -84,6 +88,7 @@ export default async function VehiclePage({ params }: { params: Promise<{ id: st
           </div>
         ) : <EmptyState icon="shield" title="No warranties on this vehicle" text="Warranties on new parts or work appear here when they’re issued." />}
       </section>
+      ) : null}
 
       <section>
         <SectionTitle icon="wrench" title="Service history" />

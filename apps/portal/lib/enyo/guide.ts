@@ -7,8 +7,13 @@
  *
  * Keep the button names here in step with the pages: Playwright selects by
  * the same names, so they rarely change.
+ *
+ * Edition: an entry marked `module` (the Store, Warranty, the plant) or
+ * `feature` (outside purchases, News & media) is found only while that part
+ * of the platform is switched on (lib/modules.ts). The steps stay in code.
  */
 import { decide, type PermissionKey, type Principal } from '../authz/catalogue';
+import { featureOn, moduleIsOn, type EditionFeature } from '../modules';
 
 export type GuideEntry = {
   id: string;
@@ -25,6 +30,10 @@ export type GuideEntry = {
   does?: PermissionKey[];
   /** Who usually does it, in plain words. */
   who?: string;
+  /** Only while this module is switched on in this edition (lib/modules.ts). */
+  module?: string;
+  /** Only while this part of the platform is switched on in this edition (lib/modules.ts). */
+  feature?: EditionFeature;
 };
 
 const WORKSHOP: PermissionKey[] = ['workshop.view'];
@@ -78,7 +87,8 @@ export const GUIDE: GuideEntry[] = [
     steps: [
       'Open the Job Card and go to the Estimate section.',
       'Under "Add a line", choose the type (Store Part, Labour, Internal Job, outside part or job, Sundry), describe it, enter the quantity and price where you may, and press "Add".',
-      'For Store Part lines, press "Request Store Matching" so the Store matches and prices them.',
+      // Store matching only while the Store is on in this edition.
+      ...(moduleIsOn('inventory') ? ['For Store Part lines, press "Request Store Matching" so the Store matches and prices them.'] : []),
       'When every line is priced, press "Submit for validation". The supervisor then approves it.',
     ],
   },
@@ -148,7 +158,7 @@ export const GUIDE: GuideEntry[] = [
     ],
   },
   {
-    id: 'job-card-parts', title: 'Request parts from the Store for a job', page: '/workshop/parts-requests', needs: WORKSHOP, does: ['sourcing.request'], who: 'The technician or supervisor on the job',
+    id: 'job-card-parts', module: 'inventory', title: 'Request parts from the Store for a job', page: '/workshop/parts-requests', needs: WORKSHOP, does: ['sourcing.request'], who: 'The technician or supervisor on the job',
     keywords: ['parts request', 'prs', 'request parts', 'store parts', 'spare', 'reserve', 'release parts'],
     steps: [
       'Make sure the Store Part lines on the estimate are matched by the Store.',
@@ -158,7 +168,7 @@ export const GUIDE: GuideEntry[] = [
     ],
   },
   {
-    id: 'outside-purchase', title: 'Buy a part or job from outside (external procurement)', page: '/workshop/external-procurement', needs: WORKSHOP, does: ['sourcing.request'], who: 'The technician asks; Finance and the Manager decide',
+    id: 'outside-purchase', feature: 'externalProcurement', title: 'Buy a part or job from outside (external procurement)', page: '/workshop/external-procurement', needs: WORKSHOP, does: ['sourcing.request'], who: 'The technician asks; Finance and the Manager decide',
     keywords: ['outside purchase', 'external procurement', 'epr', 'buy outside', 'sublet', 'cash advance', 'disburse'],
     steps: [
       'Add the outside part or job to the estimate first.',
@@ -176,7 +186,7 @@ export const GUIDE: GuideEntry[] = [
     ],
   },
   {
-    id: 'who-pays', title: 'Charge an estimate line to warranty, goodwill or internal', page: '/workshop/job-cards', needs: WORKSHOP, does: ['warranty.claim.approve'], who: 'The Warranty HOD or the Manager',
+    id: 'who-pays', module: 'warranty', title: 'Charge an estimate line to warranty, goodwill or internal', page: '/workshop/job-cards', needs: WORKSHOP, does: ['warranty.claim.approve'], who: 'The Warranty HOD or the Manager',
     keywords: ['who pays', 'warranty', 'goodwill', 'internal', 'not charged', 'bill to', 'free'],
     steps: [
       'Open the Job Card and find the "Who pays" panel next to the estimate.',
@@ -270,7 +280,7 @@ export const GUIDE: GuideEntry[] = [
   },
   // ── Store and inventory ───────────────────────────────────────────
   {
-    id: 'part-add', title: 'Add a part to the catalogue', page: '/inventory/parts', needs: STORE, does: ['store.parts.manage'], who: 'The Store',
+    id: 'part-add', module: 'inventory', title: 'Add a part to the catalogue', page: '/inventory/parts', needs: STORE, does: ['store.parts.manage'], who: 'The Store',
     keywords: ['add part', 'new part', 'catalogue', 'catalog', 'item', 'stock item'],
     steps: [
       'Go to Inventory → Parts and use "Add a Part".',
@@ -279,7 +289,7 @@ export const GUIDE: GuideEntry[] = [
     ],
   },
   {
-    id: 'part-price', title: 'Set a part\'s selling price or target margin', page: '/inventory/parts', needs: STORE, does: ['store.parts.manage'], who: 'The Store',
+    id: 'part-price', module: 'inventory', title: 'Set a part\'s selling price or target margin', page: '/inventory/parts', needs: STORE, does: ['store.parts.manage'], who: 'The Store',
     keywords: ['price', 'selling price', 'margin', 'markup', 'pricing', 'reorder point', 'safety stock'],
     steps: [
       'Open the part under Inventory → Parts.',
@@ -288,7 +298,7 @@ export const GUIDE: GuideEntry[] = [
     ],
   },
   {
-    id: 'goods-receipt', title: 'Record a goods receipt (delivery into the Store)', page: '/inventory/goods-receipts', needs: ['store.parts.manage', 'store.grn.record', 'analytics.inventory.view', 'warranty.view'], does: ['store.grn.record'], who: 'The Store',
+    id: 'goods-receipt', module: 'inventory', title: 'Record a goods receipt (delivery into the Store)', page: '/inventory/goods-receipts', needs: ['store.parts.manage', 'store.grn.record', 'analytics.inventory.view', 'warranty.view'], does: ['store.grn.record'], who: 'The Store',
     keywords: ['goods receipt', 'grn', 'receive', 'delivery', 'stock in', 'supplier', 'restock'],
     steps: [
       'Go to Inventory → Goods Receipts and open "Record Goods Receipt".',
@@ -297,12 +307,12 @@ export const GUIDE: GuideEntry[] = [
     ],
   },
   {
-    id: 'store-matching', title: 'Match estimate parts to stock (Store matching)', page: '/inventory/estimate-matching', needs: STORE, does: ['store.matching'], who: 'The Store',
+    id: 'store-matching', module: 'inventory', title: 'Match estimate parts to stock (Store matching)', page: '/inventory/estimate-matching', needs: STORE, does: ['store.matching'], who: 'The Store',
     keywords: ['matching', 'match', 'estimate parts', 'store matching', 'unmatched'],
     steps: ['Go to Inventory → Estimate Matching to see estimates waiting on the Store.', 'Open one and press "Match" next to the right part for each line. The line is priced from the part\'s selling price.'],
   },
   {
-    id: 'parts-request-store', title: 'Approve, reserve and release a parts request (Store)', page: '/workshop/parts-requests', needs: WORKSHOP, does: ['store.prs.release'], who: 'The Store',
+    id: 'parts-request-store', module: 'inventory', title: 'Approve, reserve and release a parts request (Store)', page: '/workshop/parts-requests', needs: WORKSHOP, does: ['store.prs.release'], who: 'The Store',
     keywords: ['release', 'reserve', 'parts request', 'prs', 'hand over parts', 'issue parts'],
     steps: [
       'Open the parts request from Approvals or Workshop → Parts Requests.',
@@ -311,18 +321,18 @@ export const GUIDE: GuideEntry[] = [
     ],
   },
   {
-    id: 'pricing-alerts', title: 'Deal with pricing alerts', page: '/inventory/pricing', needs: ['store.parts.manage', 'store.grn.record', 'analytics.inventory.view', 'warranty.view'], does: ['store.parts.manage'], who: 'The Store',
+    id: 'pricing-alerts', module: 'inventory', title: 'Deal with pricing alerts', page: '/inventory/pricing', needs: ['store.parts.manage', 'store.grn.record', 'analytics.inventory.view', 'warranty.view'], does: ['store.parts.manage'], who: 'The Store',
     keywords: ['pricing alert', 'margin', 'loss', 'below cost', 'price alert', 'pricing command'],
     steps: ['Go to Inventory → Pricing Command Center.', 'For each alert press "Sync Price to Target" to reprice, or "Dismiss" with a reason to keep the current price.'],
   },
   {
-    id: 'inventory-analytics', title: 'Read inventory analytics and the reorder planner', page: '/inventory/analytics', needs: ['analytics.inventory.view'],
+    id: 'inventory-analytics', module: 'inventory', title: 'Read inventory analytics and the reorder planner', page: '/inventory/analytics', needs: ['analytics.inventory.view'],
     keywords: ['inventory analytics', 'reorder', 'stock value', 'turnover', 'dead stock', 'overstock', 'gmroi'],
     steps: ['Go to Inventory → Analytics.', '"What to do now" lists parts to reorder and stock that is not moving; the reorder planner shows how much to order.'],
   },
   // ── Warranty ──────────────────────────────────────────────────────
   {
-    id: 'warranty-register', title: 'Register a vehicle warranty', page: '/warranty/register', needs: WARRANTY, does: ['warranty.manage'], who: 'Warranty staff',
+    id: 'warranty-register', module: 'warranty', title: 'Register a vehicle warranty', page: '/warranty/register', needs: WARRANTY, does: ['warranty.manage'], who: 'Warranty staff',
     keywords: ['register warranty', 'vehicle warranty', 'new warranty', 'cover', 'guarantee'],
     steps: [
       'Go to Warranty → Register, find the vehicle by plate or VIN and press "Find".',
@@ -331,7 +341,7 @@ export const GUIDE: GuideEntry[] = [
     ],
   },
   {
-    id: 'warranty-claim', title: 'Make a warranty claim', page: '/warranty/claims', needs: WARRANTY, does: ['warranty.manage'], who: 'Warranty staff, approved by the Warranty HOD and the Manager',
+    id: 'warranty-claim', module: 'warranty', title: 'Make a warranty claim', page: '/warranty/claims', needs: WARRANTY, does: ['warranty.manage'], who: 'Warranty staff, approved by the Warranty HOD and the Manager',
     keywords: ['claim', 'warranty claim', 'wc', 'provider', 'failed part', 'settlement'],
     steps: [
       'Go to Warranty → Claims and start a new claim from the warranty ("Start a warranty claim").',
@@ -340,12 +350,12 @@ export const GUIDE: GuideEntry[] = [
     ],
   },
   {
-    id: 'warranty-policies', title: 'Manage warranty policies and providers', page: '/warranty/policies', needs: WARRANTY, does: ['warranty.claim.approve'], who: 'The Warranty HOD or the Manager',
+    id: 'warranty-policies', module: 'warranty', title: 'Manage warranty policies and providers', page: '/warranty/policies', needs: WARRANTY, does: ['warranty.claim.approve'], who: 'The Warranty HOD or the Manager',
     keywords: ['policy', 'provider', 'warranty policy', 'manufacturer', 'coverage terms'],
     steps: ['Go to Warranty → Policies (or Providers) and use "Add policy" ("Add provider").', 'Removing one needs a request and two approvals ("Request deletion", then "Approve").'],
   },
   {
-    id: 'warranty-analytics', title: 'Read warranty analytics', page: '/warranty/analytics', needs: ['analytics.warranty.view'],
+    id: 'warranty-analytics', module: 'warranty', title: 'Read warranty analytics', page: '/warranty/analytics', needs: ['analytics.warranty.view'],
     keywords: ['warranty analytics', 'expiring', 'claims by provider', 'recovered', 'approval rate'],
     steps: ['Go to Warranty → Analytics for coverage, claims, money recovered and what needs attention.'],
   },
@@ -424,7 +434,7 @@ export const GUIDE: GuideEntry[] = [
   },
   // ── Notifications, broadcasts, approvals ──────────────────────────
   {
-    id: 'news', title: 'Publish news on the website', page: '/news', needs: ['website.news.manage'],
+    id: 'news', feature: 'news', title: 'Publish news on the website', page: '/news', needs: ['website.news.manage'],
     keywords: ['news', 'press release', 'media', 'publish', 'website story', 'milestone', 'announcement for the public', 'blog'],
     steps: [
       'Go to News & media and press "Write a story".',
@@ -551,7 +561,7 @@ export const GUIDE: GuideEntry[] = [
     steps: ['Go to Enyo learning and open "Models" (or go to /enyo/models).', 'Each model shows how it did on the newest jobs against a simple baseline. Press "Use this model" on one marked Ready to use.', 'Set each capability\'s level: Shadow measures it without showing anyone; Assist shows it to people, who still decide. "Retire" stops a model at once.'],
   },
   {
-    id: 'reorder-suggestions', title: 'See which parts to reorder (Enyo)', page: '/inventory/reorder', needs: ['store.view', 'analytics.inventory.view'], who: 'Store staff and managers',
+    id: 'reorder-suggestions', module: 'inventory', title: 'See which parts to reorder (Enyo)', page: '/inventory/reorder', needs: ['store.view', 'analytics.inventory.view'], who: 'Store staff and managers',
     keywords: ['reorder', 'restock', 'order parts', 'running low', 'reorder point', 'demand', 'forecast'],
     steps: ['Go to Inventory → Reorder suggestions (/inventory/reorder).', 'Each part listed is at or below the reorder point learned from its real use, with the next four weeks\' expected use and a suggested quantity.', 'Raise the order the usual way; nothing is ordered for you.'],
   },
@@ -664,8 +674,13 @@ export type GuideHit = { id: string; title: string; href: string; youCanDoThis: 
  * The best matching entries this person can open, plus the titles of
  * matches they can't (so Enyo can say it exists but is someone else's).
  */
+/** Whether an entry belongs to this edition (the Store's, Warranty's and other switched-off areas' steps only while they are on). */
+export function guideInEdition(e: GuideEntry, isOn: (key: string) => boolean = moduleIsOn, has: (f: EditionFeature) => boolean = featureOn): boolean {
+  return (!e.module || isOn(e.module)) && (!e.feature || has(e.feature));
+}
+
 export function searchGuide(q: string, p: Principal, limit = 3): { results: GuideHit[]; notYours: string[] } {
-  const ranked = GUIDE.map((e) => ({ e, s: guideScore(e, q) })).filter((x) => x.s >= 3).sort((a, b) => b.s - a.s);
+  const ranked = GUIDE.filter((e) => guideInEdition(e)).map((e) => ({ e, s: guideScore(e, q) })).filter((x) => x.s >= 3).sort((a, b) => b.s - a.s);
   const results: GuideHit[] = [];
   const notYours: string[] = [];
   for (const { e } of ranked) {

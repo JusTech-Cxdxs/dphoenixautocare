@@ -8,6 +8,7 @@ import { SupportReplyForm } from '@/components/customer/SupportReplyForm';
 import { NewSupportRequestForm } from '@/components/customer/NewSupportRequestForm';
 import { MINIMUM_DEPOSIT_FRACTION } from '@/lib/workshop-payment-constants';
 import { APPROVAL_DEADLINE_WORKING_DAYS, READY_FOR_COLLECTION_GRACE_WORKING_DAYS } from '@/lib/customer-portal/format';
+import { moduleOn } from '@/lib/edition';
 
 export const metadata = { title: 'Help & support' };
 
@@ -17,10 +18,11 @@ const FAQS: { q: string; a: string }[] = [
   { q: 'What does “Waiting for parts” mean?', a: 'We’re waiting for a part to arrive. Nothing is needed from you — work carries on the moment it’s here, and you’ll see the status change.' },
   { q: 'When should I collect my vehicle?', a: `As soon as it’s ready. Please collect within ${READY_FOR_COLLECTION_GRACE_WORKING_DAYS} working days of the ready-for-collection notice — after that, storage charges may apply. Any balance must be settled before collection.` },
   { q: 'Someone else is collecting my vehicle — is that OK?', a: 'Yes. Let your branch know their name in advance; they’ll need to show ID at the gate.' },
+  // Only while the warranty module is on (lib/edition.ts); filtered out below otherwise.
   { q: 'How do warranties work?', a: 'Parts and work that come with a warranty are listed under Warranties with their dates and what they cover. If something covered goes wrong, contact your branch — we handle the claim with the provider for you.' },
   { q: 'I didn’t get an email from you.', a: 'Check your spam or junk folder, and make sure “Email me updates too” is on in Profile & settings. Everything we send also appears here under Notifications.' },
   { q: 'How do I change my name or email?', a: 'Please contact your branch — we confirm these in person to keep your account safe. You can change your phone numbers and addresses yourself in Profile & settings.' },
-];
+].filter((f) => moduleOn('warranty') || f.q !== 'How do warranties work?');
 
 
 /** Who to call, the customer's support requests (with replies), and answers to common questions. */

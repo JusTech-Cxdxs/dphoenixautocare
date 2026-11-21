@@ -5,6 +5,8 @@
  * Items are recognised by the id prefixes their sources give them
  * (lib/actions/dashboard.ts, workflow-actions.ts, security.ts, warranty*.ts).
  */
+import { featureOn, moduleIsOn } from './modules';
+
 export type ApprovalArea = 'Workshop' | 'Store' | 'Money' | 'Warranty' | 'Security' | 'Plant';
 
 const PREFIXES: [string, ApprovalArea][] = [
@@ -46,4 +48,13 @@ export function isApproval(item: { id: string; title: string }): boolean {
   return approvalArea(item) !== null;
 }
 
-export const APPROVAL_AREAS: ApprovalArea[] = ['Workshop', 'Store', 'Money', 'Warranty', 'Security', 'Plant'];
+/** Whether an approval area is part of this edition: Store, Money (outside purchases), Warranty and the plant can be switched off (lib/modules.ts). */
+export function approvalAreaOn(area: ApprovalArea): boolean {
+  if (area === 'Store') return moduleIsOn('inventory');
+  if (area === 'Money') return featureOn('externalProcurement');
+  if (area === 'Warranty') return moduleIsOn('warranty');
+  if (area === 'Plant') return moduleIsOn('plant');
+  return true;
+}
+
+export const APPROVAL_AREAS: ApprovalArea[] = (['Workshop', 'Store', 'Money', 'Warranty', 'Security', 'Plant'] as ApprovalArea[]).filter(approvalAreaOn);

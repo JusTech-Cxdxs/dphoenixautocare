@@ -1,4 +1,4 @@
-import { platformModules } from '../modules';
+import { featureOn, moduleIsOn, platformModules } from '../modules';
 import { branchHostsModule, moduleOfPath } from '../branch-types';
 import { APPROVAL_PERMISSIONS, decide, PAGE_PERMISSIONS, scopeFor, type PermissionKey, type Principal } from './catalogue';
 
@@ -55,7 +55,7 @@ export function navigationFor(p: Principal, view: BranchView = {}): NavItem[] {
   const out: NavItem[] = [];
   const hosted = (key: string, needs: PermissionKey[] | undefined) => moduleInView(p, key, needs ?? [], view);
   for (const m of platformModules) {
-    // Version 1: modules not yet live are not shown to anyone (next version).
+    // Version 1: modules not yet live, and modules this edition switches off (DISABLED), are not shown to anyone.
     if (m.status !== 'LIVE') continue;
     if (m.key === 'dashboard') {
       out.push({ key: m.key, name: m.name, href: m.href, status: m.status });
@@ -68,10 +68,10 @@ export function navigationFor(p: Principal, view: BranchView = {}): NavItem[] {
     if (m.key === 'security') {
       if (can('security.view')) out.push({ key: m.key, name: m.name, href: m.href, status: m.status });
       else {
-        // Not on the Security desk: their own exit passes and visitors, and (Store) the deliveries they receive.
+        // Not on the Security desk: their own exit passes and visitors, and (Store, where this edition has one) the deliveries they receive.
         out.push({ key: 'exit-passes', name: 'My exit passes', href: '/security/exit-passes', status: m.status });
         out.push({ key: 'my-visitors', name: 'My visitors', href: '/security/my-visitors', status: m.status });
-        if (can('store.grn.record')) out.push({ key: 'deliveries', name: 'Deliveries', href: '/security/deliveries', status: m.status });
+        if (moduleIsOn('inventory') && can('store.grn.record')) out.push({ key: 'deliveries', name: 'Deliveries', href: '/security/deliveries', status: m.status });
       }
       continue;
     }
@@ -88,14 +88,14 @@ export function navigationFor(p: Principal, view: BranchView = {}): NavItem[] {
   if (!p.isSuperAdmin) out.push({ key: 'get-help', name: 'Get help', href: '/support/help', status: 'LIVE' });
   // IT: the control room, for those who read the audit trail across the organisation.
   if (p.isSuperAdmin || scopeFor(p, 'audit.view') === 'ALL') out.push({ key: 'it', name: 'IT control room', href: '/it', status: 'LIVE' });
-  // News & media: the communications team publishes to the public website.
-  if (can('website.news.manage')) out.push({ key: 'news', name: 'News & media', href: '/news', status: 'LIVE' });
-  // Data Exchange: those who bring existing records in from SAP and spreadsheets, and those who approve it.
+  // News & media: the communications team publishes to the public website (editions with news, lib/modules.ts).
+  if (featureOn('news') && can('website.news.manage')) out.push({ key: 'news', name: 'News & media', href: '/news', status: 'LIVE' });
+  // Data Exchange: those who bring existing records in from other systems and spreadsheets, and those who approve it.
   if (can('dataexchange.import.run') || can('dataexchange.import.approve')) out.push({ key: 'data-exchange', name: 'Data Exchange', href: '/data-exchange', status: 'LIVE' });
   // Exports: everyone else who may export lists finds their files (Data Exchange shows them to its own people).
   else if (can('dataexchange.export.run')) out.push({ key: 'exports', name: 'Exports', href: '/data-exchange/exports', status: 'LIVE' });
-  // Customers' data requests (NDPA 2023).
-  if (can('privacy.requests.manage')) out.push({ key: 'data-requests', name: 'Data requests', href: '/data-requests', status: 'LIVE' });
+  // Customers' data requests (NDPA 2023), in editions that take them through the portal.
+  if (featureOn('dataRequests') && can('privacy.requests.manage')) out.push({ key: 'data-requests', name: 'Data requests', href: '/data-requests', status: 'LIVE' });
   // The integrity watch: reviewers only.
   if (can('integrity.review')) out.push({ key: 'integrity', name: 'Integrity watch', href: '/integrity', status: 'LIVE' });
   // Assisted sessions: the Branch Assistant starts them; user administrators review them.

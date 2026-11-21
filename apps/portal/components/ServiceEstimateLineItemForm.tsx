@@ -2,13 +2,16 @@
 
 import { addServiceEstimateLineItemFormAction } from '@/lib/actions/vehicle-service-estimate-form-handlers';
 import { EstimateLineAddForm, type PartCategoryWithTypes } from '@/components/EstimateLineAddForm';
+import { moduleIsOn } from '@/lib/modules';
 
+// Store Part lines need the Store: with it switched off (the D'Phoenix Autocare
+// edition) a part goes on an Internal Job line, priced by the supervisor.
 const TYPES = [
   { value: 'STORE_PART', label: 'Store Part' },
   { value: 'INTERNAL_JOB', label: 'Internal Job' },
   { value: 'LABOUR', label: 'Labour' },
   { value: 'SUNDRY', label: 'Sundry' },
-];
+].filter((t) => t.value !== 'STORE_PART' || moduleIsOn('inventory'));
 
 /**
  * Vehicle Service version of EstimateLineItemForm. There are no external

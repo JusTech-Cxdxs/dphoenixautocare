@@ -3,14 +3,15 @@ import { getNotificationSummary, getActivityFeed, getMyBroadcasts, canBroadcast 
 import { NotificationReadToggle, NotificationOpenLink, MarkAllReadButton } from '@/components/NotificationReadToggle';
 import { LoadingLink } from '@/components/LoadingLink';
 import { FormFeedbackBanner } from '@/components/FormFeedbackBanner';
-import { BROADCAST_CATEGORY, AREA_LABEL } from '@/lib/notification-rules';
+import { ACTIVITY_AREAS, BROADCAST_CATEGORY, AREA_LABEL } from '@/lib/notification-rules';
 import { formatDateTime } from '@/lib/utils/format-date';
 import { pluralize } from '@/lib/utils/pluralize';
 import { LiveSearchInput } from '@/components/LiveSearchInput';
 import { EmptyState, HeaderAction, Icon, PageHeader } from '@/components/ui';
 import { ACTION_ICON, AREA_ICON, CATEGORY_ICON, CATEGORY_TILE } from '@/components/ui/notify-icons';
 
-const AREAS = ['WORKSHOP', 'STORE', 'WARRANTY', 'SECURITY', 'SCHEDULING', 'SYSTEM'];
+/** The areas of this edition (lib/notification-rules.ts). */
+const AREAS = ACTIVITY_AREAS;
 
 const PAGE = 25;
 

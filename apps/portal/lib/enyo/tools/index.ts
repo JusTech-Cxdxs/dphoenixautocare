@@ -8,6 +8,10 @@
  * Each area keeps its tools in its own `tools/<area>.ts` file; every file in
  * this folder must be imported here (a unit test checks it).
  *
+ * A tool whose module is switched off in this edition (lib/modules.ts — the
+ * Store, Warranty and the plant in D'Phoenix Autocare) is left out entirely
+ * (lib/enyo/edition.ts).
+ *
  * General knowledge comes from the shared web look-up (Wikipedia, plus a
  * general search engine when a key is set; read only, nothing from the
  * records is sent); ENYO_WEB_LOOKUP=off removes it.
@@ -15,6 +19,7 @@
 import { webLookupEnabled, webLookupTool } from '@ejo/enyo';
 import type { StaffCtx, StaffTool } from '../types';
 import { selectToolNames, slimToolNames } from '../tool-select';
+import { editionDescription, toolOn } from '../edition';
 import { guideTools } from './guide';
 import { workTools } from './work';
 import { recordTools } from './records';
@@ -35,7 +40,7 @@ import { peopleTools } from './people';
 import { websiteTools } from './website';
 
 export function staffTools(): StaffTool[] {
-  return [
+  const all: StaffTool[] = [
     ...guideTools,
     ...workTools,
     ...recordTools,
@@ -56,6 +61,8 @@ export function staffTools(): StaffTool[] {
     ...websiteTools,
     ...(webLookupEnabled() ? [webLookupTool<StaffCtx>()] : []),
   ];
+  // Only the modules switched on in this edition, in this edition's words.
+  return all.filter((t) => toolOn(t.name)).map((t) => ({ ...t, description: editionDescription(t.name, t.description) }));
 }
 
 /**

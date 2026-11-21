@@ -5,6 +5,7 @@ import { AskEnyoButton } from '@/components/enyo/AskEnyoButton';
 import { Icon, SectionCard, StatTile, StatusChip } from '@/components/ui';
 import { formatDateTime } from '@/lib/utils/format-date';
 import { pluralize } from '@/lib/utils/pluralize';
+import { moduleIsOn } from '@/lib/modules';
 
 const naira = (n: number | null | undefined) => (n === null || n === undefined ? '—' : `₦${Math.round(n).toLocaleString('en-NG')}`);
 const age = (h: number | null) => (h === null ? '' : h < 1 ? 'under an hour' : h < 48 ? `${h} h` : `${Math.round(h / 24)} days`);
@@ -16,7 +17,7 @@ const age = (h: number | null) => (h === null ? '' : h < 1 ? 'under an hour' : h
  * it. For directors and managers (analytics.business.view), within their reach.
  */
 export async function LeadershipOverview() {
-  const [p, a, plant] = await Promise.all([getLeadershipPulse(), getMasterAnalytics('this_month').catch(() => null), getPlantPulse().catch(() => null)]);
+  const [p, a, plant] = await Promise.all([getLeadershipPulse(), getMasterAnalytics('this_month').catch(() => null), moduleIsOn('plant') ? getPlantPulse().catch(() => null) : null]);
   const waiting = p.waiting.filter((w) => w.count > 0).sort((x, y) => (y.oldestHours ?? 0) - (x.oldestHours ?? 0));
   const totalWaiting = waiting.reduce((n, w) => n + w.count, 0);
   const stale = waiting.filter((w) => (w.oldestHours ?? 0) >= 48);
@@ -39,7 +40,7 @@ export async function LeadershipOverview() {
       {a ? (
         <div className="ejo-stagger grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
           <StatTile icon="money" label="Sales this month" value={naira(a.current.sales)} delta={a.changes.sales} hint="Work finished, at selling price" href="/analytics" />
-          <StatTile icon="trend-up" label="Gross profit" value={naira(a.current.grossProfit)} delta={a.changes.grossProfit} hint={a.current.grossMargin !== null ? `${a.current.grossMargin}% margin` : undefined} href="/analytics" />
+          <StatTile icon="trend-up" label="Gross profit" value={naira(a.current.grossProfit)} delta={a.changes.grossProfit} hint={a.partsCostNote ?? (a.current.grossMargin !== null ? `${a.current.grossMargin}% margin` : undefined)} href="/analytics" />
           <StatTile icon="receipt" label="Money collected" value={naira(a.current.collections)} delta={a.changes.collections} hint="Payments less refunds" href="/analytics" />
           <StatTile icon="clipboard" label="Jobs finished" value={a.current.jobsCompleted} delta={a.changes.jobsCompleted} hint={a.current.averageJob !== null ? `Average ${naira(a.current.averageJob)}` : undefined} href="/analytics" />
           <StatTile icon="alert" label="Owed on finished jobs" value={naira(a.position.receivables)} hint={pluralize(a.position.receivableJobs, 'job')} tone={a.position.receivables > 0 ? 'warning' : 'brand'} href="/analytics" />
@@ -75,7 +76,8 @@ export async function LeadershipOverview() {
               { label: 'Job Cards in', value: p.workshop.jobCardsIn, href: '/workshop/custody' },
               { label: 'Services in', value: p.workshop.servicesIn, href: '/workshop/vehicle-service-custody' },
               { label: 'Ready to collect', value: p.workshop.ready, href: '/workshop/custody' },
-              { label: 'Waiting for parts', value: p.workshop.awaitingParts, href: '/workshop/parts-requests' },
+              // The parts requests list is the Store's: without it, the jobs themselves.
+              { label: 'Waiting for parts', value: p.workshop.awaitingParts, href: moduleIsOn('inventory') ? '/workshop/parts-requests' : '/workshop/custody' },
               { label: 'Waiting for the customer', value: p.workshop.awaitingCustomer, href: '/workshop/custody' },
             ].map((t) => (
               <LoadingLink key={t.label} href={t.href} className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] p-3 hover:border-[var(--ejo-primary)]/50">

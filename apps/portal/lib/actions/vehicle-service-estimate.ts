@@ -28,6 +28,7 @@ import { MINIMUM_DEPOSIT_FRACTION } from '@/lib/workshop-constants';
 import { scheduleResolution } from '@/lib/enyo/predict/lines';
 import { scheduleDuration } from '@/lib/enyo/ml/models';
 import { customerLinks } from '@/lib/customer-links-core';
+import { moduleIsOn } from '@/lib/modules';
 
 class ServiceEstimateActionError extends Error {}
 
@@ -154,6 +155,11 @@ async function requireServicePricingAuthority(service: { supervisorId: string | 
 export async function addServiceEstimateLineItem(estimateId: string, input: ServiceEstimateLineItemInput): Promise<void> {
   await assertServiceNotEscalated({ estimateId });
   let description = input.description.trim();
+  // Store Part lines need the Store; with the Store switched off (the D'Phoenix
+  // Autocare edition) a part goes on an Internal Job line, priced by the supervisor.
+  if (input.type === 'STORE_PART' && !moduleIsOn('inventory')) {
+    throw new ServiceEstimateActionError('Store Part lines are not used here. Add the part as an Internal Job line and enter its price.');
+  }
   if (input.type !== 'STORE_PART' && !description) {
     throw new ServiceEstimateActionError('A description is required for this line item.');
   }
@@ -235,6 +241,8 @@ export async function addServiceEstimateLineItem(estimateId: string, input: Serv
 export async function serviceEstimateHasUnmatchedStoreParts(vehicleServiceId: string): Promise<boolean> {
   await requireUser();
   await seeService(vehicleServiceId, 'serviceEstimateHasUnmatchedStoreParts');
+  // With the Store switched off nothing waits on Store matching.
+  if (!moduleIsOn('inventory')) return false;
   const remaining = await prisma.serviceEstimateLineItem.count({
     where: { estimate: { vehicleServiceId }, type: 'STORE_PART', matchedPartId: null },
   });
@@ -611,8 +619,9 @@ export async function approveServiceEstimate(estimateId: string): Promise<void> 
     throw new ServiceEstimateActionError('Only a submitted estimate can be approved.');
   }
   // Re-check at approval: a Store Part line may have been added since
-  // submission, and nothing goes to a Manager unmatched.
-  const unmatchedStoreParts = estimate.lineItems.filter((li: { type: string; matchedPartId: string | null }) => li.type === 'STORE_PART' && !li.matchedPartId);
+  // submission, and nothing goes to a Manager unmatched. With the Store
+  // switched off nothing waits on it.
+  const unmatchedStoreParts = estimate.lineItems.filter((li: { type: string; matchedPartId: string | null }) => moduleIsOn('inventory') && li.type === 'STORE_PART' && !li.matchedPartId);
   if (unmatchedStoreParts.length > 0) {
     throw new ServiceEstimateActionError(
       `${pluralize(unmatchedStoreParts.length, 'Store Part line')} still ${unmatchedStoreParts.length === 1 ? 'needs' : 'need'} to be matched by Store before this estimate can be approved.`,
@@ -1062,6 +1071,8 @@ async function sendServiceStoreMatchingCompleteNotification(
  * waiting lines.
  */
 export async function requestServiceEstimateStoreMatching(vehicleServiceId: string, note?: string): Promise<void> {
+  // No Store to ask when the Store is switched off.
+  if (!moduleIsOn('inventory')) throw new ServiceEstimateActionError('The Store is not used here, so there is nothing to match.');
   await assertServiceNotEscalated({ vehicleServiceId });
   const service = await prisma.vehicleService.findUnique({
     where: { id: vehicleServiceId },

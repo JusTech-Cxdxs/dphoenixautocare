@@ -6,6 +6,7 @@ import { ticketReachWhere } from '@/lib/support-rules';
 import { requireUser } from './workshop';
 import { lagosYmd } from '@/lib/nigeria-calendar';
 import { fenceStaffHelp } from '@/lib/support/reach';
+import { isOffPermission } from '@/lib/edition';
 
 /**
  * The personal side of the dashboard: the jobs this person is working on,
@@ -104,9 +105,11 @@ export async function getMyJobs(): Promise<MyJob[]> {
 export async function getMyNumbers(): Promise<MyNumber[]> {
   const user = await requireUser();
   const since = monthStart();
+  // A permission of an area switched off in this edition (Store, outside purchases, Warranty) shows no tile and runs no count.
+  const on = (k: Parameters<typeof allows>[0]) => (isOffPermission(k) ? Promise.resolve(false) : allows(k));
   const [canWork, canSupervise, canSource, frontDesk, closes, release, payments, eprReview, warranty, gate] = await Promise.all([
-    allows('workshop.job.work'), allows('workshop.job.supervise'), allows('sourcing.request'), allows('workshop.job_card.create'), allows('workshop.close.approve'),
-    allows('store.prs.release'), allows('workshop.payment.record'), allows('procurement.epr.review'), allows('warranty.manage'), allows('security.gate.operate'),
+    on('workshop.job.work'), on('workshop.job.supervise'), on('sourcing.request'), on('workshop.job_card.create'), on('workshop.close.approve'),
+    on('store.prs.release'), on('workshop.payment.record'), on('procurement.epr.review'), on('warranty.manage'), on('security.gate.operate'),
   ]);
   const [work, store, desk, mine] = await Promise.all([reachWhere('workshop.job_card.view', { lens: false }), reachWhere('store.view', { lens: false }), reachWhere('security.view', { lens: false }), reachWhere('security.exit_pass.request', { lens: false })]);
   const n = (p: Promise<number>) => p.catch(() => 0);

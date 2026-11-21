@@ -10,6 +10,7 @@ import { PrintOnLoad } from '@/components/print/PrintOnLoad';
 import { pluralize, pluralizeWord } from '@/lib/utils/pluralize';
 import { formatDateTime } from '@/lib/utils/format-date';
 import { visitDurations } from '@/lib/visit-durations';
+import { featureOn, moduleIsOn } from '@/lib/modules';
 
 function formatNaira(amount: number): string {
   return `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -57,7 +58,8 @@ export default async function PrintJobCardPage({
   const isOrgCopy = variant !== 'client';
 
   const [jobCard, organisation] = await Promise.all([getJobCard(id), getOrganisation()]);
-  const issuedWarranties = await listWarrantiesFor({ jobCardId: id });
+  // No warranties section when Warranty is switched off (the D'Phoenix Autocare edition).
+  const issuedWarranties = moduleIsOn('warranty') ? await listWarrantiesFor({ jobCardId: id }) : [];
   if (!jobCard || !organisation) notFound();
   if (jobCard.status !== 'CHECKED_OUT') notFound();
 
@@ -133,13 +135,14 @@ export default async function PrintJobCardPage({
                 value={pluralize(inServiceDuration, 'working day')}
               />
             ) : null}
-            {jobCard.partRequestSlips.length > 0 ? (
+            {/* PRS and EPR references only where the Store / outside-purchase approvals are on. */}
+            {moduleIsOn('inventory') && jobCard.partRequestSlips.length > 0 ? (
               <Field
                 label={pluralize(jobCard.partRequestSlips.length, 'STORE PARTS REQUEST REF', 'STORE PARTS REQUEST REFS')}
                 value={jobCard.partRequestSlips.map((s: (typeof jobCard.partRequestSlips)[number]) => s.referenceNumber).join(', ')}
               />
             ) : null}
-            {jobCard.externalProcurementRequests.length > 0 ? (
+            {featureOn('externalProcurement') && jobCard.externalProcurementRequests.length > 0 ? (
               <Field
                 label={pluralize(jobCard.externalProcurementRequests.length, 'EXTERNAL PROCUREMENT REF', 'EXTERNAL PROCUREMENT REFS')}
                 value={jobCard.externalProcurementRequests.map((r: (typeof jobCard.externalProcurementRequests)[number]) => r.referenceNumber).join(', ')}
@@ -212,7 +215,7 @@ export default async function PrintJobCardPage({
           <tfoot>
             {coveredTotal > 0 ? (
               <tr style={{ color: '#166534' }}>
-                <td style={{ padding: '6px 4px' }} colSpan={isOrgCopy ? 4 : 3}>Covered by warranty / goodwill (not charged)</td>
+                <td style={{ padding: '6px 4px' }} colSpan={isOrgCopy ? 4 : 3}>{moduleIsOn('warranty') ? 'Covered by warranty / goodwill (not charged)' : 'Covered by goodwill / internal (not charged)'}</td>
                 <td style={{ padding: '6px 4px', textAlign: 'right' }}>{formatNaira(coveredTotal)}</td>
               </tr>
             ) : null}
@@ -372,7 +375,7 @@ export default async function PrintJobCardPage({
         </div>
       ) : null}
 
-      <WarrantiesIssuedPrint warranties={issuedWarranties} />
+      {moduleIsOn('warranty') ? <WarrantiesIssuedPrint warranties={issuedWarranties} /> : null}
       <SignatureBlock
         issuerLabel={wasCancelled ? 'Returned By (Workshop)' : 'Released By (Workshop)'}
         issuerName={jobCard.supervisor?.fullName ?? ((jobCard as { technicianAcceptanceStatus?: string | null }).technicianAcceptanceStatus === 'ACCEPTED' ? jobCard.assignedTechnician?.fullName : null) ?? null}

@@ -1,4 +1,5 @@
 import { dayKind, lagosYmd } from '@/lib/nigeria-calendar';
+import { featureOn, moduleIsOn } from '@/lib/modules';
 
 /**
  * Notification rules — plain functions shared by the server, the pages and
@@ -13,6 +14,21 @@ export const AREAS: Record<string, string[]> = {
   SECURITY: ['Visit', 'ExitPass', 'VehicleGateExit', 'RoadTestPermit', 'SecurityIncident', 'GateDelivery', 'ContractorPass'],
   SCHEDULING: ['Appointment', 'MeetingRoom', 'CalendarDelegate'],
 };
+
+/** Areas that belong to a module this edition can switch off (lib/modules.ts): not offered as a filter, nobody follows them. */
+const AREA_MODULE: Record<string, string> = { STORE: 'inventory', WARRANTY: 'warranty' };
+/** Whether an activity area is part of this edition. */
+export function areaShown(area: string): boolean {
+  return !AREA_MODULE[area] || moduleIsOn(AREA_MODULE[area]!);
+}
+
+/** Record types of the modules and features this edition switches off: their pages are not found, so their links open the Audit Logs. */
+function recordIsOff(entityType: string): boolean {
+  if (entityType === 'ExternalProcurementRequest') return !featureOn('externalProcurement');
+  // A delivery at the gate is also Security's (its page stays).
+  if (entityType === 'GateDelivery') return false;
+  return Object.entries(AREA_MODULE).some(([area, mod]) => !moduleIsOn(mod) && AREAS[area]!.includes(entityType));
+}
 
 /** Heads see EVERYTHING in their area; administrators see everything.
  * Everyone else (supervisors and technicians included) hears about the
@@ -46,7 +62,7 @@ export const HIDDEN_ACTIONS = [
 export function entityTypesForRoles(slugs: string[]): string[] | 'ALL' {
   if (slugs.some((s) => ALL_ACTIVITY_ROLES.includes(s))) return 'ALL';
   const types = new Set<string>();
-  for (const s of slugs) for (const area of ROLE_AREAS[s] ?? []) for (const t of AREAS[area] ?? []) types.add(t);
+  for (const s of slugs) for (const area of (ROLE_AREAS[s] ?? []).filter(areaShown)) for (const t of AREAS[area] ?? []) types.add(t);
   return [...types];
 }
 
@@ -91,6 +107,7 @@ export function recordUrl(entityType: string, id: string): string {
     ReminderDelegate: '/reminders',
     MailAccount: '/mail/settings',
   };
+  if (recordIsOff(entityType)) return '/audit-logs';
   return map[entityType] ?? '/audit-logs';
 }
 
@@ -100,6 +117,8 @@ export function areaOf(entityType: string): string {
 }
 
 export const AREA_LABEL: Record<string, string> = { WORKSHOP: 'Workshop', STORE: 'Store', WARRANTY: 'Warranty', SECURITY: 'Security', SCHEDULING: 'Scheduling', SYSTEM: 'System' };
+/** The activity areas people can filter by in this edition (Store and Warranty only where their modules are on). */
+export const ACTIVITY_AREAS: string[] = Object.keys(AREA_LABEL).filter(areaShown);
 
 // ── Broadcasts ──────────────────────────────────────────────────────────
 

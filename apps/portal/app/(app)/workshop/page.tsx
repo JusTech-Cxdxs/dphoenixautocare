@@ -1,8 +1,9 @@
 import { OrgTrail } from '@/components/OrgTrail';
 import { allows } from '@/lib/authz/server';
 import { PageHeader, NavCard, type IconName } from '@/components/ui';
+import { featureOn, moduleIsOn } from '@/lib/modules';
 
-const sections: { name: string; href: string; desc: string; icon: IconName }[] = [
+const allSections: { name: string; href: string; desc: string; icon: IconName }[] = [
   { name: 'Customers', href: '/workshop/customers', icon: 'users', desc: 'Customer records and vehicle ownership history.' },
   { name: 'Vehicles', href: '/workshop/vehicles', icon: 'car', desc: 'Vehicle registry, chassis/VIN, and service history.' },
   { name: 'Job Cards', href: '/workshop/job-cards', icon: 'clipboard', desc: 'Repair jobs, open and past.' },
@@ -14,6 +15,10 @@ const sections: { name: string; href: string; desc: string; icon: IconName }[] =
   { name: 'Parts Requests', href: '/workshop/parts-requests', icon: 'package', desc: 'Parts requested from the Store, from approval to release.' },
   { name: 'External Procurement', href: '/workshop/external-procurement', icon: 'cart', desc: 'Cash advance requests for externally-sourced parts and jobs.' },
 ];
+const sections = allSections.filter(
+  // Parts requests need the Store; external procurement needs its approvals. Off in this edition: no tile.
+  (s) => (s.href !== '/workshop/parts-requests' || moduleIsOn('inventory')) && (s.href !== '/workshop/external-procurement' || featureOn('externalProcurement')),
+);
 
 /** Workshop landing page: links to each workshop area. */
 export default async function WorkshopPage() {

@@ -13,10 +13,14 @@ import { join } from 'node:path';
 import { decide, ROLE_GRANTS, type Principal } from '../lib/authz/catalogue';
 import { hrefInView, moduleInView, navigationFor } from '../lib/authz/navigation';
 import { branchHostsModule, MODULE_AREA, moduleOfPath } from '../lib/branch-types';
+import { moduleIsOn } from '../lib/modules';
 
 const read = (p: string) => readFileSync(join(__dirname, '..', '..', p), 'utf8');
 const who = (roleSlugs: string[], extra: Partial<Principal> = {}): Principal => ({ userId: 'me', isSuperAdmin: false, roleSlugs, branchId: 'b', departmentId: null, ...extra });
 const AREAS = ['workshop', 'inventory', 'warranty', 'plant'];
+// The menu offers only the areas this edition switches on (lib/modules.ts):
+// the branch rules are the same, the expected lists drop what is off.
+const edition = (areas: string[]) => areas.filter((k) => moduleIsOn(k));
 const menu = (roles: string[], view: { ownBranchType?: string | null; lensBranchType?: string | null } = {}, extra: Partial<Principal> = {}) =>
   navigationFor(who(roles, extra), view).map((i) => i.key).filter((k) => AREAS.includes(k));
 
@@ -38,12 +42,12 @@ test('which kind of branch has which area', () => {
 
 test('leadership oversees every branch, whichever branch they are attached to — until they choose one in the branch bar', () => {
   for (const role of ['executive', 'administrator']) {
-    for (const own of ['WORKSHOP', 'ASSEMBLY_PLANT', 'HEAD_OFFICE', 'WAREHOUSE', null]) assert.deepEqual(menu([role], { ownBranchType: own }), AREAS, `${role} attached to ${own}`);
-    assert.deepEqual(menu([role], {}, { branchId: null }), AREAS, `${role} attached to no branch`);
-    assert.deepEqual(menu([role], { ownBranchType: 'WORKSHOP', lensBranchType: 'ASSEMBLY_PLANT' }), ['plant'], `${role} viewing the plant: no Workshop, no Inventory`);
-    assert.deepEqual(menu([role], { ownBranchType: 'ASSEMBLY_PLANT', lensBranchType: 'WORKSHOP' }), ['workshop', 'inventory', 'warranty'], `${role} viewing the workshop: no line`);
-    assert.deepEqual(menu([role], { lensBranchType: 'WAREHOUSE' }), ['inventory'], `${role} viewing a warehouse`);
-    assert.deepEqual(menu([role], { lensBranchType: 'HEAD_OFFICE' }), [], `${role} viewing head office`);
+    for (const own of ['WORKSHOP', 'ASSEMBLY_PLANT', 'HEAD_OFFICE', 'WAREHOUSE', null]) assert.deepEqual(menu([role], { ownBranchType: own }), edition(AREAS), `${role} attached to ${own}`);
+    assert.deepEqual(menu([role], {}, { branchId: null }), edition(AREAS), `${role} attached to no branch`);
+    assert.deepEqual(menu([role], { ownBranchType: 'WORKSHOP', lensBranchType: 'ASSEMBLY_PLANT' }), edition(['plant']), `${role} viewing the plant: no Workshop, no Inventory`);
+    assert.deepEqual(menu([role], { ownBranchType: 'ASSEMBLY_PLANT', lensBranchType: 'WORKSHOP' }), edition(['workshop', 'inventory', 'warranty']), `${role} viewing the workshop: no line`);
+    assert.deepEqual(menu([role], { lensBranchType: 'WAREHOUSE' }), edition(['inventory']), `${role} viewing a warehouse`);
+    assert.deepEqual(menu([role], { lensBranchType: 'HEAD_OFFICE' }), edition([]), `${role} viewing head office`);
     // What they may do never depends on the branch in view.
     for (const k of ['workshop.view', 'store.view', 'warranty.view', 'plant.view'] as const) assert.equal(decide(who([role], { branchId: null }), k).scope, 'ALL', `${role} ${k}`);
   }
@@ -51,12 +55,12 @@ test('leadership oversees every branch, whichever branch they are attached to �
 
 test('someone whose access is to their own branch is offered only what that branch has', () => {
   // A Branch Administrator's role covers every area a branch could have: the branch decides which exist.
-  assert.deepEqual(menu(['branch-administrator'], { ownBranchType: 'ASSEMBLY_PLANT' }), ['plant'], 'at the plant: no Workshop, no Inventory');
-  assert.deepEqual(menu(['branch-administrator'], { ownBranchType: 'WORKSHOP' }), ['workshop', 'inventory', 'warranty'], 'at the workshop: no Assembly plant');
-  assert.deepEqual(menu(['branch-administrator'], { ownBranchType: 'WAREHOUSE' }), ['inventory']);
-  assert.deepEqual(menu(['plant-manager'], { ownBranchType: 'ASSEMBLY_PLANT' }), ['plant'], 'the plant manager is not offered the workshop’s warranties and claims');
+  assert.deepEqual(menu(['branch-administrator'], { ownBranchType: 'ASSEMBLY_PLANT' }), edition(['plant']), 'at the plant: no Workshop, no Inventory');
+  assert.deepEqual(menu(['branch-administrator'], { ownBranchType: 'WORKSHOP' }), edition(['workshop', 'inventory', 'warranty']), 'at the workshop: no Assembly plant');
+  assert.deepEqual(menu(['branch-administrator'], { ownBranchType: 'WAREHOUSE' }), edition(['inventory']));
+  assert.deepEqual(menu(['plant-manager'], { ownBranchType: 'ASSEMBLY_PLANT' }), edition(['plant']), 'the plant manager is not offered the workshop’s warranties and claims');
   assert.deepEqual(menu(['workshop-manager'], { ownBranchType: 'WORKSHOP' }).includes('plant'), false);
-  assert.deepEqual(menu(['store-manager'], { ownBranchType: 'WAREHOUSE' }).includes('inventory'), true);
+  assert.deepEqual(menu(['store-manager'], { ownBranchType: 'WAREHOUSE' }).includes('inventory'), moduleIsOn('inventory'));
   // Areas not tied to a kind of branch are untouched.
   const full = (type: string) => navigationFor(who(['branch-administrator']), { ownBranchType: type }).map((i) => i.key);
   for (const k of ['dashboard', 'crm', 'security', 'analytics', 'users']) assert.ok(full('ASSEMBLY_PLANT').includes(k), `${k} at the plant`);
@@ -98,7 +102,7 @@ test('dashboard tiles and shortcuts never lead into an area the branch in view d
   assert.match(dash, /quickAllowed\[i\] && inView\(q\.href\)/);
   assert.match(dash, /glance\.filter\(\(t\) => inView\(t\.href\)\)/);
   for (const page of ['app/(app)/headquarters/page.tsx', 'app/(app)/headquarters/team/page.tsx']) assert.match(read(page), /await guardOrganisationWide\('analytics\.business\.view'/, page);
-  assert.match(read('lib/authz/server.ts'), /if \(p\.isSuperAdmin \|\| scopeFor\(p, key\) === 'ALL'\) return;/);
+  assert.match(read('lib/authz/server.ts'), /if \(!isOffPermission\(key\) && \(p\.isSuperAdmin \|\| scopeFor\(p, key\) === 'ALL'\)\) return;/);
   const dx = read('lib/actions/data-exchange.ts');
   assert.match(dx, /if \(!\(await allows\('dataexchange\.import\.run', \{ branchId: b\.id \}\)\)\) throw new DataExchangeError\(`You may bring records into your own branch only/, 'an import loads only into a branch the importer may use');
   assert.match(read('lib/actions/leadership.ts'), /const reach = await typedReach\('plant\.view', AREA_BRANCH_TYPES\.plant\);/, 'the plant’s figures on the director’s dashboard are fenced like every plant page');

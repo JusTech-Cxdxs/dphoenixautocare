@@ -32,10 +32,11 @@ test('a new assembly plant gets its departments (stable slugs); other kinds star
   assert.deepEqual(departmentsFor('ASSEMBLY_PLANT').map((d) => d.name), PLANT_DEPARTMENTS.map((d) => d.name));
   assert.deepEqual(departmentsFor('WORKSHOP'), []);
   assert.deepEqual(departmentsFor('SALES'), []);
-  // The seed and the e2e seed create the same departments the code does.
+  // The D'Phoenix edition has no assembly plant: the seed opens one workshop
+  // branch and none of the plant's departments.
   const seed = read('../../packages/database/prisma/seed.ts');
-  for (const d of PLANT_DEPARTMENTS) assert.ok(seed.includes(`'${d.slug}'`), `seed: ${d.slug}`);
-  assert.match(seed, /name: 'Afprint Assembly Plant'[\s\S]*type: 'ASSEMBLY_PLANT',\s*sapPlant: '1100'/);
+  for (const d of PLANT_DEPARTMENTS) assert.ok(!seed.includes(`'${d.slug}'`), `seed: ${d.slug}`);
+  assert.doesNotMatch(seed, /ASSEMBLY_PLANT/);
 });
 
 test('the SQL is additive and the schema carries the kind with a default of WORKSHOP', () => {
@@ -49,7 +50,7 @@ test('the SQL is additive and the schema carries the kind with a default of WORK
   }
   // The D'Phoenix edition has no assembly plant: no deploy script opens one.
   const dir = join(__dirname, '..', '..', '../../scripts/postdeploy');
-  for (const f of readdirSync(dir)) assert.doesNotMatch(readFileSync(resolve(dir, f), 'utf8'), /'ASSEMBLY_PLANT'/, f);
+  for (const f of readdirSync(dir)) assert.doesNotMatch(readFileSync(join(dir, f), 'utf8'), /'ASSEMBLY_PLANT'/, f);
 });
 
 test('wired in: every plant read goes through the typed reach; the workshop anchors only on workshop branches; a new plant needs its SAP plant code', () => {

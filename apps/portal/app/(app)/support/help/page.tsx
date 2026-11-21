@@ -7,6 +7,7 @@ import { AskEnyoButton } from '@/components/enyo/AskEnyoButton';
 import { PageHeader, SectionCard, EmptyState, StatusChip, type Tone } from '@/components/ui';
 import { NewHelpForm } from '@/components/support/HelpForms';
 import { formatRelative } from '@/lib/utils/format-date';
+import { featureOn } from '@/lib/modules';
 
 export const metadata = { title: 'Get help' };
 export const dynamic = 'force-dynamic';
@@ -66,7 +67,8 @@ export default async function GetHelpPage({ searchParams }: { searchParams: Prom
           ) : <EmptyState icon="help" title="No requests yet" compact>When you ask for help, it appears here with every answer.</EmptyState>}
         </SectionCard>
       </div>
-      <p className="mt-6 text-sm text-[var(--ejo-text-muted)]">Seen something that looks wrong — money, parts, access? <Link href="/support/speak-up" className="font-medium text-[var(--ejo-primary)] underline">Speak up</Link> (you can stay anonymous).</p>
+      {/* Speak up only in editions that have it (lib/modules.ts). */}
+      {featureOn('speakUp') ? <p className="mt-6 text-sm text-[var(--ejo-text-muted)]">Seen something that looks wrong — money, parts, access? <Link href="/support/speak-up" className="font-medium text-[var(--ejo-primary)] underline">Speak up</Link> (you can stay anonymous).</p> : null}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { prisma } from '@ejo/database';
 import { getPrincipal } from '@/lib/authz/server';
 import { SENIOR_REQUESTER_SLUGS, nameWithRole } from '@/lib/authz/catalogue';
 import { requireUser, listEligibleManagersForBranch, listEligibleFinanceOfficersForBranch } from './workshop';
+import { featureOn, moduleIsOn } from '@/lib/modules';
 
 /**
  * "Waiting on others": everything this person asked for that is still with
@@ -24,15 +25,17 @@ export async function getMyPending(): Promise<PendingItem[]> {
   const me = await requireUser();
   const p = await getPrincipal();
   const mine = me.id;
+  // Parts requests (Store), outside purchases (EPR) and warranty claims only where this edition has them (lib/modules.ts).
+  const storeOn = moduleIsOn('inventory'), eprOn = featureOn('externalProcurement'), warrantyOn = moduleIsOn('warranty');
   const [jcs, svs, ests, svEsts, prs, eprs, passes, claims, closes, cancels, svCloses, svCancels, tests, help, contractors] = await Promise.all([
     prisma.jobCard.findMany({ where: { createdById: mine, approvalStatus: 'PENDING', status: { notIn: [...JC_CLOSED] } }, take: 30, select: { id: true, jobNumber: true, createdAt: true, branchId: true, supervisor: { select: { id: true, fullName: true } } } }),
     prisma.vehicleService.findMany({ where: { createdById: mine, approvalStatus: 'PENDING', status: { notIn: [...SV_CLOSED] } }, take: 30, select: { id: true, serviceNumber: true, createdAt: true, branchId: true, supervisor: { select: { id: true, fullName: true } } } }),
     prisma.estimate.findMany({ where: { createdById: mine, status: { in: ['SUBMITTED', 'APPROVED'] }, jobCard: { status: { notIn: [...JC_CLOSED] } } }, take: 30, select: { status: true, submittedAt: true, approvedAt: true, updatedAt: true, jobCard: { select: { id: true, jobNumber: true, branchId: true, supervisor: { select: { id: true, fullName: true } } } } } }),
     prisma.serviceEstimate.findMany({ where: { createdById: mine, status: { in: ['SUBMITTED', 'APPROVED'] }, vehicleService: { status: { notIn: [...SV_CLOSED] } } }, take: 30, select: { status: true, submittedAt: true, approvedAt: true, updatedAt: true, vehicleService: { select: { id: true, serviceNumber: true, branchId: true, supervisor: { select: { id: true, fullName: true } } } } } }),
-    prisma.partRequestSlip.findMany({ where: { requestedById: mine, status: { in: ['PENDING_HOD_APPROVAL', 'PENDING_STORE_APPROVAL', 'APPROVED'] } }, take: 30, select: { id: true, referenceNumber: true, status: true, branchId: true, createdAt: true, hodApprovedAt: true, storeApprovedAt: true } }),
-    prisma.externalProcurementRequest.findMany({ where: { requestedById: mine, status: { in: ['PENDING_FINANCE_REVIEW', 'PENDING_MANAGER_APPROVAL', 'APPROVED'] } }, take: 30, select: { id: true, referenceNumber: true, status: true, branchId: true, createdAt: true, financeReviewedAt: true, managerApprovedAt: true } }),
+    storeOn ? prisma.partRequestSlip.findMany({ where: { requestedById: mine, status: { in: ['PENDING_HOD_APPROVAL', 'PENDING_STORE_APPROVAL', 'APPROVED'] } }, take: 30, select: { id: true, referenceNumber: true, status: true, branchId: true, createdAt: true, hodApprovedAt: true, storeApprovedAt: true } }) : [],
+    eprOn ? prisma.externalProcurementRequest.findMany({ where: { requestedById: mine, status: { in: ['PENDING_FINANCE_REVIEW', 'PENDING_MANAGER_APPROVAL', 'APPROVED'] } }, take: 30, select: { id: true, referenceNumber: true, status: true, branchId: true, createdAt: true, financeReviewedAt: true, managerApprovedAt: true } }) : [],
     prisma.exitPass.findMany({ where: { requestedById: mine, status: { in: ['PENDING_HEAD', 'PENDING_MANAGER'] } }, take: 20, select: { id: true, passNumber: true, status: true, branchId: true, createdAt: true, headApprovedAt: true } }),
-    prisma.warrantyClaim.findMany({ where: { createdById: mine, status: { in: ['PENDING_HOD', 'PENDING_MANAGER', 'SUBMITTED'] } }, take: 20, select: { id: true, claimNumber: true, status: true, createdAt: true, reviewRequestedAt: true, submittedAt: true } }),
+    warrantyOn ? prisma.warrantyClaim.findMany({ where: { createdById: mine, status: { in: ['PENDING_HOD', 'PENDING_MANAGER', 'SUBMITTED'] } }, take: 20, select: { id: true, claimNumber: true, status: true, createdAt: true, reviewRequestedAt: true, submittedAt: true } }) : [],
     prisma.closeRequest.findMany({ where: { requestedById: mine, status: 'PENDING' }, take: 20, select: { requestedAt: true, jobCard: { select: { id: true, jobNumber: true, branchId: true } } } }),
     prisma.cancellationRequest.findMany({ where: { requestedById: mine, status: 'PENDING' }, take: 20, select: { requestedAt: true, jobCard: { select: { id: true, jobNumber: true, branchId: true } } } }),
     prisma.vehicleServiceCloseRequest.findMany({ where: { requestedById: mine, status: 'PENDING' }, take: 20, select: { requestedAt: true, vehicleService: { select: { id: true, serviceNumber: true, branchId: true } } } }),

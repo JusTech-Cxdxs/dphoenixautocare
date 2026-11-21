@@ -2,19 +2,23 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { knownPeople, organisationKnowledge } from '../lib/enyo/knowledge';
 
-test('the group background is found by slug or name, and nothing is claimed for an unknown organisation', () => {
-  assert.ok(organisationKnowledge('kewalram-nigeria'));
-  assert.ok(organisationKnowledge('Kewalram Chanrai Group'));
+test('the organisation background is found by slug or name, and nothing is claimed for an unknown organisation', () => {
+  assert.ok(organisationKnowledge('dphoenix-autocare'));
+  assert.ok(organisationKnowledge("D'Phoenix Autocare"));
+  assert.ok(organisationKnowledge("D'PHOENIX AUTOCARE LIMITED"));
   assert.equal(organisationKnowledge('other-motors'), null);
+  assert.equal(organisationKnowledge('kewalram-nigeria'), null, 'no other organisation\'s background');
   assert.equal(organisationKnowledge(null), null);
 });
 
-test('people in the background match by a name or a title word, and carry a public source and no contact details', () => {
-  const k = organisationKnowledge('kewalram-nigeria')!;
-  assert.deepEqual(knownPeople(k, ['mittal']).map((p) => p.name), ['Sudeep Mittal']);
-  assert.deepEqual(knownPeople(k, ['IT', 'automobiles', 'auto']).map((p) => p.name), ['Sudeep Mittal', 'Anil Sahgal']);
-  assert.deepEqual(knownPeople(k, ['it']).map((p) => p.name), []);
-  assert.equal(knownPeople(k, []).length, k.people.length);
-  for (const p of k.people) { assert.ok(p.source); assert.doesNotMatch(`${p.title} ${p.note}`, /@|\+234|\b0[789]\d{9}\b/); }
+test('the background names nobody, carries no prices, and gives only the published contacts', () => {
+  const k = organisationKnowledge('dphoenix-autocare')!;
+  assert.deepEqual(k.people, [], 'no staff or founder names');
+  assert.deepEqual(knownPeople(k, ['manager']), []);
   for (const f of k.facts) assert.doesNotMatch(f, /₦\s?\d/);
+  const all = `${k.summary} ${k.facts.join(' ')}`;
+  assert.match(all, /Restore Life To Your Vehicle/);
+  assert.match(all, /\+234 811 496 6212/);
+  assert.match(all, /Tire Services/);
+  assert.doesNotMatch(all, /Kewalram|Chanrai|Afprint|Isolo/);
 });

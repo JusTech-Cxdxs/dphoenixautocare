@@ -19,6 +19,7 @@ import { harvestPublicConversations } from '@/lib/enyo/conversations';
 import { prisma } from '@ejo/database';
 import { runDemoPulseForAll } from '@/lib/demo/pulse';
 import { runDueExportSchedules } from '@/lib/exports/schedule-server';
+import { moduleIsOn } from '@/lib/modules';
 
 /**
  * Pricing alert digest (scheduled in vercel.json). Reads the alerts that are
@@ -27,6 +28,10 @@ import { runDueExportSchedules } from '@/lib/exports/schedule-server';
  * Goods receipts send their own immediate notification separately.
  *
  * Requires `Authorization: Bearer <CRON_SECRET>`, which Vercel Cron sends.
+ *
+ * In an edition with Inventory off (D'Phoenix Autocare) there are no pricing
+ * alerts, so no digest is sent; everything after it (scheduled exports, the
+ * clean-ups, reminders…) runs as before.
  */
 export async function GET(request: NextRequest) {
   // Scheduled job: any write it makes is journaled as the system.
@@ -36,7 +41,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const groups = await getOpenPricingAlertsForDigest();
+  const groups = moduleIsOn('inventory') ? await getOpenPricingAlertsForDigest() : [];
   const portalUrl = portalBaseUrl();
   const logoUrl = `${portalUrl}/images/logo/email-logo.png`;
 

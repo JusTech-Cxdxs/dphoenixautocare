@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { allows, guardAnyPage } from '@/lib/authz/server';
 import { listImportJobs } from '@/lib/actions/data-exchange';
-import { ENTITIES, ENTITY_KEYS } from '@/lib/data-exchange/fields';
+import { EDITION_ENTITY_KEYS, ENTITIES } from '@/lib/data-exchange/fields';
+import { featureOn, moduleIsOn } from '@/lib/modules';
 import { IMPORT_STEPS, bytesText, importStatus } from '@/lib/data-exchange/status';
 import { StagingSettings } from '@/components/data-exchange/StagingSettings';
 import { formatDateTimeCompact } from '@/lib/utils/format-date';
@@ -13,7 +14,7 @@ export const dynamic = 'force-dynamic';
 
 const nf = (n: number) => n.toLocaleString('en-NG');
 
-/** Data Exchange: bring existing records in from SAP and spreadsheets — checked, approved by a second person, reversible. */
+/** Data Exchange: bring existing records in from SAP and spreadsheets — checked, approved by a second person, reversible. Only the kinds of record and the SAP link this edition switches on (lib/modules.ts). */
 export default async function DataExchangePage({ searchParams }: { searchParams: Promise<{ before?: string }> }) {
   await guardAnyPage(['dataexchange.import.run', 'dataexchange.import.approve'], '/data-exchange');
   const canExport = await allows('dataexchange.export.run');
@@ -21,6 +22,9 @@ export default async function DataExchangePage({ searchParams }: { searchParams:
   const canApprove = await allows('dataexchange.import.approve');
   const { before } = await searchParams;
   const { jobs, canRun, staging, space } = await listImportJobs({ take: 30, before });
+  const sap = featureOn('sap');
+  const what = ['Customers', 'vehicles', ...(moduleIsOn('inventory') ? ['suppliers', 'parts', 'opening stock'] : ['job history', 'open jobs'])];
+  const intro = `${what.slice(0, -1).join(', ')} and ${what.at(-1)} from ${sap ? 'SAP or your spreadsheets' : 'your old system or spreadsheets'}, without retyping.`;
   return (
     <div className="w-full space-y-6 p-4 sm:p-8">
       <PageHeader
@@ -28,8 +32,8 @@ export default async function DataExchangePage({ searchParams }: { searchParams:
         icon="layers"
         eyebrow="Data Exchange"
         title="Bring in existing records"
-        description="Customers, vehicles, suppliers, parts and opening stock from SAP or your spreadsheets, without retyping. Every file is checked first, the department that owns the records approves it, it loads in batches, and it can be undone. Every list in EJO exports to Excel or CSV the same careful way."
-        actions={<><HeaderAction href="/data-exchange/cutover" icon="check-circle" variant="secondary">Cut-over checklist</HeaderAction>{canExport || canApprove ? <HeaderAction href="/data-exchange/sap" icon="match" variant="secondary">Postings for SAP</HeaderAction> : null}{canExport ? <HeaderAction href="/data-exchange/exports" icon="download" variant="secondary">Exports</HeaderAction> : null}{canDocuments ? <HeaderAction href="/data-exchange/documents" icon="file" variant="secondary">Documents in bulk</HeaderAction> : null}</>}
+        description={`${intro} Every file is checked first, the department that owns the records approves it, it loads in batches, and it can be undone. Every list in EJO exports to Excel or CSV the same careful way.`}
+        actions={<><HeaderAction href="/data-exchange/cutover" icon="check-circle" variant="secondary">Cut-over checklist</HeaderAction>{sap && (canExport || canApprove) ? <HeaderAction href="/data-exchange/sap" icon="match" variant="secondary">Postings for SAP</HeaderAction> : null}{canExport ? <HeaderAction href="/data-exchange/exports" icon="download" variant="secondary">Exports</HeaderAction> : null}{canDocuments ? <HeaderAction href="/data-exchange/documents" icon="file" variant="secondary">Documents in bulk</HeaderAction> : null}</>}
       />
 
       <ol className="grid grid-cols-2 gap-2 sm:grid-cols-6">
@@ -42,7 +46,7 @@ export default async function DataExchangePage({ searchParams }: { searchParams:
       </ol>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {ENTITY_KEYS.map((k) => {
+        {EDITION_ENTITY_KEYS.map((k) => {
           const e = ENTITIES[k];
           return (
             <SectionCard key={k} icon={({ staff: 'user', customers: 'users', vehicles: 'car', suppliers: 'truck', parts: 'boxes', stock: 'package', invoices: 'receipt', jobs: 'wrench', openJobs: 'clipboard', openServices: 'calendar', warranties: 'shield-check', claims: 'shield', plantShipments: 'truck', plantVehicles: 'car', plantKits: 'package', plantKitIssues: 'alert', registers: 'clipboard' } as const)[k]} title={e.label} description={e.description}>
@@ -69,7 +73,7 @@ export default async function DataExchangePage({ searchParams }: { searchParams:
       <SectionCard icon="history" title="Imports" description="Newest first. Open one to see its check, approval, load and report." flush
         actions={<span className="flex flex-wrap items-center gap-3"><ExportAction kind="imports" label="Export the list" /><Link href="/data-exchange/timeline" className="text-xs font-medium text-[var(--ejo-primary)] hover:underline">Day by day →</Link></span>}>
         {jobs.length === 0 ? (
-          <div className="p-4"><EmptyState icon="inbox" title="No imports yet" compact>Download a template above, or start with your SAP export: its columns are matched automatically.</EmptyState></div>
+          <div className="p-4"><EmptyState icon="inbox" title="No imports yet" compact>{sap ? 'Download a template above, or start with your SAP export: its columns are matched automatically.' : 'Download a template above, or start with your old system’s export or spreadsheet: common column names are matched automatically.'}</EmptyState></div>
         ) : (
           <ResponsiveTable>
             <table className="w-full text-sm">

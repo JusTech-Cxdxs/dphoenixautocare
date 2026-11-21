@@ -53,6 +53,9 @@ export const EDITION_FEATURES = {
   news: false,
   speakUp: false,
   dataRequests: false,
+  // The public marketing website (store, offers, refer and earn, news): the
+  // website app is the customer portal only in this edition.
+  publicWebsite: false,
 } as const;
 export type EditionFeature = keyof typeof EDITION_FEATURES;
 

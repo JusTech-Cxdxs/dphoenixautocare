@@ -1,4 +1,5 @@
 import { PERMISSIONS, ROLE_GRANTS, ROLE_LABELS, scopeFor, type PermissionKey, type Principal, type Scope } from './catalogue';
+import { permissionShown } from '../edition';
 
 /**
  * A person's access in plain words — exactly what the catalogue grants them
@@ -24,10 +25,13 @@ export function plainLabel(label: string): string {
   return label.split(' — ')[0]!.replace(/\s*\([^)]*\)\s*$/, '').replace(/\bfor themselves\b/, 'for yourself').trim();
 }
 
-export function describeAccess(p: Principal): AccessGroup[] {
+/** `shown`: which permissions this edition describes — those of the areas it
+ * switches off are not (they open nothing; lib/edition.ts). Tests of the
+ * whole catalogue pass `() => true`. */
+export function describeAccess(p: Principal, shown: (key: string) => boolean = permissionShown): AccessGroup[] {
   if (p.isSuperAdmin) return [{ module: 'Platform', lines: [] }];
   const byModule = new Map<string, AccessLine[]>();
-  for (const key of Object.keys(PERMISSIONS) as PermissionKey[]) {
+  for (const key of (Object.keys(PERMISSIONS) as PermissionKey[]).filter((k) => shown(k))) {
     const scope = scopeFor(p, key);
     if (!scope) continue;
     const fromRoles = p.roleSlugs.some((s) => ROLE_GRANTS[s]?.[key]);

@@ -13,6 +13,7 @@ import { PrintOnLoad } from '@/components/print/PrintOnLoad';
 import { pluralize, pluralizeWord } from '@/lib/utils/pluralize';
 import { formatDateTime, formatDateOnly } from '@/lib/utils/format-date';
 import { visitDurations } from '@/lib/visit-durations';
+import { moduleIsOn } from '@/lib/modules';
 
 function formatNaira(amount: number): string {
   return `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -67,7 +68,8 @@ export default async function PrintVehicleServicePage({
     getVehicleServiceSourcingNeeds(id),
     getOrganisation(),
   ]);
-  const issuedWarranties = await listWarrantiesFor({ vehicleServiceId: id });
+  // No warranties section when Warranty is switched off (the D'Phoenix Autocare edition).
+  const issuedWarranties = moduleIsOn('warranty') ? await listWarrantiesFor({ vehicleServiceId: id }) : [];
   if (!service || !organisation) notFound();
   if (service.status !== 'COLLECTED') notFound();
 
@@ -120,7 +122,8 @@ export default async function PrintVehicleServicePage({
             <Field label="WORKSHOP SUPERVISOR" value={service.supervisor?.fullName ?? '—'} />
             <Field label="TOTAL TIME IN CUSTODY" value={pluralize(daysInCustody, 'working day')} />
             {inServiceDuration !== null ? <Field label="IN SERVICE DURATION" value={pluralize(inServiceDuration, 'working day')} /> : null}
-            {sourcing.existingPartRequestSlips.length > 0 ? (
+            {/* PRS references only where the Store is on. */}
+            {moduleIsOn('inventory') && sourcing.existingPartRequestSlips.length > 0 ? (
               <Field
                 label={pluralize(sourcing.existingPartRequestSlips.length, 'STORE PARTS REQUEST REF', 'STORE PARTS REQUEST REFS')}
                 value={sourcing.existingPartRequestSlips.map((s: (typeof sourcing.existingPartRequestSlips)[number]) => s.referenceNumber).join(', ')}
@@ -272,7 +275,7 @@ export default async function PrintVehicleServicePage({
         </div>
       ) : null}
 
-      <WarrantiesIssuedPrint warranties={issuedWarranties} />
+      {moduleIsOn('warranty') ? <WarrantiesIssuedPrint warranties={issuedWarranties} /> : null}
       <SignatureBlock
         issuerLabel="Released By (Workshop)"
         issuerName={service.supervisor?.fullName ?? ((service as { technicianAcceptanceStatus?: string | null }).technicianAcceptanceStatus === 'ACCEPTED' ? service.assignedTechnician?.fullName : null) ?? null}

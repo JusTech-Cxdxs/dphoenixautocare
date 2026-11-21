@@ -11,6 +11,7 @@ import { RoadmapIcon } from './RoadmapIcon';
 import { Icon, MODULE_ICON } from './ui/Icon';
 import { useNotifications } from './NotificationProvider';
 import { isApproval } from '@/lib/approvals';
+import { featureOn } from '@/lib/modules';
 
 /** The menu's sections. A module not listed here goes under "Operations". */
 const GROUPS: { title: string; keys: string[] }[] = [
@@ -118,8 +119,9 @@ export function Sidebar({
           </div>
         ))}
 
-        {/* What is planned next — shown to everyone, so nobody mistakes "not yet" for "never". */}
-        {mini ? (
+        {/* What is planned next — shown to everyone, so nobody mistakes "not yet" for "never".
+            Editions without a roadmap page (lib/modules.ts) leave the section out. */}
+        {!featureOn('roadmap') ? null : mini ? (
           <Link href="/roadmap" title="Coming next — the roadmap" className={`${linkBase} justify-center py-2.5 ${pathname.startsWith('/roadmap') ? 'bg-[var(--ejo-primary)]/10 text-[var(--ejo-primary)]' : 'text-[var(--ejo-text-muted)] hover:bg-[var(--ejo-bg)] hover:text-[var(--ejo-text)]'}`}>
             <Icon name="roadmap" size={20} /><span className="sr-only">Coming next</span>
             <span className="absolute right-3 top-2 h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--ejo-warning)]" aria-hidden="true" />

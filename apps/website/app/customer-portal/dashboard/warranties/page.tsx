@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { requireCustomer } from '@/lib/customer-portal/session';
 import { loadWarranties, type WarrantyItem } from '@/lib/customer-portal/data';
 import { fmtDate } from '@/lib/customer-portal/format';
@@ -6,6 +7,7 @@ import { WARRANTY_STATE_INFO, type WarrantyState } from '@/lib/customer-portal/s
 import { Badge, EmptyState, PageHero, SectionTitle } from '@/components/customer/ui';
 import { Meter } from '@/components/customer/Charts';
 import { Icon } from '@/components/customer/Icon';
+import { moduleOn } from '@/lib/edition';
 
 export const metadata = { title: 'Warranties' };
 
@@ -41,8 +43,9 @@ function WarrantyCard({ w, delay }: { w: WarrantyItem; delay: number }) {
   );
 }
 
-/** The customer's warranties, grouped: expiring soon, active, expired, void. */
+/** The customer's warranties, grouped: expiring soon, active, expired, void. Not found while the warranty module is off (lib/edition.ts). */
 export default async function WarrantiesPage() {
+  if (!moduleOn('warranty')) notFound();
   const me = await requireCustomer();
   const warranties = await loadWarranties(me.id);
   return (

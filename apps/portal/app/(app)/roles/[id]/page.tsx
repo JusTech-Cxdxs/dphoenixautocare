@@ -10,6 +10,7 @@ import { FormFeedbackBanner } from '@/components/FormFeedbackBanner';
 import { LoadingLink } from '@/components/LoadingLink';
 import { EditableSection, PageHeader, SectionCard, StatusChip } from '@/components/ui';
 import { pluralize } from '@/lib/utils/pluralize';
+import { permissionShown } from '@/lib/edition';
 
 export const metadata = { title: 'Role' };
 
@@ -49,7 +50,8 @@ export default async function RolePage({ params, searchParams }: { params: Promi
   const does = r.defaults.filter((k) => !APPROVAL_PERMISSIONS.includes(k));
   const holdsIt = !me.isSuperAdmin && me.roleSlugs.includes(r.slug);
   const here = `/roles/${r.id}`;
-  const addable = (Object.keys(PERMISSIONS) as PermissionKey[]).filter((k) => !r.defaults.includes(k) && !r.added.includes(k));
+  // This edition's permissions only (with Store, Warranty and the plant off, none of theirs).
+  const addable = (Object.keys(PERMISSIONS) as PermissionKey[]).filter((k) => permissionShown(k) && !r.defaults.includes(k) && !r.added.includes(k));
 
   return (
     <div className="w-full max-w-6xl p-4 sm:p-8">

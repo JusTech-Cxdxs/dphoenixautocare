@@ -5,10 +5,14 @@ import { prisma } from '@ejo/database';
 import { writeAuditLog } from '@/lib/workshop-core';
 import { authorize, getPrincipal, inMyOrganisation } from '@/lib/authz/server';
 import { PERMISSIONS, ROLE_GRANTS, scopeFor, type PermissionKey } from '@/lib/authz/catalogue';
+import { permissionShown, roleShown } from '@/lib/edition';
 
 export type RoleForEditor = { id: string; name: string; slug: string; isPlatform: boolean; users: number; defaults: PermissionKey[]; added: PermissionKey[] };
 
-/** Roles of the person's organisation, with default and added permissions. */
+/** Roles of the person's organisation, with default and added permissions —
+ * as this edition shows them: with Store, Warranty and the plant off, their
+ * permissions and the roles that only do that work are left out (the roles
+ * stay in the database and their holders keep them). */
 export async function listRolesForEditor(): Promise<RoleForEditor[]> {
   await authorize('admin.roles.manage', undefined, 'roles.list');
   const me = await prisma.user.findUnique({ where: { id: (await getPrincipal()).userId }, select: { organisationId: true } });
@@ -17,10 +21,10 @@ export async function listRolesForEditor(): Promise<RoleForEditor[]> {
     orderBy: { name: 'asc' },
     select: { id: true, name: true, slug: true, isSuperAdmin: true, _count: { select: { users: true } }, permissions: { select: { permission: { select: { key: true } } } } },
   });
-  return roles.map((r: (typeof roles)[number]) => ({
+  return roles.filter((r: (typeof roles)[number]) => roleShown(r.slug)).map((r: (typeof roles)[number]) => ({
     id: r.id, name: r.name, slug: r.slug, isPlatform: r.isSuperAdmin, users: r._count.users,
-    defaults: Object.keys(ROLE_GRANTS[r.slug] ?? {}) as PermissionKey[],
-    added: r.permissions.map((p: { permission: { key: string } }) => p.permission.key).filter((k: string): k is PermissionKey => k in PERMISSIONS),
+    defaults: (Object.keys(ROLE_GRANTS[r.slug] ?? {}) as PermissionKey[]).filter((k) => permissionShown(k)),
+    added: r.permissions.map((p: { permission: { key: string } }) => p.permission.key).filter((k: string): k is PermissionKey => k in PERMISSIONS && permissionShown(k)),
   }));
 }
 

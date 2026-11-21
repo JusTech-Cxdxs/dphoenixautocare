@@ -49,6 +49,24 @@ export const REFERENCE_TYPES = [
 export type RefPrefix = (typeof REFERENCE_TYPES)[number]['prefix'];
 export const REFERENCE_PREFIXES: RefPrefix[] = REFERENCE_TYPES.map((t) => t.prefix);
 
+/**
+ * Reference types that belong to a module or feature an edition can switch
+ * off (lib/modules.ts). The search leaves them out when theirs is off; the
+ * types stay here so old references in audit logs and texts still read.
+ */
+export const EDITION_PREFIXES: { module?: 'inventory' | 'warranty' | 'plant'; feature?: 'externalProcurement' | 'dataRequests'; prefixes: RefPrefix[] }[] = [
+  { module: 'inventory', prefixes: ['PRS', 'GRN'] },
+  { feature: 'externalProcurement', prefixes: ['EPR'] },
+  { module: 'warranty', prefixes: ['WR', 'WC'] },
+  { module: 'plant', prefixes: ['PDI', 'KIT', 'SHP', 'DEF', 'QAA'] },
+  { feature: 'dataRequests', prefixes: ['DR'] },
+];
+
+/** The same plan without the reference types given (those of switched-off areas). */
+export function withoutPrefixes(plan: SearchPlan, off: RefPrefix[]): SearchPlan {
+  return off.length ? { ...plan, prefixes: plan.prefixes.filter((x) => !off.includes(x)) } : plan;
+}
+
 /** The exact page of a record, by its reference prefix. */
 export function referenceUrl(prefix: RefPrefix, id: string): string {
   return REFERENCE_TYPES.find((t) => t.prefix === prefix)!.path(id);

@@ -20,7 +20,7 @@ export const peopleTools: StaffTool[] = [
     kind: 'read',
     status: 'Looking in the staff directory…',
     description:
-      'The organisation\'s own staff directory: who someone is (role, branch or headquarters, department, work email, active or not), or who holds a role somewhere ("who is the Manager at Isolo", "who are the supervisors", "who is in IT"). Search by part of a name, a role, a branch or a department. Use it FIRST for any "who is <name>" about a colleague; organisation_info has the published leadership list and biographies.',
+      'The organisation\'s own staff directory: who someone is (role, branch or headquarters, department, work email, active or not), or who holds a role somewhere ("who is the Manager at Victoria Island", "who are the supervisors", "who is in IT"). Search by part of a name, a role, a branch or a department. Use it FIRST for any "who is <name>" about a colleague; organisation_info has the published leadership list and biographies.',
     parameters: {
       type: 'object',
       properties: {

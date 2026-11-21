@@ -8,7 +8,9 @@ import { prisma } from '@ejo/database';
 import { asData, buildSystemPrompt, encodeEvent, lagosNow, SSE_HEADERS, type EnyoEvent } from '@ejo/enyo';
 import { currentAssist, getPrincipal, myOrganisationId } from '@/lib/authz/server';
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/lib/authz/catalogue';
+import { featureOn } from '@/lib/modules';
 import { portalBaseUrl } from '@/lib/portal-url';
+import { offAreasHint, referenceHint } from './edition';
 import type { EnyoSettings } from './settings';
 import type { StaffCtx } from './types';
 
@@ -98,10 +100,13 @@ export async function staffSystemPrompt(o: { ctx: StaffCtx; settings: EnyoSettin
   const extra = [
     'Money is in Nigerian naira (₦). Dates and times are Lagos time.',
     'Every tool runs as this person: if a tool refuses, they lack that right — never suggest a way around it.',
-    'Reference numbers look like JC-2026-000412 (Job Card), SV-… (Vehicle Service), PRS-, EPR-, GRN-, RF-, WR-, WC-, VIS-, EP-, VX-, RT-, INC-, DLV-, CTR-, APT-, BC-.',
+    // Only the records and areas of this edition (lib/modules.ts, lib/enyo/edition.ts).
+    referenceHint(),
+    ...(offAreasHint() ? [offAreasHint()] : []),
     'Brief me / what is waiting: use daily_brief and my_pending — first what waits for THEM (decisions, steps), then what they sent that waits on others (say who has it, "Name (Role)"). Link every record number to the page the tool gave, e.g. [JC-2026-000007](/workshop/job-cards/…).',
     '"Who is <name>" about a colleague: staff_directory (role, branch or headquarters); organisation_info for the published leadership.',
-    'The public website (store prices, offers such as Keystone Bank financing, refer and earn, published news): website_content — answer exactly as the website does; prices are indicative and the sales team confirms them. How to do anything in the portal: guide_search, with the steps and the link.',
+    ...(featureOn('publicWebsite') ? [`The public website (store prices, offers, refer and earn${featureOn('news') ? ', published news' : ''}): website_content — answer exactly as the website does; prices are indicative and the sales team confirms them.`] : []),
+    'How to do anything in the portal: guide_search, with the steps and the link.',
     ...(o.workProfile ? [`About this person's work (use it to tailor answers, suggestions and examples to their job; do not recite it): ${o.workProfile}`] : []),
     ...(o.ctx.page ? [`The person has this page open: ${o.ctx.page}. "This job", "this one" or "here" usually means the record on that page (its id is the last part of the path; the tools accept it).`] : []),
     ...(o.examples?.length ? [`Colleagues found these answers helpful for similar questions. Use them as a pattern for a good answer (steps, links, tone); check anything that may have changed with the tools, and answer the person's own question:\n${asData('helpful past answers', o.examples.map((e, i) => `Example ${i + 1}\nQ: ${e.question}\nA: ${e.answer}`).join('\n\n'))}`] : []),

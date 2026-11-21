@@ -14,7 +14,7 @@
  * audit trail (append-only): the latest one counts, and every earlier one
  * stays as history.
  */
-import { ENTITIES, type EntityKey } from './fields';
+import { ENTITIES, entityInEdition, type EntityKey } from './fields';
 import type { BranchType } from '../branch-types';
 
 export type CutoverStep = {
@@ -59,6 +59,11 @@ export const CUTOVER_PLAN: Partial<Record<BranchType, CutoverStep[]>> = {
 };
 
 export const cutoverStepsFor = (type: string | null | undefined): CutoverStep[] => CUTOVER_PLAN[type as BranchType] ?? [];
+
+/** A branch's steps in this edition: only the kinds of record it imports
+ * (lib/data-exchange/fields.ts) — no parts, stock, suppliers, warranties or
+ * plant registers while those are switched off. */
+export const editionCutoverStepsFor = (type: string | null | undefined): CutoverStep[] => cutoverStepsFor(type).filter((s) => entityInEdition(s.entity));
 
 /** Kinds of record that belong to the whole organisation: loaded once, counted on every branch's checklist. */
 export const organisationWide = (e: EntityKey): boolean => !ENTITIES[e].branch;

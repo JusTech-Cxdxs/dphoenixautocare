@@ -27,6 +27,8 @@ import { Suspense } from 'react';
 import { EmptyState, Icon, PageHeader, SectionCard, StatTile, type IconName, type Tone } from '@/components/ui';
 import { ACTION_ICON, CATEGORY_ICON, CATEGORY_TILE } from '@/components/ui/notify-icons';
 import { APPROVAL_PERMISSIONS, type PermissionKey } from '@/lib/authz/catalogue';
+import { isOffPermission, permissionShown } from '@/lib/edition';
+import { featureOn, moduleIsOn } from '@/lib/modules';
 
 /** The shortcuts a person sees — only for what they may do. */
 const QUICK: { key: PermissionKey; label: string; href: string; icon: IconName }[] = [
@@ -43,6 +45,7 @@ const QUICK: { key: PermissionKey; label: string; href: string; icon: IconName }
   { key: 'workshop.job_card.create', label: 'Open a Job Card', href: '/workshop/job-cards', icon: 'clipboard' },
   { key: 'workshop.job_card.create', label: 'Book a service', href: '/workshop/vehicle-service/book', icon: 'droplet' },
   { key: 'workshop.view', label: 'Vehicles in custody', href: '/workshop/custody', icon: 'garage' },
+  // Store and Warranty: shown only where those modules are on (isOffPermission, below).
   { key: 'store.grn.record', label: 'Record goods receipt', href: '/inventory/goods-receipts/new', icon: 'receipt' },
   { key: 'store.view', label: 'Parts catalog', href: '/inventory/parts', icon: 'package' },
   { key: 'warranty.manage', label: 'Start a warranty claim', href: '/warranty/claims/new', icon: 'shield-check' },
@@ -81,11 +84,14 @@ export default async function DashboardPage() {
   // A session that just ended (account switched off) goes to sign-in quietly,
   // like the layout does, instead of a render error.
   const me = await requireUser().catch(() => redirect('/signed-out'));
+  // Shortcuts and approval steps of areas switched off in this edition (Store, Warranty, the plant) are left out (lib/edition.ts).
   const [seesWorkshop, seesMoney, quickAllowed, approverFlags, worksJobs] = await Promise.all([
-    allows('workshop.view'), allows('analytics.business.view'), Promise.all(QUICK.map((q) => allows(q.key))), Promise.all(APPROVAL_PERMISSIONS.map((k) => allows(k))),
+    allows('workshop.view'), allows('analytics.business.view'), Promise.all(QUICK.map((q) => (isOffPermission(q.key) ? false : allows(q.key)))), Promise.all(APPROVAL_PERMISSIONS.filter(permissionShown).map((k) => allows(k))),
     Promise.all([allows('workshop.job.work'), allows('workshop.job.supervise')]).then((xs) => xs.some(Boolean)),
   ]);
   const approver = approverFlags.some(Boolean);
+  // What the approvals card names: only the kinds of decision this edition has.
+  const decisionKinds = ['Estimates', 'closes', moduleIsOn('inventory') && 'parts', featureOn('externalProcurement') && 'purchases', moduleIsOn('warranty') && 'claims'].filter(Boolean).join(', ');
   // Managers and others may look at support for their branch; logging calls is the support team's work.
   const principal = await getPrincipal();
   // A demo organisation gets today's working day the first time anyone looks (after the page is sent; never in its way).
@@ -161,7 +167,7 @@ export default async function DashboardPage() {
           <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${approvals.length ? 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning-text)]' : 'bg-[var(--ejo-success)]/12 text-[var(--ejo-success)]'}`}><Icon name="check-circle" size={20} /></span>
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold text-[var(--ejo-text)]">{approvals.length ? `${pluralize(approvals.length, 'decision')} waiting for your approval` : 'Nothing waiting for your approval'}</span>
-            <span className="block text-xs text-[var(--ejo-text-muted)]">{approvals.length ? 'Estimates, closes, parts, purchases, claims and passes — oldest first.' : 'Requests that need your decision appear here as soon as they reach you.'}</span>
+            <span className="block text-xs text-[var(--ejo-text-muted)]">{approvals.length ? `${decisionKinds} and passes — oldest first.` : 'Requests that need your decision appear here as soon as they reach you.'}</span>
           </span>
           <span className="shrink-0 text-sm font-medium text-[var(--ejo-primary)]">Open Approvals →</span>
         </LoadingLink>
@@ -302,12 +308,13 @@ export default async function DashboardPage() {
             )}
           </SectionCard>
 
-          <LoadingLink href="/roadmap" className="ejo-hero ejo-lift group relative block overflow-hidden rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] p-5 hover:border-[var(--ejo-primary)]/50">
+          {/* The roadmap tile only where the roadmap is part of the edition. */}
+          {featureOn('roadmap') ? <LoadingLink href="/roadmap" className="ejo-hero ejo-lift group relative block overflow-hidden rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] p-5 hover:border-[var(--ejo-primary)]/50">
             <div className="ejo-orb pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-[var(--ejo-primary)]/20 blur-2xl" aria-hidden="true" />
             <p className="relative flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ejo-warning-text)]"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--ejo-warning)]" />Coming next</p>
             <p className="relative mt-2 text-sm font-semibold text-[var(--ejo-text)]">One platform for the whole enterprise</p>
             <p className="relative mt-1 text-xs text-[var(--ejo-text-muted)]">Workshop is live for <OrgTrail upTo="unit" />. See what the next modules will do →</p>
-          </LoadingLink>
+          </LoadingLink> : null}
         </div>
       </div>
     </div>

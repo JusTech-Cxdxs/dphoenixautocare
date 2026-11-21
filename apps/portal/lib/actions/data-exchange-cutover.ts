@@ -16,7 +16,7 @@ import { writeAuditLog } from '@/lib/workshop-core';
 import { requireUser } from '@/lib/actions/workshop';
 import { ENTITIES, isEntityKey } from '@/lib/data-exchange/fields';
 import { BRANCH_TYPE_WORDS, isBranchType, type BranchType } from '@/lib/branch-types';
-import { cleanCutoverReason, cutoverSnapshot, cutoverStepsFor, cutoverView, organisationWide, CUTOVER_PLAN, type CutoverMark, type CutoverView } from '@/lib/data-exchange/cutover';
+import { cleanCutoverReason, cutoverSnapshot, editionCutoverStepsFor, cutoverView, organisationWide, CUTOVER_PLAN, type CutoverMark, type CutoverView } from '@/lib/data-exchange/cutover';
 
 type Done = { ok: true } | { ok: false; error: string };
 const fail = (error: string): Done => ({ ok: false, error });
@@ -50,7 +50,7 @@ async function marksOf(organisationId: string, branchId: string): Promise<Cutove
 }
 
 async function viewOf(organisationId: string, branch: { id: string; type: string }): Promise<CutoverView> {
-  const steps = cutoverStepsFor(branch.type);
+  const steps = editionCutoverStepsFor(branch.type);
   const orgWide = steps.filter((s) => organisationWide(s.entity)).map((s) => s.entity);
   const mine = steps.filter((s) => !organisationWide(s.entity)).map((s) => s.entity);
   const [jobs, marks] = await Promise.all([
@@ -114,7 +114,7 @@ async function actor(branchId: string, where: string) {
 export async function markCutoverStep(branchId: string, entity: string, notNeeded: boolean, reason?: string): Promise<Done> {
   const a = await actor(branchId, 'markCutoverStep');
   if ('error' in a) return fail(a.error!);
-  if (!isEntityKey(entity) || !cutoverStepsFor(a.b.type).some((s) => s.entity === entity)) return fail('That is not a step of this branch’s cut-over.');
+  if (!isEntityKey(entity) || !editionCutoverStepsFor(a.b.type).some((s) => s.entity === entity)) return fail('That is not a step of this branch’s cut-over.');
   const view = await viewOf(a.organisationId, a.b);
   const step = view.steps.find((s) => s.entity === entity)!;
   if (view.signedOff) return fail('This branch is signed off as cut over. Reopen it first, with a reason.');

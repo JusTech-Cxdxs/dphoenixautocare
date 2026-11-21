@@ -18,6 +18,12 @@ export type QuickInfo = {
   products?: QuickProduct[];
   /** The refer-and-earn rewards, one line each. */
   referral?: string[];
+  /** Without the public website (lib/edition.ts): where "write to us" links, instead of the Contact page. */
+  contactPage?: { label: string; href: string };
+  /** Without the public website: what the greeting offers, instead of the store and the businesses. */
+  greetingOffer?: string;
+  /** Without the public website: the name of the address line, instead of "Head office and showroom". */
+  addressLabel?: string;
 };
 export type QuickProduct = { id: string; name: string; brand: string; kind: string; category: string; price: number; listPrice: number; offerLabel?: string; offerUntil?: string; blurb: string };
 
@@ -88,10 +94,10 @@ const OFFERS = /\b(offer|offers|promo|promotion|discount|deal|deals|financing|fi
 function contactText(info: QuickInfo): string {
   const h = info.headOffice;
   const lines = [
-    h.address ? `- **Head office and showroom:** ${h.address}` : null,
+    h.address ? `- **${info.addressLabel ?? 'Head office and showroom'}:** ${h.address}` : null,
     h.phones.length ? `- **Phone:** ${h.phones.slice(0, 3).join(', ')}` : null,
     h.email ? `- **Email:** ${h.email}` : null,
-    '- **Write to us:** [Contact us](/contact) — the right team replies within a working day.',
+    `- **Write to us:** [${info.contactPage?.label ?? 'Contact us'}](${info.contactPage?.href ?? '/contact'}) — the right team replies within a working day.`,
   ].filter(Boolean);
   return lines.join('\n');
 }
@@ -101,7 +107,7 @@ export function quickAnswer(message: string, info: QuickInfo, now: Date = new Da
   const text = message.trim();
   if (isGreeting(text)) {
     const lead = info.offers[0];
-    return `Good ${partOfDay(now)}! I'm ${info.assistantName}, ${info.organisation}'s assistant. I can show you our vehicles, tyres and parts with prices, tell you about our businesses, help you book a service, or have the right person call you back.${lead ? `\n\nThis season: **${lead.title}**${lead.until ? ` (until ${lead.until})` : ''} — [see the offer](${lead.href}).` : ''}\n\nWhat can I do for you?`;
+    return `Good ${partOfDay(now)}! I'm ${info.assistantName}, ${info.organisation}'s assistant. ${info.greetingOffer ?? 'I can show you our vehicles, tyres and parts with prices, tell you about our businesses, help you book a service, or have the right person call you back.'}${lead ? `\n\nThis season: **${lead.title}**${lead.until ? ` (until ${lead.until})` : ''} — [see the offer](${lead.href}).` : ''}\n\nWhat can I do for you?`;
   }
   const name = askedAbout(text);
   if (name) {

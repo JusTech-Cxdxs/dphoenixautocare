@@ -6,6 +6,7 @@
 import { prisma } from '@ejo/database';
 import { readLlmConfig, type LlmConfig } from '@ejo/enyo';
 import { siteConfig } from '@/lib/site-config';
+import { PUBLIC_WEBSITE } from '@/lib/edition';
 
 export type WebsiteEnyoFeature = 'customerAssistant' | 'publicAssistant';
 
@@ -43,7 +44,7 @@ export async function websiteEnyoReady(organisationId: string | null | undefined
 
 /** Calm words for each "not now". Never technical. */
 export function notReadyMessage(reason: 'not_configured' | 'switched_off', mode: 'CUSTOMER' | 'PUBLIC'): string {
-  const reach = mode === 'CUSTOMER' ? 'call or email your branch — their details are under Help & support' : 'call or email us — our details are on the Contact page';
+  const reach = mode === 'CUSTOMER' ? 'call or email your branch — their details are under Help & support' : `call or email us — our details are on the ${PUBLIC_WEBSITE ? 'Contact' : 'Customer support'} page`;
   return reason === 'not_configured'
     ? `The chat assistant is not switched on yet. Please ${reach}.`
     : `The chat assistant is switched off at the moment. Please ${reach}.`;

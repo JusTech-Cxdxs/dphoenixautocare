@@ -6,6 +6,7 @@ import { SubmitButton } from '@/components/SubmitButton';
 import { FormPendingOverlay } from '@/components/FormPendingOverlay';
 import { SearchableSelect, type SearchableOption } from '@/components/SearchableSelect';
 import { UnitOfMeasureInput } from '@/components/UnitOfMeasureInput';
+import { moduleIsOn } from '@/lib/modules';
 
 export type PartCategoryWithTypes = {
   id: string;
@@ -44,7 +45,11 @@ export function EstimateLineAddForm({
   pricingHint: string;
 }) {
   const ids = useId();
-  const [type, setType] = useState('STORE_PART');
+  // With the Store switched off there is no Store Part line: start on External
+  // Part where offered (Job Cards), else the first type offered (Vehicle Services).
+  const [type, setType] = useState(() =>
+    moduleIsOn('inventory') ? 'STORE_PART' : (typeOptions.find((o) => o.value === 'EXTERNAL_PART') ?? typeOptions[0])?.value ?? 'EXTERNAL_PART',
+  );
   const isStorePart = type === 'STORE_PART';
   // Display only: the Part Type's typical unit, so "1" is clearly a set or a
   // single piece. The Store sets the real unit when it matches the part.

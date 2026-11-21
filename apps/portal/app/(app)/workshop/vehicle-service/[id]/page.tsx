@@ -74,6 +74,13 @@ import { BackLink, PageTitle, StatusChip } from '@/components/ui';
 import { CustomerLink } from '@/components/CustomerLink';
 import { RefineTextButton } from '@/components/enyo/RefineTextButton';
 import { SapTrail } from '@/components/data-exchange/SapTrail';
+import { featureOn, moduleIsOn } from '@/lib/modules';
+
+// Switched per edition (the D'Phoenix Autocare edition has no Store or
+// Warranty): their parts of this page are hidden, the code is kept, and
+// switching a module back on brings them back.
+const STORE_ON = moduleIsOn('inventory');
+const WARRANTY_ON = moduleIsOn('warranty');
 
 const STATUS_LABEL: Record<string, string> = {
   SCHEDULED: 'Scheduled',
@@ -134,6 +141,8 @@ const SERVICE_ESTIMATE_LINE_TYPE_DISPLAY: Record<string, string> = {
   LABOUR: 'Labour',
   SUNDRY: 'Sundry',
 };
+// The subtotal legend, in order; no Store Part row when the Store is off.
+const SERVICE_ESTIMATE_LINE_TYPES = (['STORE_PART', 'INTERNAL_JOB', 'LABOUR', 'SUNDRY'] as const).filter((t) => t !== 'STORE_PART' || STORE_ON);
 
 const NEXT_ACTION: Record<string, { status: string; label: string } | null> = {
   SCHEDULED: { status: 'CHECKED_IN', label: 'Check In Vehicle' },
@@ -323,7 +332,7 @@ export default async function VehicleServiceDetailPage({
     getVehicleServiceSourcingNeeds(id),
     getVehicleServiceCloseRequests(id),
     listRefunds({ vehicleServiceId: id }),
-    listWarrantiesFor({ vehicleServiceId: id }),
+    WARRANTY_ON ? listWarrantiesFor({ vehicleServiceId: id }) : Promise.resolve([]),
     listRoadTestsFor({ vehicleServiceId: id }),
     getVehicleServiceCancellationRequests(id),
     getRecycleBinOffer('VehicleService', id),
@@ -343,11 +352,12 @@ export default async function VehicleServiceDetailPage({
   const nextAction = NEXT_ACTION[service.status];
   // Round 2: what needs the branch or the estimate.
   const [partTypes, partCategories, eligibleFinance, eligibleManagers, partWarrantyBadges] = await Promise.all([
-    listPartTypes(service.branchId),
-    listPartCategories(service.branchId),
+    STORE_ON ? listPartTypes(service.branchId) : Promise.resolve([]),
+    STORE_ON ? listPartCategories(service.branchId) : Promise.resolve([]),
     listEligibleFinanceOfficersForBranch(service.branchId),
     listEligibleManagersForBranch(service.branchId),
-    getPartWarrantyBadges((serviceEstimate?.lineItems ?? []).map((li: { matchedPartId: string | null }) => li.matchedPartId ?? '')),
+    // No part-warranty badges when Warranty is off.
+    WARRANTY_ON ? getPartWarrantyBadges((serviceEstimate?.lineItems ?? []).map((li: { matchedPartId: string | null }) => li.matchedPartId ?? '')) : Promise.resolve({} as Record<string, string>),
   ]);
   // Enyo, when switched on at Assist: unusual typed-in prices and when the vehicle is likely ready. Never in the way.
   // The record's own organisation decides (its model and level), never the viewer's.
@@ -367,7 +377,8 @@ export default async function VehicleServiceDetailPage({
   // The person who opened the Vehicle Service, as checked by
   // notifyCustomerOfApprovedServiceEstimate on the server.
   const isEstimateCreator = isMasterAdmin || service.createdBy.id === viewerId;
-  const hasUnmatchedStoreParts = serviceEstimate?.lineItems.some((li: { type: string; matchedPartId: string | null }) => li.type === 'STORE_PART' && !li.matchedPartId) ?? false;
+  // With the Store off nothing waits on Store matching (the server agrees).
+  const hasUnmatchedStoreParts = STORE_ON && (serviceEstimate?.lineItems.some((li: { type: string; matchedPartId: string | null }) => li.type === 'STORE_PART' && !li.matchedPartId) ?? false);
   // While Draft, a matched Store Part line follows the part's current price.
   function getLiveLineAmount(item: { type: string; quantity: unknown; amount: unknown; matchedPart: { sellingPrice: unknown } | null }): number {
     if (item.type === 'STORE_PART' && item.matchedPart && serviceEstimate?.status === 'DRAFT' && item.matchedPart.sellingPrice !== null) {
@@ -951,7 +962,7 @@ export default async function VehicleServiceDetailPage({
                           description: line.description,
                           notes: (
                             <>
-                              {line.type === 'STORE_PART' && line.matchedPartId && partWarrantyBadges[line.matchedPartId] ? (
+                              {WARRANTY_ON && line.type === 'STORE_PART' && line.matchedPartId && partWarrantyBadges[line.matchedPartId] ? (
                                 <div className="mt-0.5 text-[11px] font-medium text-[var(--ejo-success)]">Warranty: {partWarrantyBadges[line.matchedPartId]} — issued automatically when released</div>
                               ) : null}
                               {line.type === 'STORE_PART' ? (
@@ -1011,7 +1022,7 @@ export default async function VehicleServiceDetailPage({
 
                   {serviceEstimate.lineItems.length > 0 ? (
                     <div className="mt-3 space-y-1 border-t border-[var(--ejo-border)] pt-3 text-sm">
-                      {(['STORE_PART', 'INTERNAL_JOB', 'LABOUR', 'SUNDRY'] as const).map((type) => {
+                      {SERVICE_ESTIMATE_LINE_TYPES.map((type) => {
                         const subtotal = serviceEstimate.lineItems
                           .filter((item: (typeof serviceEstimate.lineItems)[number]) => item.type === type)
                           .reduce((sum: number, item: (typeof serviceEstimate.lineItems)[number]) => sum + getLiveLineAmount(item), 0);
@@ -1193,7 +1204,7 @@ export default async function VehicleServiceDetailPage({
 
           <RoadTestsPanel rows={roadTests} ready={service.status === 'COMPLETED'} requestHref={['CHECKED_IN', 'IN_SERVICE', 'COMPLETED', 'READY_FOR_COLLECTION', 'CLOSED'].includes(service.status) && canRoadTest ? `/security/road-tests/new?vehicleServiceId=${service.id}` : null} />
 
-          <WarrantyList warranties={warranties} title="Warranties issued" />
+          {WARRANTY_ON ? <WarrantyList warranties={warranties} title="Warranties issued" /> : null}
 
           {refunds.length > 0 || ((service.status === 'CANCELLED' || pendingCancellation) && paymentsTotal > 0) ? (
             <RefundsPanel
@@ -1293,7 +1304,8 @@ export default async function VehicleServiceDetailPage({
               ) : null}
             </div>
           ) : null}
-          {sourcingNeeds.isEligibleToSource && sourcingNeeds.needsStoreParts ? (
+          {/* Parts requests (PRS) need the Store. */}
+          {STORE_ON && sourcingNeeds.isEligibleToSource && sourcingNeeds.needsStoreParts ? (
             <div className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-6">
               <h2 className="text-sm font-semibold text-[var(--ejo-text)]">Sourcing</h2>
               <p className="mt-1 text-xs text-[var(--ejo-text-muted)]">
@@ -1774,7 +1786,7 @@ export default async function VehicleServiceDetailPage({
         </div>
       </div>
 
-      <SapTrail entityType="VehicleService" entityId={id} />
+      {featureOn('sap') ? <SapTrail entityType="VehicleService" entityId={id} /> : null}
 
       <div className="mt-6 rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-6">
         <h2 className="text-sm font-semibold text-[var(--ejo-text)]">Audit trail</h2>

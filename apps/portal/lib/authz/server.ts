@@ -4,9 +4,23 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@ejo/database';
 import { requireUser } from '@/lib/actions/workshop';
 import { writeAuditLog } from '@/lib/workshop-core';
-import { decide, hasBranchLens, scopeFor, type Decision, type PermissionKey, type Principal, type RecordContext, PERMISSIONS } from './catalogue';
+import { decide as catalogueDecide, hasBranchLens, scopeFor, type Decision, type PermissionKey, type Principal, type RecordContext, PERMISSIONS } from './catalogue';
+import { isOffPermission } from '@/lib/edition';
 import { signedInContext, type ActiveAssist } from '@/lib/assist/server';
 import { AREA_VIEW, moduleInView } from './navigation';
+
+/**
+ * Every server-side check in this file goes through here: a permission that
+ * belongs to an area this edition switches off (lib/edition.ts — the Store,
+ * Warranty, the assembly plant, outside purchases, news, data requests) is
+ * refused for everyone, the platform team included, so a pasted link or a
+ * direct call to a switched-off action does nothing. Switching the module
+ * back on (lib/modules.ts) restores the catalogue's own decision.
+ */
+const OFF_IN_EDITION: Decision = { allowed: false, scope: null, reason: 'Switched off in this edition' };
+function decide(p: Principal, key: PermissionKey, record?: RecordContext): Decision {
+  return isOffPermission(key) ? OFF_IN_EDITION : catalogueDecide(p, key, record);
+}
 
 /**
  * Server-side enforcement of the Authorization Catalogue. Server-only (NOT a
@@ -210,7 +224,7 @@ export async function guardPage(key: PermissionKey, where: string): Promise<void
  */
 export async function guardOrganisationWide(key: PermissionKey, where: string): Promise<void> {
   const p = await getPrincipal();
-  if (p.isSuperAdmin || scopeFor(p, key) === 'ALL') return;
+  if (!isOffPermission(key) && (p.isSuperAdmin || scopeFor(p, key) === 'ALL')) return;
   await logDenied(p.userId, key, where, 'This page is for people who see the whole organisation');
   redirect(`/access-denied?area=${encodeURIComponent('Headquarters (the whole organisation)')}`);
 }

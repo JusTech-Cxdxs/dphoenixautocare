@@ -4,6 +4,7 @@ import { reachWhere } from '@/lib/authz/server';
 import { prisma } from '@ejo/database';
 import { requireUser, currentUserIsMasterAdmin, listEligibleManagersForBranch, listEligibleFinanceOfficersForBranch } from './workshop';
 import { listEligibleStoreManagersForBranch, listEligibleStoreOfficersForBranch } from './store';
+import { featureOn, moduleIsOn } from '@/lib/modules';
 
 export type WorkflowAction = { id: string; title: string; detail: string; url: string; createdAt: Date };
 
@@ -25,17 +26,19 @@ export async function getWorkflowActionItems(): Promise<WorkflowAction[]> {
   const me = (field: 'supervisorId' | 'createdById') => (isMaster ? {} : { [field]: user.id });
   const jc = { select: { id: true, jobNumber: true, branchId: true, supervisorId: true, createdById: true } } as const;
   const sv = { select: { id: true, serviceNumber: true, branchId: true, supervisorId: true, createdById: true } } as const;
+  // Store matching and parts requests (the Store) and outside purchases (EPR) only where this edition has them (lib/modules.ts).
+  const storeOn = moduleIsOn('inventory'), eprOn = featureOn('externalProcurement');
   const [estSubmitted, estApproved, estToNotify, estMatching, sEstSubmitted, sEstApproved, sEstToNotify, sEstMatching, prs, epr, jcClosed, jcCompleted, svCompleted, svClosed] = await Promise.all([
     prisma.estimate.findMany({ where: { status: 'SUBMITTED', jobCard: { ...reach, ...me('supervisorId') } }, take: T, select: { updatedAt: true, jobCard: jc } }),
     prisma.estimate.findMany({ where: { status: 'APPROVED', jobCard: reach }, take: T, select: { updatedAt: true, jobCard: jc } }),
     prisma.estimate.findMany({ where: { status: 'MANAGER_APPROVED', customerNotifiedAt: null, jobCard: { status: { notIn: ['CHECKED_OUT', 'CANCELLED'] }, ...reach, ...me('createdById') } }, take: T, select: { managerApprovedAt: true, jobCard: jc } }),
-    prisma.estimate.findMany({ where: { matchingRequestedAt: { not: null }, lineItems: { some: { type: 'STORE_PART', matchedPartId: null } }, jobCard: { status: { notIn: ['CHECKED_OUT', 'CANCELLED'] }, ...reach } }, take: T, select: { matchingRequestedAt: true, jobCard: jc } }),
+    storeOn ? prisma.estimate.findMany({ where: { matchingRequestedAt: { not: null }, lineItems: { some: { type: 'STORE_PART', matchedPartId: null } }, jobCard: { status: { notIn: ['CHECKED_OUT', 'CANCELLED'] }, ...reach } }, take: T, select: { matchingRequestedAt: true, jobCard: jc } }) : [],
     prisma.serviceEstimate.findMany({ where: { status: 'SUBMITTED', vehicleService: { ...reach, ...me('supervisorId') } }, take: T, select: { updatedAt: true, vehicleService: sv } }),
     prisma.serviceEstimate.findMany({ where: { status: 'APPROVED', vehicleService: reach }, take: T, select: { updatedAt: true, vehicleService: sv } }),
     prisma.serviceEstimate.findMany({ where: { status: 'MANAGER_APPROVED', customerNotifiedAt: null, vehicleService: { status: { notIn: ['COLLECTED', 'CANCELLED', 'ESCALATED'] }, ...reach, ...me('createdById') } }, take: T, select: { managerApprovedAt: true, vehicleService: sv } }),
-    prisma.serviceEstimate.findMany({ where: { matchingRequestedAt: { not: null }, lineItems: { some: { type: 'STORE_PART', matchedPartId: null } }, vehicleService: { status: { notIn: ['COLLECTED', 'CANCELLED', 'ESCALATED'] }, ...reach } }, take: T, select: { matchingRequestedAt: true, vehicleService: sv } }),
-    prisma.partRequestSlip.findMany({ where: { status: { in: ['PENDING_HOD_APPROVAL', 'PENDING_STORE_APPROVAL', 'APPROVED'] }, ...reach }, take: T, select: { id: true, referenceNumber: true, status: true, branchId: true, updatedAt: true } }),
-    prisma.externalProcurementRequest.findMany({ where: { status: { in: ['PENDING_FINANCE_REVIEW', 'PENDING_MANAGER_APPROVAL', 'APPROVED'] }, ...reach }, take: T, select: { id: true, referenceNumber: true, status: true, branchId: true, updatedAt: true } }),
+    storeOn ? prisma.serviceEstimate.findMany({ where: { matchingRequestedAt: { not: null }, lineItems: { some: { type: 'STORE_PART', matchedPartId: null } }, vehicleService: { status: { notIn: ['COLLECTED', 'CANCELLED', 'ESCALATED'] }, ...reach } }, take: T, select: { matchingRequestedAt: true, vehicleService: sv } }) : [],
+    storeOn ? prisma.partRequestSlip.findMany({ where: { status: { in: ['PENDING_HOD_APPROVAL', 'PENDING_STORE_APPROVAL', 'APPROVED'] }, ...reach }, take: T, select: { id: true, referenceNumber: true, status: true, branchId: true, updatedAt: true } }) : [],
+    eprOn ? prisma.externalProcurementRequest.findMany({ where: { status: { in: ['PENDING_FINANCE_REVIEW', 'PENDING_MANAGER_APPROVAL', 'APPROVED'] }, ...reach }, take: T, select: { id: true, referenceNumber: true, status: true, branchId: true, updatedAt: true } }) : [],
     prisma.jobCard.findMany({ where: { status: 'CLOSED', ...reach, ...me('createdById') }, take: T, select: { id: true, jobNumber: true, createdById: true, updatedAt: true } }),
     prisma.jobCard.findMany({ where: { status: 'COMPLETED', ...reach, ...me('supervisorId') }, take: T, select: { id: true, jobNumber: true, supervisorId: true, updatedAt: true } }),
     prisma.vehicleService.findMany({ where: { status: 'COMPLETED', escalatedToJobCardId: null, ...reach, ...me('supervisorId') }, take: T, select: { id: true, serviceNumber: true, supervisorId: true, completedAt: true } }),
@@ -49,8 +52,9 @@ export async function getWorkflowActionItems(): Promise<WorkflowAction[]> {
     const [m, f, sm, so] = await Promise.all([
       listEligibleManagersForBranch(b).catch(() => ({ supervisors: [] as { id: string }[] })),
       listEligibleFinanceOfficersForBranch(b).catch(() => ({ supervisors: [] as { id: string }[] })),
-      listEligibleStoreManagersForBranch(b).catch(() => ({ staff: [] as { id: string }[] })),
-      listEligibleStoreOfficersForBranch(b).catch(() => ({ staff: [] as { id: string }[] })),
+      // Who is store staff is asked only where the Store is on.
+      storeOn ? listEligibleStoreManagersForBranch(b).catch(() => ({ staff: [] as { id: string }[] })) : { staff: [] as { id: string }[] },
+      storeOn ? listEligibleStoreOfficersForBranch(b).catch(() => ({ staff: [] as { id: string }[] })) : { staff: [] as { id: string }[] },
     ]);
     const has = (xs: { id: string }[]) => xs.some((x) => x.id === user.id);
     roleOf.set(b, { manager: isMaster || has(m.supervisors), finance: isMaster || has(f.supervisors), store: isMaster || has([...(sm.staff ?? []), ...(so.staff ?? [])]) });

@@ -4,6 +4,7 @@ import { useActionState } from 'react';
 import { openHelpRequestAction, replyToMyHelpRequestAction, type HelpFormState, type HelpReplyState } from '@/lib/actions/help-form-handlers';
 import { SubmitButton } from '@/components/SubmitButton';
 import { RefineTextButton } from '@/components/enyo/RefineTextButton';
+import { featureOn } from '@/lib/modules';
 
 const field = 'w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2.5 text-base text-[var(--ejo-text)] focus:border-[var(--ejo-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--ejo-primary)]/25 sm:text-sm';
 const primary = 'min-h-11 rounded-[var(--ejo-radius-md)] bg-[var(--ejo-primary)] px-5 text-sm font-semibold text-white hover:brightness-110';
@@ -44,7 +45,8 @@ export function NewHelpForm({ errorRef, page, subject = '' }: { errorRef: string
             </label>
           ))}
         </div>
-        <p className="mt-2 text-xs text-[var(--ejo-text-muted)]">Something wrong — fraud, theft, a safety risk? Use <a href="/support/speak-up" className="font-medium text-[var(--ejo-primary)] hover:underline">Speak up</a> instead (you can stay anonymous).</p>
+        {/* Speak up only in editions that have it (lib/modules.ts). */}
+        {featureOn('speakUp') ? <p className="mt-2 text-xs text-[var(--ejo-text-muted)]">Something wrong — fraud, theft, a safety risk? Use <a href="/support/speak-up" className="font-medium text-[var(--ejo-primary)] hover:underline">Speak up</a> instead (you can stay anonymous).</p> : null}
       </fieldset>
       {state.error ? <p role="alert" className="text-sm text-[var(--ejo-error)]">{state.error}</p> : null}
       <div className="flex flex-wrap items-center gap-3">

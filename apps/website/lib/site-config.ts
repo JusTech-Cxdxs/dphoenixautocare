@@ -1,12 +1,18 @@
 import { portalBaseUrl } from './site-urls';
 import type { TranslationKey } from './languages';
 import { appShortName, PLATFORM } from './brand';
+import { PUBLIC_WEBSITE } from './edition';
 
+/**
+ * The header's pages. Without the public marketing site (lib/edition.ts,
+ * PUBLIC_WEBSITE = false) there are none: the header, shown only on the
+ * legal and support pages, carries the wordmark and the sign-ins.
+ */
 export const siteNav: {
   key: TranslationKey;
   href: string;
   children?: { label: string; href: string }[];
-}[] = [
+}[] = !PUBLIC_WEBSITE ? [] : [
   { key: 'nav.home', href: '/' },
   { key: 'nav.about', href: '/about' },
   {

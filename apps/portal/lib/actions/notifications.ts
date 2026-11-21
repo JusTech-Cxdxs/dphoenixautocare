@@ -22,6 +22,7 @@ import { resolveRecords } from '@/lib/record-resolver';
 import { livePulse } from '@/lib/live-pulse';
 import { lagosYear } from '@/lib/utils/format-date';
 import { mailUnreadFor } from '@/lib/mail/counts';
+import { roleShown } from '@/lib/edition';
 
 class NotificationError extends Error {}
 
@@ -419,7 +420,8 @@ export async function listAudienceOptions() {
     prisma.department.findMany({ where: m.isMaster ? {} : { branch: { businessUnit: { organisationId: m.organisationId ?? '__none__' } } }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
     prisma.role.findMany({ where: { organisationId: m.organisationId ?? '' }, orderBy: { name: 'asc' }, select: { slug: true, name: true } }),
   ]);
-  return { branches, departments, roles: roles.filter((r: { slug: string }, i: number, a: { slug: string }[]) => a.findIndex((x) => x.slug === r.slug) === i) };
+  // This edition's roles only: a role that only does Store, Warranty or plant work is not offered as an audience (lib/edition.ts).
+  return { branches, departments, roles: roles.filter((r: { slug: string }, i: number, a: { slug: string }[]) => a.findIndex((x) => x.slug === r.slug) === i && roleShown(r.slug)) };
 }
 
 /** The cheap "has anything changed?" signal for this person's organisation:

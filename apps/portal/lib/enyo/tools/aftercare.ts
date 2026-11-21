@@ -3,6 +3,10 @@
  * deadlines (warranty.view, fenced to the organisation's customers like the
  * Warranty pages), and vehicles due a service (the Service tracker's own
  * reader, fenced to the person's workshop branch).
+ *
+ * warranty_watch belongs to the Warranty module: while it is switched off in
+ * this edition (lib/modules.ts) it is never offered (lib/enyo/edition.ts);
+ * service_due stays with the workshop.
  */
 import { prisma } from '@ejo/database';
 import { allows, orgWhere } from '@/lib/authz/server';

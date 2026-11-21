@@ -8,28 +8,30 @@ import { firstReach, getBranchView, getPrincipal, jobOrServiceReach, myOrganisat
 import { ticketReachWhere } from '@/lib/support-rules';
 import { decide, STORE_COST_PERMISSIONS, type PermissionKey } from '@/lib/authz/catalogue';
 import { getSchedulingAccess } from './scheduling';
-import { groupRank, numberFilters, planSearch, referenceUrl, sapNumberQuery, type RefPrefix, type SearchPlan } from '@/lib/search-plan';
+import { EDITION_PREFIXES, groupRank, numberFilters, planSearch, referenceUrl, sapNumberQuery, withoutPrefixes, type RefPrefix, type SearchPlan } from '@/lib/search-plan';
 import { isChassisLike, normaliseVin, vehiclePagePath } from '@/lib/vin';
 import { fenceStaffHelp } from '@/lib/support/reach';
+import { featureOn, moduleIsOn, type EditionFeature } from '@/lib/modules';
 
 export type SearchHit = { label: string; sub?: string; href: string };
 /** prefix: the reference prefix of this kind of record (shown next to the group name). */
 export type SearchGroup = { group: string; prefix?: string; hits: SearchHit[] };
 
-/** List pages, found by name. The reference prefix is part of the name, so "VX" also finds the Vehicle exits page. */
-const MORE_PAGES: (SearchHit & { needs?: PermissionKey[] })[] = [
+/** List pages, found by name. The reference prefix is part of the name, so "VX" also finds the Vehicle exits page.
+ * `module` / `feature`: a page of a module or feature an edition can switch off, offered only where it is on (lib/modules.ts). */
+const MORE_PAGES: (SearchHit & { needs?: PermissionKey[]; module?: string; feature?: EditionFeature })[] = [
   { label: 'Job Cards (JC)', href: '/workshop/job-cards', needs: ['workshop.view'] },
   { label: 'Vehicle Services (SV)', href: '/workshop/vehicle-service', needs: ['workshop.view'] },
   { label: 'Vehicles', href: '/workshop/vehicles', needs: ['workshop.view'] },
   { label: 'Customers', href: '/workshop/customers', needs: ['workshop.view'] },
   { label: 'In custody', href: '/workshop/custody', needs: ['workshop.view'] },
-  { label: 'Parts', href: '/inventory/parts', needs: ['store.view'] },
-  { label: 'Goods receipts (GRN)', href: '/inventory/goods-receipts', needs: STORE_COST_PERMISSIONS },
-  { label: 'Inventory analytics', href: '/inventory/analytics', needs: ['analytics.inventory.view'] },
-  { label: 'Parts requests (PRS)', href: '/workshop/parts-requests', needs: ['workshop.view'] },
-  { label: 'External procurement (EPR)', href: '/workshop/external-procurement', needs: ['workshop.view'] },
-  { label: 'Warranties (WR)', href: '/warranty', needs: ['warranty.view'] },
-  { label: 'Warranty claims (WC)', href: '/warranty/claims', needs: ['warranty.view'] },
+  { label: 'Parts', href: '/inventory/parts', needs: ['store.view'], module: 'inventory' },
+  { label: 'Goods receipts (GRN)', href: '/inventory/goods-receipts', needs: STORE_COST_PERMISSIONS, module: 'inventory' },
+  { label: 'Inventory analytics', href: '/inventory/analytics', needs: ['analytics.inventory.view'], module: 'inventory' },
+  { label: 'Parts requests (PRS)', href: '/workshop/parts-requests', needs: ['workshop.view'], module: 'inventory' },
+  { label: 'External procurement (EPR)', href: '/workshop/external-procurement', needs: ['workshop.view'], feature: 'externalProcurement' },
+  { label: 'Warranties (WR)', href: '/warranty', needs: ['warranty.view'], module: 'warranty' },
+  { label: 'Warranty claims (WC)', href: '/warranty/claims', needs: ['warranty.view'], module: 'warranty' },
   { label: 'Visitors (VIS)', href: '/security/visitors', needs: ['security.view'] },
   { label: 'Exit passes (EP)', href: '/security/exit-passes' },
   { label: 'Vehicle exits (VX)', href: '/security/vehicles', needs: ['security.view'] },
@@ -88,7 +90,13 @@ function conditions(plan: SearchPlan, f: Fields): Where[] {
  */
 export async function globalSearch(raw: string): Promise<SearchGroup[]> {
   const user = await requireUser();
-  const plan = planSearch(typeof raw === 'string' ? raw : '');
+  // The records and pages of modules and features this edition switches off are not searched (lib/modules.ts).
+  const storeOn = moduleIsOn('inventory');
+  const warrantyOn = moduleIsOn('warranty');
+  const plantOn = moduleIsOn('plant');
+  const eprOn = featureOn('externalProcurement');
+  const off = EDITION_PREFIXES.filter((e) => (e.module ? !moduleIsOn(e.module) : e.feature ? !featureOn(e.feature) : false)).flatMap((e) => e.prefixes);
+  const plan = withoutPrefixes(planSearch(typeof raw === 'string' ? raw : ''), off);
   if (plan.kind === 'empty') return [];
   const { take } = plan;
   const principal = await getPrincipal();
@@ -98,7 +106,7 @@ export async function globalSearch(raw: string): Promise<SearchGroup[]> {
   const pages: SearchHit[] = [
     ...navigationFor(principal, await getBranchView().catch(() => ({}))).filter((x) => x.status === 'LIVE' && x.name.toLowerCase().includes(lower)).map((x) => ({ label: x.name, sub: 'Module', href: x.href })),
     // Someone who can open Customers (CRM) goes straight there, not through the old workshop address.
-    ...MORE_PAGES.filter((x) => x.label.toLowerCase().includes(lower) && (!x.needs || any(x.needs))).map(({ label, href }) => ({ label, sub: 'Page', href: href === '/workshop/customers' && allowed('crm.view') ? '/crm' : href })),
+    ...MORE_PAGES.filter((x) => (!x.module || moduleIsOn(x.module)) && (!x.feature || featureOn(x.feature)) && x.label.toLowerCase().includes(lower) && (!x.needs || any(x.needs))).map(({ label, href }) => ({ label, sub: 'Page', href: href === '/workshop/customers' && allowed('crm.view') ? '/crm' : href })),
   ].filter((x, i, all) => all.findIndex((y) => y.href === x.href) === i).slice(0, 6);
 
   // Reach, per module: the same filters the lists and record pages use. null = may not open this type.
@@ -111,14 +119,15 @@ export async function globalSearch(raw: string): Promise<SearchGroup[]> {
   const canWorkshop = allowed('workshop.view');
   const [jobReach, storeReach, securityReach, roadTestReach, deliveryReach, contractorReach, prsReach, eprReach, grnReach, refundReach] = await Promise.all([
     canWorkshop ? reachAny(['workshop.job_card.view']) : null,
-    reachAny(['store.view']),
+    storeOn ? reachAny(['store.view']) : null,
     reachAny(['security.view']),
     reachAny(['security.view', 'workshop.job_card.view']),
-    reachAny(['security.view', 'store.grn.record']),
+    // Deliveries: the security desk, and the Store's receivers where this edition has a store.
+    reachAny(storeOn ? ['security.view', 'store.grn.record'] : ['security.view']),
     reachAny(['security.view', 'security.pass.approve']),
-    canWorkshop ? reachAny(['workshop.job_card.view', 'store.view']) : null,
-    canWorkshop ? reachAny(['workshop.job_card.view', 'store.view', 'procurement.epr.review']) : null,
-    any(STORE_COST_PERMISSIONS) ? firstReach(STORE_COST_PERMISSIONS) : null,
+    canWorkshop && storeOn ? reachAny(['workshop.job_card.view', 'store.view']) : null,
+    canWorkshop && eprOn ? reachAny(['workshop.job_card.view', 'store.view', 'procurement.epr.review']) : null,
+    storeOn && any(STORE_COST_PERMISSIONS) ? firstReach(STORE_COST_PERMISSIONS) : null,
     canWorkshop && allowed('workshop.job_card.view') ? jobOrServiceReach() : null,
   ]);
   // The people a security record is about (requester, host, people on a pass) see it, inside their organisation.
@@ -139,7 +148,7 @@ export async function globalSearch(raw: string): Promise<SearchGroup[]> {
   const staffReach = { ...(me?.organisationId ? { organisationId: me.organisationId } : {}), ...(principal.isSuperAdmin ? {} : { roles: { none: { role: { isSuperAdmin: true } } } }) };
   const sameOrg = { organisationId: me?.organisationId ?? '__none__' };
   const canCustomers = canWorkshop || allowed('crm.view');
-  const canWarranty = allowed('warranty.view');
+  const canWarranty = warrantyOn && allowed('warranty.view');
   const canStructure = allowed('admin.structure.manage');
   // Support tickets: the inbox's own fence (organisation + branch reach; website enquiries are the organisation's).
   const supportReach: Where | null = allowed('support.tickets.manage') ? (await fenceStaffHelp(ticketReachWhere(await reachWhere('support.tickets.manage', { lens: false }), await myOrganisationId()))) : null;
@@ -207,19 +216,19 @@ export async function globalSearch(raw: string): Promise<SearchGroup[]> {
     find(allowed('dataexchange.export.run') && { ...sameOrg, ...(allowed('audit.view') ? {} : { createdById: user.id }) }, { numbers: [['EXP', 'number']], text: ['summary'] },
       (w) => prisma.exportJob.findMany({ where: W<Prisma.ExportJobWhereInput>(w), take, orderBy: newest, select: { id: true, number: true, kind: true, format: true } })),
     // Customers' data requests (NDPA 2023): the people who handle them, in their own organisation.
-    find(allowed('privacy.requests.manage') && sameOrg, { numbers: [['DR', 'number']] },
+    find(featureOn('dataRequests') && allowed('privacy.requests.manage') && sameOrg, { numbers: [['DR', 'number']] },
       (w) => prisma.dataRequest.findMany({ where: W<Prisma.DataRequestWhereInput>(w), take, orderBy: newest, select: { id: true, number: true, kind: true, status: true } })),
     // Pre-delivery inspections: the plant team, in their own organisation and plant.
-    find(allowed('plant.view') && { AND: [sameOrg, await plantReach()] }, { numbers: [['PDI', 'number']] },
+    find(plantOn && allowed('plant.view') && { AND: [sameOrg, await plantReach()] }, { numbers: [['PDI', 'number']] },
       (w) => prisma.pdiInspection.findMany({ where: W<Prisma.PdiInspectionWhereInput>(w), take, orderBy: newest, select: { id: true, number: true, status: true, vehicle: { select: { vin: true, modelCode: true } } } })),
     // Kits and shipments arriving at the plant (D2): the plant team, in their own organisation and plant.
-    find(allowed('plant.view') && { AND: [sameOrg, await plantReach()] }, { numbers: [['KIT', 'number']], codes: ['lotNumber', 'engineNumber'] },
+    find(plantOn && allowed('plant.view') && { AND: [sameOrg, await plantReach()] }, { numbers: [['KIT', 'number']], codes: ['lotNumber', 'engineNumber'] },
       (w) => prisma.plantKit.findMany({ where: W<Prisma.PlantKitWhereInput>(w), take, orderBy: newest, select: { id: true, number: true, status: true, vin: true, modelCode: true } })),
-    find(allowed('plant.view') && { AND: [sameOrg, await plantReach()] }, { numbers: [['SHP', 'number']], text: ['supplier'], codes: ['billOfLading', 'sapPurchaseOrder', 'sapInboundDelivery'] },
+    find(plantOn && allowed('plant.view') && { AND: [sameOrg, await plantReach()] }, { numbers: [['SHP', 'number']], text: ['supplier'], codes: ['billOfLading', 'sapPurchaseOrder', 'sapInboundDelivery'] },
       (w) => prisma.plantShipment.findMany({ where: W<Prisma.PlantShipmentWhereInput>(w), take, orderBy: newest, select: { id: true, number: true, supplier: true, billOfLading: true } })),
-    find(allowed('plant.view') && { AND: [sameOrg, await plantReach()] }, { numbers: [['DEF', 'number']], text: ['description'] },
+    find(plantOn && allowed('plant.view') && { AND: [sameOrg, await plantReach()] }, { numbers: [['DEF', 'number']], text: ['description'] },
       (w) => prisma.plantDefect.findMany({ where: W<Prisma.PlantDefectWhereInput>(w), take, orderBy: newest, select: { id: true, number: true, plantVehicleId: true, severity: true, status: true, description: true, vehicle: { select: { vin: true } } } })),
-    find(allowed('plant.view') && { AND: [sameOrg, await plantReach()] }, { numbers: [['QAA', 'number']] },
+    find(plantOn && allowed('plant.view') && { AND: [sameOrg, await plantReach()] }, { numbers: [['QAA', 'number']] },
       (w) => prisma.plantQaAudit.findMany({ where: W<Prisma.PlantQaAuditWhereInput>(w), take, orderBy: newest, select: { id: true, number: true, result: true, demerits: true, vehicle: { select: { vin: true } } } })),
     find(canWorkshop && { customer: mineOrg }, { text: ['make', 'model'], codes: ['plateNumber', 'chassisNumber', 'engineNumber'] },
       (w) => prisma.customerVehicle.findMany({ where: W<Prisma.CustomerVehicleWhereInput>(w), take, select: { id: true, make: true, model: true, plateNumber: true, chassisNumber: true, customer: { select: { fullName: true } } } })),
@@ -300,31 +309,35 @@ export async function globalSearch(raw: string): Promise<SearchGroup[]> {
   // Old-system numbers can look like the start of an EJO reference ("W-2024-0412" after WR-, "C-2026-0184" after CTR-): only a
   // bare prefix ("WR") or a complete EJO reference (WR-2026-000031) skips them.
   const sapFits = plan.kind !== 'prefix' && !(plan.kind === 'reference' && plan.textScope === 'none');
-  const sap = !sapFits ? [] : await sapNumberHits(plan.q, { mineOrg, sameOrg, canWorkshop, canCrm, canCustomers, storeReach, canSuppliers: allowed('store.view'), canWarranty: allowed('warranty.view'), canUsers: allowed('admin.users.manage'), opens });
-  if (sap.length) groups.splice(1, 0, { group: 'SAP numbers', hits: sap });
+  const sap = !sapFits ? [] : await sapNumberHits(plan.q, { mineOrg, sameOrg, canWorkshop, canCrm, canCustomers, storeReach, canSuppliers: storeOn && allowed('store.view'), canWarranty, canUsers: allowed('admin.users.manage'), opens });
+  if (sap.length) groups.splice(1, 0, { group: SAP_GROUP, hits: sap });
   // A VIN typed or scanned (a handheld scanner types it): that vehicle first — also before it is sold (plant registers only).
-  const vin = plan.kind === 'reference' || plan.kind === 'prefix' ? [] : await vinHits(plan.q, mineOrg, any(['workshop.view', 'warranty.view', 'security.view', 'crm.view', 'plant.view']));
+  const vin = plan.kind === 'reference' || plan.kind === 'prefix' ? [] : await vinHits(plan.q, mineOrg, any(['workshop.view', 'security.view', 'crm.view']) || canWarranty || (plantOn && allowed('plant.view')), plantOn);
   if (vin.length) groups.splice(1, 0, { group: 'Vehicle (VIN)', hits: vin });
   return groups
-    .map((g, i) => ({ g, i, rank: g.group === 'Vehicle (VIN)' ? -60 : g.group === 'SAP numbers' ? -50 : groupRank(plan, g.group) }))
+    .map((g, i) => ({ g, i, rank: g.group === 'Vehicle (VIN)' ? -60 : g.group === SAP_GROUP ? -50 : groupRank(plan, g.group) }))
     .filter(({ g }) => g.hits.length > 0)
     .sort((a, b) => a.rank - b.rank || a.i - b.i)
     .map(({ g }) => g);
 }
 
+/** The group of numbers other systems gave records (an edition without the SAP link: the old system's). */
+const SAP_GROUP = featureOn('sap') ? 'SAP numbers' : 'Old-system numbers';
+
 /** The vehicle with exactly this VIN (or chassis number, 11 characters or more), inside the person's organisation. */
 /** Plant records: the assembly-plant branches in reach (a record opened from a link is never hidden by the lens). */
 const plantReach = async () => (await typedReach('plant.view', AREA_BRANCH_TYPES.plant, { lens: false })).where;
 
-async function vinHits(q: string, mineOrg: Where, mayOpen: boolean): Promise<SearchHit[]> {
+/** `plantOn`: whether this edition has the assembly plant (its registers are asked only then). */
+async function vinHits(q: string, mineOrg: Where, mayOpen: boolean, plantOn: boolean): Promise<SearchHit[]> {
   const v = normaliseVin(q);
   if (!mayOpen || v.length < 11 || !isChassisLike(v)) return [];
   const [vehicle, record, plant, kit] = await Promise.all([
     prisma.customerVehicle.findFirst({ where: { chassisNumber: { equals: v, mode: 'insensitive' }, customer: mineOrg as Prisma.CustomerWhereInput }, select: { make: true, model: true, plateNumber: true } }),
     prisma.vehicleHistoryRecord.findFirst({ where: { ...(mineOrg as { organisationId?: string }), vinKey: v, voidedAt: null }, orderBy: { eventDate: 'desc' }, select: { model: true, kind: true } }),
-    prisma.plantVehicle.findFirst({ where: { ...(mineOrg as { organisationId?: string }), vinKey: v }, select: { make: true, modelCode: true, modelName: true } }),
+    !plantOn ? null : prisma.plantVehicle.findFirst({ where: { ...(mineOrg as { organisationId?: string }), vinKey: v }, select: { make: true, modelCode: true, modelName: true } }),
     // A kit not yet released to the line (its vehicle is created on release).
-    prisma.plantKit.findFirst({ where: { ...(mineOrg as { organisationId?: string }), vinKey: v, status: { not: 'CANCELLED' } }, orderBy: { createdAt: 'desc' }, select: { modelCode: true } }),
+    !plantOn ? null : prisma.plantKit.findFirst({ where: { ...(mineOrg as { organisationId?: string }), vinKey: v, status: { not: 'CANCELLED' } }, orderBy: { createdAt: 'desc' }, select: { modelCode: true } }),
   ]).catch(() => [null, null, null, null] as const);
   if (!vehicle && !record && !plant && !kit) return [];
   const what = vehicle ? [vehicle.make, vehicle.model].filter(Boolean).join(' ') : plant ? `${plant.make} ${plant.modelName ?? plant.modelCode}` : kit ? `${kit.modelCode} kit` : record?.model;
@@ -342,7 +355,8 @@ async function sapNumberHits(q: string, ctx: { mineOrg: Where; sameOrg: Where; c
   const n = sapNumberQuery(q);
   if (!n) return [];
   const ext = { in: n.forms };
-  const label = (src: string | null) => (src && src.startsWith('LEGACY') ? 'Old system' : 'SAP');
+  // An edition without the SAP link calls every such number the old system's.
+  const label = (src: string | null) => (!featureOn('sap') || (src && src.startsWith('LEGACY')) ? 'Old system' : 'SAP');
   const take = 6;
   const [customers, vehicles, suppliers, parts, invoices, pastJobs, openJobs, warranties, claims, openServices, people] = await Promise.all([
     ctx.canCustomers ? prisma.customer.findMany({ where: { AND: [ctx.mineOrg as Prisma.CustomerWhereInput, { externalId: ext }] }, take, select: { id: true, fullName: true, externalId: true, externalSource: true } }).catch(() => []) : [],

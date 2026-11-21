@@ -8,6 +8,8 @@ import { SiteWordmark } from './SiteWordmark';
 import { FooterBadge } from './FooterBadge';
 import { PoweredByBadge } from './PoweredByBadge';
 import { FacebookIcon, LinkedInIcon, XIcon, YouTubeIcon, InstagramIcon } from './icons';
+import { PUBLIC_WEBSITE } from '@/lib/edition';
+import { DPHOENIX } from '@/lib/content/dphoenix';
 
 // Social links come from lib/site-config.ts; only the ones that are set show.
 const SOCIALS = [
@@ -65,15 +67,19 @@ export function Footer() {
         {/* Column 1 — logo, name, description, badge row, social icons */}
         <div className="col-span-2">
           <SiteWordmark tone="light" size="footer" />
-          <p className="mt-3 max-w-xs text-sm text-white/60">{t('footer.companyDescription')}</p>
+          {/* Without the public website (lib/edition.ts) the footer, shown on the legal and support pages only,
+              carries D'Phoenix Autocare's own line, and no group badges, page links or newsletter. */}
+          <p className="mt-3 max-w-xs text-sm text-white/60">{PUBLIC_WEBSITE ? t('footer.companyDescription') : `${DPHOENIX.tagline}. ${DPHOENIX.summary}`}</p>
 
           {/* Three badges in one row, small and never stretched: each box is a fixed
               height, the picture keeps its proportions inside it. */}
+          {PUBLIC_WEBSITE ? (
           <div className="mt-5 flex flex-nowrap items-center gap-3" aria-label="Certifications and awards">
             {BADGES.map((badge) => (
               <FooterBadge key={badge.src} src={badge.src} alt={badge.alt} />
             ))}
           </div>
+          ) : null}
 
           {SOCIALS.length > 0 ? (
           <div className="mt-5 flex gap-3">
@@ -93,8 +99,8 @@ export function Footer() {
           ) : null}
         </div>
 
-        <FooterColumn title={t('footer.quickLinks')} links={QUICK_LINKS} />
-        <FooterColumn title={t('footer.ourBusinesses')} links={BUSINESS_LINKS} />
+        {PUBLIC_WEBSITE ? <FooterColumn title={t('footer.quickLinks')} links={QUICK_LINKS} /> : null}
+        {PUBLIC_WEBSITE ? <FooterColumn title={t('footer.ourBusinesses')} links={BUSINESS_LINKS} /> : null}
 
         <div className="col-span-2 sm:col-span-1">
           <p className="text-sm font-semibold text-white">{t('footer.contactUs')}</p>
@@ -103,9 +109,18 @@ export function Footer() {
             {contact.address ? <p>{contact.address}</p> : null}
             {contact.phone ? <p><a href={`tel:${contact.phone.replace(/[^\d+]/g, '')}`} className="hover:text-white">{contact.phone}</a></p> : null}
             {contact.email ? <p><a href={`mailto:${contact.email}`} className="hover:text-white">{contact.email}</a></p> : null}
+            {!PUBLIC_WEBSITE && !contact.address && !contact.phone && !contact.email ? (
+              <>
+                <p>{DPHOENIX.address}</p>
+                {DPHOENIX.phones.map((p) => <p key={p}><a href={`tel:${p.replace(/[^\d+]/g, '')}`} className="hover:text-white">{p}</a></p>)}
+                <p><a href={`mailto:${DPHOENIX.email}`} className="hover:text-white">{DPHOENIX.email}</a></p>
+                <p>{DPHOENIX.hours}</p>
+              </>
+            ) : null}
           </address>
         </div>
 
+        {PUBLIC_WEBSITE ? (
         <div className="col-span-2 sm:col-span-1">
           <p className="text-sm font-semibold text-white">{t('footer.newsletter')}</p>
           <p className="mt-3 text-sm text-white/60">{t('footer.newsletterText')}</p>
@@ -131,6 +146,7 @@ export function Footer() {
             </form>
           )}
         </div>
+        ) : null}
       </div>
 
       <div className="border-t border-white/10 px-4 py-6 sm:px-6 lg:px-10">

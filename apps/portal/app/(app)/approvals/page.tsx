@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/actions/workshop';
 import { currentAssist } from '@/lib/authz/server';
 import { getDashboardNotifications } from '@/lib/actions/dashboard';
-import { approvalArea, APPROVAL_AREAS, type ApprovalArea } from '@/lib/approvals';
+import { approvalArea, approvalAreaOn, APPROVAL_AREAS, type ApprovalArea } from '@/lib/approvals';
 import { LoadingLink } from '@/components/LoadingLink';
 import { EmptyState, Icon, PageHeader, SectionCard, type IconName } from '@/components/ui';
 import { formatDateTimeCompact } from '@/lib/utils/format-date';
@@ -35,7 +35,8 @@ export default async function ApprovalsPage() {
   const [notes, waiting] = assisting ? [[], []] : await Promise.all([getDashboardNotifications(), getMyPending().catch(() => [])]);
   const items = notes
     .map((n) => ({ ...n, area: approvalArea(n) }))
-    .filter((n): n is typeof n & { area: ApprovalArea } => n.area !== null)
+    // Only the areas this edition has (APPROVAL_AREAS): the count in the header matches the groups below.
+    .filter((n): n is typeof n & { area: ApprovalArea } => n.area !== null && approvalAreaOn(n.area))
     .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   const groups = APPROVAL_AREAS.map((area) => ({ area, rows: items.filter((i) => i.area === area) })).filter((g) => g.rows.length > 0);
 

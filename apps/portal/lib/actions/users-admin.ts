@@ -10,6 +10,7 @@ import { writeAuditLog } from '@/lib/workshop-core';
 import { deleteAccountAndPersonal, workOnRecord } from '@/lib/staff-delete';
 import { authorize, getPrincipal, inMyOrganisation } from '@/lib/authz/server';
 import { scopeFor } from '@/lib/authz/catalogue';
+import { roleShown } from '@/lib/edition';
 import { hashPassword } from 'better-auth/crypto';
 import { randomBytes } from 'node:crypto';
 import { sendEmail } from '@/lib/email';
@@ -70,7 +71,8 @@ export async function listUsersForAdmin(q?: string, filters: UserFilters = {}): 
     counts: { total: active + off, active, off, withoutId },
     users: users.map((u: (typeof users)[number]) => ({ id: u.id, fullName: u.fullName, email: u.email, employeeId: u.employeeId, isActive: u.isActive, branch: u.branch?.name ?? null, department: u.department?.name ?? null, roles: u.roles.map((r: { role: { id: string; name: string; isSuperAdmin: boolean } }) => ({ id: r.role.id, name: r.role.name, isPlatform: r.role.isSuperAdmin })) })),
     // Organisation administrators never see the platform role as an option.
-    roles: roles.filter((r: { isSuperAdmin: boolean }) => p.isSuperAdmin || !r.isSuperAdmin).map((r: { id: string; name: string; slug: string; isSuperAdmin: boolean }) => ({ id: r.id, name: r.name, slug: r.slug, isPlatform: r.isSuperAdmin })),
+    // …and, with Store, Warranty or the plant off, never a role that only does that work (holders keep theirs).
+    roles: roles.filter((r: { isSuperAdmin: boolean; slug: string }) => (p.isSuperAdmin || !r.isSuperAdmin) && roleShown(r.slug)).map((r: { id: string; name: string; slug: string; isSuperAdmin: boolean }) => ({ id: r.id, name: r.name, slug: r.slug, isPlatform: r.isSuperAdmin })),
   };
 }
 
@@ -164,7 +166,8 @@ export async function rolesForNewStaff(): Promise<AssignableRole[]> {
   await authorize('admin.users.manage', undefined, 'users.roles_for_new');
   const { organisationId, branchOnly } = await actorOrg();
   const roles = await prisma.role.findMany({ where: { organisationId: organisationId ?? '__none__', isSuperAdmin: false, ...(branchOnly ? { slug: { notIn: ADMIN_ROLE_SLUGS } } : {}) }, orderBy: { name: 'asc' }, select: { id: true, name: true, slug: true } });
-  return roles.map((r: { id: string; name: string; slug: string }) => ({ id: r.id, name: r.name, slug: r.slug, isPlatform: false }));
+  // With Store, Warranty or the plant off, the roles that only do that work are not offered.
+  return roles.filter((r: { slug: string }) => roleShown(r.slug)).map((r: { id: string; name: string; slug: string }) => ({ id: r.id, name: r.name, slug: r.slug, isPlatform: false }));
 }
 
 export async function staffPlacementOptions(): Promise<StaffPlacement> {

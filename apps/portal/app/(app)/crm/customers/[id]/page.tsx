@@ -24,6 +24,10 @@ import { EditCustomerForm } from '@/components/crm/EditCustomerForm';
 import { RefineTextButton } from '@/components/enyo/RefineTextButton';
 import { ExportAction } from '@/components/ExportAction';
 import { SapTrail } from '@/components/data-exchange/SapTrail';
+import { featureOn, moduleIsOn } from '@/lib/modules';
+
+/** Where records from before EJO came from, in this edition's words. */
+const OLD_SYSTEM = featureOn('sap') ? 'SAP' : 'the previous system';
 
 export const metadata = { title: 'Customer' };
 
@@ -32,7 +36,8 @@ const TABS: { key: string; label: string; icon: CrmIconName }[] = [
   { key: 'vehicles', label: 'Vehicles', icon: 'car' },
   { key: 'jobs', label: 'Jobs & services', icon: 'wrench' },
   { key: 'payments', label: 'Payments & refunds', icon: 'receipt' },
-  { key: 'warranties', label: 'Warranties & claims', icon: 'shield' },
+  // Only while Warranty is switched on in this edition (lib/modules.ts).
+  ...(moduleIsOn('warranty') ? [{ key: 'warranties', label: 'Warranties & claims', icon: 'shield' as CrmIconName }] : []),
   { key: 'contacts', label: 'Contacts & addresses', icon: 'map' },
   { key: 'notes', label: 'Notes', icon: 'note' },
   { key: 'activity', label: 'Activity', icon: 'activity' },
@@ -125,7 +130,8 @@ export default async function Customer360Page({ params, searchParams }: { params
             <a href={`mailto:${c.email}`} className={ghost}><CrmIcon name="mail" size={14} />Email</a>
             {can.broadcast ? <Link href={`/notifications/broadcasts/new?for=customers&customerId=${encodeURIComponent(c.id)}`} className={ghost}><CrmIcon name="broadcast" size={14} />Send a message</Link> : null}
             {can.manage && !editing ? <Link href={`${base}?edit=1`} className={ghost}><CrmIcon name="edit" size={14} />Edit details</Link> : null}
-            {mayDataRequest ? <Link href={`/data-requests/new?customer=${encodeURIComponent(c.id)}`} className={ghost} data-testid="record-data-request">Record a data request</Link> : null}
+            {/* Data requests only in an edition that has them (lib/modules.ts). */}
+            {mayDataRequest && featureOn('dataRequests') ? <Link href={`/data-requests/new?customer=${encodeURIComponent(c.id)}`} className={ghost} data-testid="record-data-request">Record a data request</Link> : null}
           </div>
         </div>
       </section>
@@ -143,14 +149,14 @@ export default async function Customer360Page({ params, searchParams }: { params
 
       {/* KPIs */}
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Kpi icon="wallet" label="Lifetime spend" value={money.netPaid} format="naira" hint={money.fromSap ? `Incl. ${naira(money.fromSap)} from SAP, before EJO` : `Paid ${naira(money.paidIn)} in total`} delay={0} />
+        <Kpi icon="wallet" label="Lifetime spend" value={money.netPaid} format="naira" hint={money.fromSap ? `Incl. ${naira(money.fromSap)} from ${OLD_SYSTEM}, before EJO` : `Paid ${naira(money.paidIn)} in total`} delay={0} />
         <Kpi icon="alert" label="Outstanding" value={money.outstanding} format="naira" tone={money.outstanding > 0 ? 'warning' : undefined} hint="Still owed on finished work" href={`${base}?tab=jobs`} delay={40} />
         <Kpi icon="refund" label="Refunds" value={money.refunded} format="naira" hint="Money returned to them" href={`${base}?tab=payments`} delay={80} />
         <Kpi icon="calendar" label="Visits" value={money.visits} hint={money.lastVisit ? `Last: ${formatDateOnly(money.lastVisit)}${money.sapInvoices ? ` · ${money.sapInvoices} in SAP` : ''}` : 'No visits yet'} href={`${base}?tab=jobs`} delay={120} />
         <Kpi icon="car" label="Vehicles" value={data.vehicles.length} hint={data.vehicles.length ? data.vehicles.slice(0, 2).map((v) => v.plateNumber || v.make).filter(Boolean).join(', ') : 'None registered'} href={`${base}?tab=vehicles`} delay={160} />
         <Kpi icon="receipt" label="Average job" value={money.averageJob} format="naira" hint={`${pluralize(money.finishedJobs, 'finished job')}`} delay={200} />
         <Kpi icon="clock" label="Average turnaround" value={money.averageTurnaroundDays} format="days" hint="Received → completed" delay={240} />
-        <Kpi icon="shield" label="Warranties active" value={money.activeWarranties} hint={`${pluralize(data.warranties.length, 'warranty', 'warranties')} in all`} href={`${base}?tab=warranties`} delay={280} />
+        {moduleIsOn('warranty') ? <Kpi icon="shield" label="Warranties active" value={money.activeWarranties} hint={`${pluralize(data.warranties.length, 'warranty', 'warranties')} in all`} href={`${base}?tab=warranties`} delay={280} /> : null}
       </div>
       {data.scope.branchOnly ? <p className="mt-2 text-xs text-[var(--ejo-text-muted)]">Visits, jobs and money show {data.scope.branchName} only — the branch you work in.</p> : null}
 
@@ -234,12 +240,12 @@ export default async function Customer360Page({ params, searchParams }: { params
           </Section>
         ) : null}
         {tab === 'jobs' && data.pastJobs.length ? (
-          <Section icon="wrench" title={`Job cards before EJO (${data.pastJobs.length})`} subtitle="Brought in from SAP: read-only history. Each counts as a visit; one whose work was a service also set the vehicle’s next-service clock." className="mt-6" action={<ExportAction kind="sap-jobs" params={{ customerId: id }} label="Export" />}>
+          <Section icon="wrench" title={`Job cards before EJO (${data.pastJobs.length})`} subtitle={`Brought in from ${OLD_SYSTEM}: read-only history. Each counts as a visit; one whose work was a service also set the vehicle’s next-service clock.`} className="mt-6" action={<ExportAction kind="sap-jobs" params={{ customerId: id }} label="Export" />}>
             <PastJobList rows={data.pastJobs} />
           </Section>
         ) : null}
         {tab === 'jobs' && data.sapInvoices.length ? (
-          <Section icon="receipt" title={`From SAP, before EJO (${data.sapInvoices.length})`} subtitle={`Invoices brought in from SAP: read-only history, already settled there. ${naira(money.fromSap)} in all — counted in lifetime spend, visits and last visit.`} className="mt-6" action={<ExportAction kind="sap-invoices" params={{ customerId: id }} label="Export" />}>
+          <Section icon="receipt" title={`From ${OLD_SYSTEM}, before EJO (${data.sapInvoices.length})`} subtitle={`Invoices brought in from ${OLD_SYSTEM}: read-only history, already settled there. ${naira(money.fromSap)} in all — counted in lifetime spend, visits and last visit.`} className="mt-6" action={<ExportAction kind="sap-invoices" params={{ customerId: id }} label="Export" />}>
             <SapInvoiceList rows={data.sapInvoices} />
           </Section>
         ) : null}

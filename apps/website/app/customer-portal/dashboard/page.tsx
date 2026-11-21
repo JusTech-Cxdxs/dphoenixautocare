@@ -9,6 +9,7 @@ import { MonthlyBars } from '@/components/customer/Charts';
 import { CountUp } from '@/components/customer/CountUp';
 import { Icon, type IconName } from '@/components/customer/Icon';
 import type { Tone } from '@/lib/customer-portal/status';
+import { moduleOn } from '@/lib/edition';
 
 export const metadata = { title: 'Overview' };
 
@@ -27,7 +28,8 @@ export default async function CustomerOverviewPage() {
   const [items, vehicles, warranties, notices] = await Promise.all([
     loadServices(me.id),
     loadVehicles(me.id),
-    loadWarranties(me.id),
+    // Warranty cover is read only while the warranty module is on (lib/edition.ts).
+    moduleOn('warranty') ? loadWarranties(me.id) : Promise.resolve([] as Awaited<ReturnType<typeof loadWarranties>>),
     loadNotices(me),
   ]);
   const now = new Date();

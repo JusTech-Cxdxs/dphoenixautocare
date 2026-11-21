@@ -5,6 +5,8 @@ import { LoadingLink } from '@/components/LoadingLink';
 import { FormFeedbackBanner } from '@/components/FormFeedbackBanner';
 import { Icon, PageHeader, StatusChip } from '@/components/ui';
 import { pluralize } from '@/lib/utils/pluralize';
+import { moduleIsOn } from '@/lib/modules';
+import { permissionShown } from '@/lib/edition';
 
 export const metadata = { title: 'Roles' };
 
@@ -12,7 +14,8 @@ export const metadata = { title: 'Roles' };
 const GROUPS: { title: string; slugs: string[] }[] = [
   { title: 'Leadership and headquarters', slugs: ['executive', 'administrator', 'it-administrator', 'branch-administrator'] },
   { title: 'Workshop', slugs: ['workshop-manager', 'workshop-supervisor', 'technician', 'receptionist'] },
-  { title: 'Money, store and warranty', slugs: ['finance-officer', 'store-manager', 'store-officer', 'warranty-hod', 'warranty-officer'] },
+  // Named for what this edition has (lib/modules.ts); the Store and Warranty roles are listed only where their modules are on.
+  { title: ['Money', moduleIsOn('inventory') ? 'store' : '', moduleIsOn('warranty') ? 'warranty' : ''].filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' and $1'), slugs: ['finance-officer', 'store-manager', 'store-officer', 'warranty-hod', 'warranty-officer'] },
   { title: 'Customers and support', slugs: ['customer-care-lead', 'customer-care'] },
   { title: 'Security, departments and everyday tools', slugs: ['chief-security-officer', 'security-officer', 'department-head', 'scheduling-admin', 'calendar-user', 'broadcaster', 'branch-assistant'] },
 ];
@@ -47,7 +50,7 @@ export default async function RolesPage({ searchParams }: { searchParams: Promis
           { label: 'Roles', value: roles.filter((r) => !r.isPlatform).length },
           { label: 'Role assignments', value: people },
           { label: 'Permissions added here', value: added },
-          { label: 'Approval steps covered', value: APPROVAL_PERMISSIONS.length },
+          { label: 'Approval steps covered', value: APPROVAL_PERMISSIONS.filter((k) => permissionShown(k)).length },
         ].map((s) => (
           <div key={s.label} className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] px-4 py-3">
             <dd className="text-2xl font-bold tabular-nums text-[var(--ejo-text)]">{s.value}</dd>

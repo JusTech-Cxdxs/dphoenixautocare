@@ -4,6 +4,7 @@ import { authorize, myOrganisationId, reachWhere } from '@/lib/authz/server';
 import { decisionLog } from '@/lib/insights/decisions';
 import { stepPictures, type StepPicture } from '@/lib/insights/decisions-core';
 import { prisma } from '@ejo/database';
+import { featureOn, moduleIsOn } from '@/lib/modules';
 
 /**
  * How work flows — every approval step of every workflow over a period:
@@ -21,7 +22,9 @@ export async function getWorkflowInsights(input: { days?: number } = {}): Promis
   if (!organisationId) return { days, steps: [], total: 0, model: null };
   const reach = await reachWhere('analytics.business.view');
   const branchIds = reach.branchId === undefined ? null : typeof reach.branchId === 'string' ? [reach.branchId] : reach.branchId.in;
-  const rows = await decisionLog({ organisationId, since: new Date(Date.now() - days * 86_400_000), branchIds });
+  // Steps of areas switched off in this edition (parts requests, outside purchases, warranty claims) are left out (lib/modules.ts).
+  const off = (step: string) => (step.startsWith('prs_') && !moduleIsOn('inventory')) || (step.startsWith('epr_') && !featureOn('externalProcurement')) || (step.startsWith('warranty_') && !moduleIsOn('warranty'));
+  const rows = (await decisionLog({ organisationId, since: new Date(Date.now() - days * 86_400_000), branchIds })).filter((r) => !off(r.step));
   const model = await prisma.enyoModel.findFirst({ where: { organisationId, task: 'DECISION_RISK', status: { in: ['ACTIVE', 'CANDIDATE'] } }, orderBy: { trainedAt: 'desc' }, select: { version: true, status: true, metrics: true } });
   return {
     days, steps: stepPictures(rows), total: rows.length,

@@ -7,11 +7,13 @@ import { CLAIM_STATUS, CUSTOMER_RESOLUTION, WARRANTY_STATE_INFO } from '@/lib/cu
 import { BackLink, Badge, Card, KeyValue, Notice, SectionTitle } from '@/components/customer/ui';
 import { Meter } from '@/components/customer/Charts';
 import { Icon } from '@/components/customer/Icon';
+import { moduleOn } from '@/lib/edition';
 
 export const metadata = { title: 'Warranty' };
 
-/** One warranty — from the customer's own list only (anyone else's is "not found"). */
+/** One warranty — from the customer's own list only (anyone else's is "not found"). Not found while the warranty module is off (lib/edition.ts). */
 export default async function WarrantyPage({ params }: { params: Promise<{ id: string }> }) {
+  if (!moduleOn('warranty')) notFound();
   const me = await requireCustomer();
   const { id } = await params;
   const w = (await loadWarranties(me.id)).find((x) => x.id === id);

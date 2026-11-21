@@ -32,6 +32,7 @@ import { unstable_cache } from 'next/cache';
 
 import { notifyGateOfRelease } from '@/lib/security-notify';
 import { customerTotal, isCustomerLine, coveredLabel } from '@/lib/estimate-billing';
+import { moduleIsOn } from '@/lib/modules';
 import { prisma, JobCardStatus, setAuditActor, setAuditActorResolver, type Prisma } from '@ejo/database';
 import { claimed, lockExisting } from '@/lib/integrity';
 import { exceedsBalance, NUMBER_CLASH_TRIES, numberClashPause } from '@/lib/integrity-core';
@@ -1983,6 +1984,11 @@ export async function addEstimateLineItem(jobCardId: string, input: EstimateLine
   // A Store Part line's description comes from its PartType below, not from
   // the client. Other line types need a non-empty description.
   let description = input.description.trim();
+  // Store Part lines need the Store; with the Store switched off (the D'Phoenix
+  // Autocare edition) parts are added as External Part lines and priced here.
+  if (input.type === 'STORE_PART' && !moduleIsOn('inventory')) {
+    throw new WorkshopActionError('Store Part lines are not used here. Add the part as an External Part line with its price.');
+  }
   if (input.type !== 'STORE_PART' && !description) {
     throw new WorkshopActionError('A description is required for this line item.');
   }
@@ -2497,9 +2503,9 @@ export async function approveEstimate(jobCardId: string): Promise<void> {
     throw new WorkshopActionError('This estimate has not been submitted for validation yet.');
   }
   // Every Store Part line must be matched (and so priced by Store) before
-  // supervisor sign-off.
+  // supervisor sign-off. With the Store switched off nothing waits on it.
   const unmatchedStoreParts = estimate.lineItems.filter(
-    (li: (typeof estimate.lineItems)[number]) => li.type === 'STORE_PART' && !li.matchedPartId,
+    (li: (typeof estimate.lineItems)[number]) => moduleIsOn('inventory') && li.type === 'STORE_PART' && !li.matchedPartId,
   );
   if (unmatchedStoreParts.length > 0) {
     throw new WorkshopActionError(

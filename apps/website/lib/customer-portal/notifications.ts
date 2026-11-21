@@ -2,6 +2,7 @@ import { prisma } from '@ejo/database';
 import { loadBroadcasts, loadServices, loadWarranties, type ServiceItem } from './data';
 import { DAY_MS, naira } from './format';
 import { WARRANTY_EXPIRY_NOTICE_DAYS, type Tone } from './status';
+import { moduleOn } from '@/lib/edition';
 
 /**
  * The customer's notification feed — derived from the dates already on
@@ -64,7 +65,8 @@ export async function loadNotices(customer: { id: string; organisationId: string
   const now = Date.now();
   const [items, warranties, broadcasts] = await Promise.all([
     loadServices(customer.id),
-    loadWarranties(customer.id),
+    // Warranty notices only while the warranty module is on (lib/edition.ts).
+    moduleOn('warranty') ? loadWarranties(customer.id) : Promise.resolve([] as Awaited<ReturnType<typeof loadWarranties>>),
     loadBroadcasts(customer.id, customer.organisationId),
   ]);
   const events: Omit<NoticeItem, 'read'>[] = servicesEvents(items);

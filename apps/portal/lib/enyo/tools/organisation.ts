@@ -21,7 +21,7 @@ export const organisationTools: StaffTool[] = [
       'This organisation: its name and contact details, its businesses and branches, and its leadership and other people it publishes (name, title, the part of the business they lead, a short biography and a public profile link). Use it first for "who is <name>?" about someone at the organisation, or "who heads …"; if they are not listed, try the web look-up with the name and the organisation.',
     parameters: {
       type: 'object',
-      properties: { name: { type: 'string', description: 'Optional: a person\'s name or a title to look for, e.g. "Mittal" or "IT".', maxLength: 80 } },
+      properties: { name: { type: 'string', description: 'Optional: a person\'s name or a title to look for, e.g. "Manager" or "IT".', maxLength: 80 } },
       additionalProperties: false,
     },
     run: async (args, ctx) => {
@@ -43,7 +43,7 @@ export const organisationTools: StaffTool[] = [
           select: { name: true, title: true, area: true, bio: true, profileUrl: true, isPublic: true },
         }).catch(() => []),
       ]);
-      // Background from the public record (the platform's own notes on the group), for the questions the records do not answer.
+      // Background from the public record (the platform's own notes on the organisation), for the questions the records do not answer.
       const known = organisationKnowledge(o?.slug ?? o?.name);
       const background = known ? { summary: known.summary, facts: known.facts, publishedPeople: knownPeople(known, terms).map((p) => ({ name: p.name, title: p.title, about: p.note, source: p.source })) } : null;
       return ok({

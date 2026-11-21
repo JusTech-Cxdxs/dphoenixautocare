@@ -5,6 +5,7 @@ import { allows, authorize, getPrincipal, myOrganisationId, reachWhere } from '@
 import { scopeFor } from '@/lib/authz/catalogue';
 import { branchHealth, hqPeriod, median, type Health, type HqBranch, type HqPeriodKey } from '@/lib/hq-core';
 import { broadcastState, BROADCAST_CATEGORY, AUDIENCE_LABEL, BROADCAST_STATE_LABEL } from '@/lib/notification-rules';
+import { featureOn, moduleIsOn } from '@/lib/modules';
 
 /**
  * Headquarters: the organisation for the people who run it — every branch
@@ -52,6 +53,8 @@ export async function getHeadquarters(periodKey?: string, opts: { history?: bool
   const inB = { branchId: { in: ids } };
   // Organisation-wide is the permission's scope (an organisation-wide reach is still a list of branch ids).
   const orgWide = p.isSuperAdmin || scopeFor(p, 'analytics.business.view') === 'ALL';
+  // Decisions of areas switched off in this edition (Store, outside purchases, Warranty, the plant) are not counted (lib/modules.ts).
+  const storeOn = moduleIsOn('inventory'), eprOn = featureOn('externalProcurement'), warrantyOn = moduleIsOn('warranty');
 
   const [organisation, staff, staffNew, customersNew, jcOpened, vsOpened, jcDone, vsDone, jcIn, vsIn, jcReady, vsReady, est, svEst, prs, epr, passes, claims, supOpen, supLate, outs, canBroadcast] = await Promise.all([
     org ? prisma.organisation.findUnique({ where: { id: org }, select: { name: true } }) : null,
@@ -69,10 +72,10 @@ export async function getHeadquarters(periodKey?: string, opts: { history?: bool
     prisma.vehicleService.groupBy({ by: ['branchId'], where: { ...inB, status: 'READY_FOR_COLLECTION' }, _count: { _all: true } }),
     prisma.estimate.findMany({ where: { status: { in: ['SUBMITTED', 'APPROVED'] }, jobCard: { ...inB, status: { notIn: [...CLOSED_JC] } } }, select: { submittedAt: true, approvedAt: true, createdAt: true, jobCard: { select: { branchId: true } } }, take: 5_000 }),
     prisma.serviceEstimate.findMany({ where: { status: { in: ['SUBMITTED', 'APPROVED'] }, vehicleService: { ...inB, status: { notIn: [...CLOSED_VS] } } }, select: { submittedAt: true, approvedAt: true, createdAt: true, vehicleService: { select: { branchId: true } } }, take: 5_000 }),
-    prisma.partRequestSlip.findMany({ where: { ...inB, status: { in: ['PENDING_HOD_APPROVAL', 'PENDING_STORE_APPROVAL'] } }, select: { branchId: true, createdAt: true }, take: 5_000 }),
-    prisma.externalProcurementRequest.findMany({ where: { ...inB, status: { in: ['PENDING_FINANCE_REVIEW', 'PENDING_MANAGER_APPROVAL'] } }, select: { branchId: true, createdAt: true }, take: 5_000 }),
+    storeOn ? prisma.partRequestSlip.findMany({ where: { ...inB, status: { in: ['PENDING_HOD_APPROVAL', 'PENDING_STORE_APPROVAL'] } }, select: { branchId: true, createdAt: true }, take: 5_000 }) : [],
+    eprOn ? prisma.externalProcurementRequest.findMany({ where: { ...inB, status: { in: ['PENDING_FINANCE_REVIEW', 'PENDING_MANAGER_APPROVAL'] } }, select: { branchId: true, createdAt: true }, take: 5_000 }) : [],
     prisma.exitPass.findMany({ where: { ...inB, status: { in: ['PENDING_HEAD', 'PENDING_MANAGER'] } }, select: { branchId: true, createdAt: true }, take: 5_000 }),
-    prisma.warrantyClaim.findMany({ where: { status: { in: ['PENDING_HOD', 'PENDING_MANAGER'] }, OR: [{ jobCard: inB }, { vehicleService: inB }] }, select: { submittedAt: true, createdAt: true, jobCard: { select: { branchId: true } }, vehicleService: { select: { branchId: true } } }, take: 5_000 }),
+    warrantyOn ? prisma.warrantyClaim.findMany({ where: { status: { in: ['PENDING_HOD', 'PENDING_MANAGER'] }, OR: [{ jobCard: inB }, { vehicleService: inB }] }, select: { submittedAt: true, createdAt: true, jobCard: { select: { branchId: true } }, vehicleService: { select: { branchId: true } } }, take: 5_000 }) : [],
     org ? prisma.supportTicket.groupBy({ by: ['branchId'], where: { organisationId: org, ...inB, status: { in: [...OPEN_SUPPORT] } }, _count: { _all: true } }).catch(() => []) : [],
     org ? prisma.supportTicket.groupBy({ by: ['branchId'], where: { organisationId: org, ...inB, status: { in: [...OPEN_SUPPORT] }, slaBreachedAt: { not: null }, firstResponseAt: null }, _count: { _all: true } }).catch(() => []) : [],
     prisma.jobCard.findMany({ where: { ...inB, checkedOutAt: range }, select: { branchId: true, createdAt: true, checkedOutAt: true }, take: 10_000 }),
@@ -123,7 +126,8 @@ export async function getHeadquarters(periodKey?: string, opts: { history?: bool
   for (const j of outs) if (j.checkedOutAt) turn.set(j.branchId, [...(turn.get(j.branchId) ?? []), (j.checkedOutAt.getTime() - j.createdAt.getTime()) / 3_600_000]);
 
   // An assembly plant's own figures (lib/branch-types.ts): its vehicles by stage and the kits waiting for release.
-  const plantIds = branches.filter((b) => b.type === 'ASSEMBLY_PLANT').map((b) => b.id);
+  // Only where the plant module is on: otherwise a plant branch shows as any other branch, with no plant figures.
+  const plantIds = moduleIsOn('plant') ? branches.filter((b) => b.type === 'ASSEMBLY_PLANT').map((b) => b.id) : [];
   const [stages, kitsOpen, kitsWaiting] = plantIds.length ? await Promise.all([
     prisma.plantVehicle.groupBy({ by: ['branchId', 'stage'], where: { branchId: { in: plantIds } }, _count: { _all: true } }),
     prisma.plantKit.groupBy({ by: ['branchId'], where: { branchId: { in: plantIds }, status: { in: ['ARRIVED', 'INSPECTING', 'SUBMITTED', 'ON_HOLD'] } }, _count: { _all: true } }),
@@ -137,7 +141,7 @@ export async function getHeadquarters(periodKey?: string, opts: { history?: bool
     const oldestKit = waitingKits.reduce<number | null>((m, k) => (k.submittedAt && (m === null || k.submittedAt.getTime() < m) ? k.submittedAt.getTime() : m), null);
     const row: HqBranch = {
       id: b.id, name: b.name, staff: staffB.get(b.id) ?? 0, type: b.type,
-      plant: b.type === 'ASSEMBLY_PLANT' ? { kits: kitsOpen.find((k) => k.branchId === b.id)?._count._all ?? 0, line: stageN(b.id, ['LINE', 'QA']), pdi: stageN(b.id, ['PDI']), yard: stageN(b.id, ['YARD']), releaseWaiting: waitingKits.length, oldestReleaseHours: oldestKit === null ? null : Math.max(0, Math.round((now - oldestKit) / 3_600_000)) } : null,
+      plant: b.type === 'ASSEMBLY_PLANT' && plantIds.includes(b.id) ? { kits: kitsOpen.find((k) => k.branchId === b.id)?._count._all ?? 0, line: stageN(b.id, ['LINE', 'QA']), pdi: stageN(b.id, ['PDI']), yard: stageN(b.id, ['YARD']), releaseWaiting: waitingKits.length, oldestReleaseHours: oldestKit === null ? null : Math.max(0, Math.round((now - oldestKit) / 3_600_000)) } : null,
       opened: (opJ.get(b.id) ?? 0) + (opV.get(b.id) ?? 0),
       finished: (dnJ.get(b.id) ?? 0) + (dnV.get(b.id) ?? 0),
       collected: Math.round(money.get(b.id) ?? 0),

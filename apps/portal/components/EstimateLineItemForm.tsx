@@ -2,7 +2,10 @@
 
 import { addEstimateLineItemFormAction } from '@/lib/actions/workshop-form-handlers';
 import { EstimateLineAddForm, type PartCategoryWithTypes } from '@/components/EstimateLineAddForm';
+import { moduleIsOn } from '@/lib/modules';
 
+// Store Part lines need the Store: with it switched off (the D'Phoenix Autocare
+// edition) parts are added as External Part lines and priced on the estimate.
 const TYPES = [
   { value: 'STORE_PART', label: 'Store Part' },
   { value: 'EXTERNAL_PART', label: 'External Part' },
@@ -10,7 +13,7 @@ const TYPES = [
   { value: 'INTERNAL_JOB', label: 'Internal Job' },
   { value: 'LABOUR', label: 'Labour' },
   { value: 'SUNDRY', label: 'Sundry' },
-];
+].filter((t) => t.value !== 'STORE_PART' || moduleIsOn('inventory'));
 
 /**
  * A Store Part line picks a Part Type and has no price (the Store prices it

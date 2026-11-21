@@ -5,7 +5,8 @@
  *
  * Both run as the person asking: they only ever name jobs the person may
  * open (reachWhere / allows on 'workshop.job_card.view'), and Store prices
- * come through the Store's own readers. Nothing here writes.
+ * come through the Store's own readers — only while the Store (inventory) is
+ * switched on in this edition (lib/modules.ts). Nothing here writes.
  */
 import type { Source, ToolResult } from '@ejo/enyo';
 import { prisma } from '@ejo/database';
@@ -14,6 +15,7 @@ import { findSimilarJobs, type SimilarScope } from '@/lib/enyo/predict/similar';
 import { loadSubject, type Subject } from '@/lib/enyo/predict/lines';
 import { suggestionFor } from '@/lib/enyo/predict/suggest';
 import type { LineType } from '@/lib/enyo/predict/lines-core';
+import { moduleIsOn } from '@/lib/modules';
 import { NOT_PERMITTED, type StaffTool } from '../types';
 
 const ok = (data: unknown, sources?: Source[]): ToolResult => (sources?.length ? { ok: true, data, sources } : { ok: true, data });
@@ -23,6 +25,8 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 const hrefOf = (kind: 'JOB_CARD' | 'SERVICE', id: string) => (kind === 'JOB_CARD' ? `/workshop/job-cards/${id}` : `/workshop/vehicle-service/${id}`);
 const NOT_FOUND = 'No Job Card or Vehicle Service with that number is available to this person (it may not exist, or it is outside what they can see). Say so and ask them to check the number.';
+/** Store prices and stock only while the Store is on; otherwise parts are priced on the estimate. */
+const STORE_ON = moduleIsOn('inventory');
 const GENERAL = 'These come from this workshop\'s own finished jobs. If you add general automotive knowledge, say clearly that it is general guidance, not from these records.';
 
 /** A Job Card (JC-…) or Vehicle Service (SV-…) by its number, only when this person may see it. */
@@ -137,6 +141,7 @@ export const workshopTools: StaffTool[] = [
       let labourUsual = 0;
       const lines = s.lines.map((l) => {
         const base = { line: l.label, type: l.type, quantity: l.quantity, similarJobs: `${l.support} of ${l.of}`, confidence: pct(l.confidence), alreadyOnEstimate: l.alreadyOnEstimate };
+        if (l.type === 'STORE_PART' && !STORE_ON) return { ...base, price: 'Priced on the estimate' };
         if (l.type === 'STORE_PART') {
           if (!l.partTypeId) return { ...base, store: 'Not in this branch\'s Store catalogue' };
           if (!l.store || l.store.priceMin === null) { storeUnpriced++; return { ...base, store: l.store?.parts ? 'No selling price set yet' : 'No fitting part in the Store yet' }; }
@@ -153,8 +158,7 @@ export const workshopTools: StaffTool[] = [
         basedOnSimilarJobs: s.lines[0]?.of ?? evidence.length,
         suggestions: lines,
         totals: {
-          storePartsAtTodaysLowestPrice: r2(storeToday),
-          storePartsWithoutPrice: storeUnpriced,
+          ...(STORE_ON ? { storePartsAtTodaysLowestPrice: r2(storeToday), storePartsWithoutPrice: storeUnpriced } : {}),
           usualLabour: r2(labourUsual),
           note: 'Totals leave out lines already on the estimate.',
         },

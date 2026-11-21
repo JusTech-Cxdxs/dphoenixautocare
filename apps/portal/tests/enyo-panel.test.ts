@@ -11,6 +11,7 @@ import { join } from 'node:path';
 import { parseInline, parseMarkdown, plainText, safeHref, type Inline } from '../lib/enyo/markdown';
 import { speakable, speechChunks } from '../components/enyo/voice-text';
 import { firstName, greetingText, lagosDay, lagosHour, starterPrompts } from '../lib/enyo/greeting';
+import { moduleIsOn } from '../lib/modules';
 
 const ROOT = join(__dirname, '..', '..');
 const read = (p: string) => readFileSync(join(ROOT, p), 'utf8');
@@ -90,7 +91,8 @@ test('starter questions suit the role, at most four, always "What\'s waiting for
     assert.equal(new Set(s).size, s.length);
   }
   assert.ok(starterPrompts('Finance Officer').includes("Today's takings"));
-  assert.ok(starterPrompts('Store Manager').includes('Which parts are out of stock or below their reorder point?'));
+  // The Store's starter question only while Inventory is on (lib/modules.ts).
+  assert.equal(starterPrompts('Store Manager').includes('Which parts are out of stock or below their reorder point?'), moduleIsOn('inventory'));
   assert.ok(starterPrompts('Workshop Supervisor').includes('How do I open a Job Card?'));
   for (const role of ['Administrator', 'Store Manager', 'Technician']) assert.ok(!starterPrompts(role).some((q) => /oil filter/i.test(q)), role);
 });

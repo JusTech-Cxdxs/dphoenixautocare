@@ -10,6 +10,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { moduleIsOn } from '../lib/modules';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as ts from 'typescript';
@@ -75,9 +76,12 @@ test('guide search: a technician gets workshop steps, never pages they cannot op
   assert.equal(bin.results.length, 0);
   assert.ok(bin.notYours.length > 0);
 
+  // The Store's guide entry only while Inventory is on (lib/modules.ts).
   const parts = searchGuide('request parts from the store', tech);
-  assert.equal(parts.results[0]?.id, 'job-card-parts');
-  assert.equal(parts.results[0]?.youCanDoThis, true);
+  if (moduleIsOn('inventory')) {
+    assert.equal(parts.results[0]?.id, 'job-card-parts');
+    assert.equal(parts.results[0]?.youCanDoThis, true);
+  } else assert.ok(!parts.results.some((r) => r.id === 'job-card-parts'));
 });
 
 test('guide search: the same question gives each role what is theirs', () => {

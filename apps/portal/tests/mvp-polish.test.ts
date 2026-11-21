@@ -62,7 +62,7 @@ test('access description: exactly what the catalogue grants, with "added" grants
   const work = tech.flatMap((g) => g.lines).find((l) => l.key === 'workshop.job.work')!;
   assert.equal(work.where, 'on work assigned to you');
   assert.equal(work.added, false);
-  const extra = describeAccess(who(['technician'], { extraGrants: { 'warranty.view': 'BRANCH' } }));
+  const extra = describeAccess(who(['technician'], { extraGrants: { 'warranty.view': 'BRANCH' } }), () => true);
   const w = extra.flatMap((g) => g.lines).find((l) => l.key === 'warranty.view')!;
   assert.equal(w.added, true);
   assert.equal(w.where, 'in your branch');

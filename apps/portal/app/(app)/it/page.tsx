@@ -8,6 +8,7 @@ import { PageHeader, SectionCard, StatTile, StatusChip } from '@/components/ui';
 import { formatDateTime, formatRelative } from '@/lib/utils/format-date';
 import { pluralize } from '@/lib/utils/pluralize';
 import { PERMISSIONS, type PermissionKey } from '@/lib/authz/catalogue';
+import { permissionShown } from '@/lib/edition';
 import { Suspense } from 'react';
 import { ItTrendsSection, WebsiteSection } from '@/components/it/ItTrends';
 
@@ -114,7 +115,8 @@ export default async function ItControlRoomPage() {
           </ul>
         </SectionCard>
         <SectionCard icon="lock" title="Refused attempts, 7 days" description="What people tried without the permission">
-          {it.denied.length ? <ul className="space-y-1.5 text-sm">{it.denied.map((d) => <li key={d.permission} className="flex gap-2"><span className="min-w-0 flex-1 truncate">{permLabel(d.permission)}</span><span className="font-semibold tabular-nums">{d.count}</span></li>)}</ul> : <p className="text-sm text-[var(--ejo-success)]">Nothing refused.</p>}
+          {/* This edition's permissions only (a refused attempt on a switched-off area stays in the audit trail). */}
+          {it.denied.some((d) => permissionShown(d.permission)) ? <ul className="space-y-1.5 text-sm">{it.denied.filter((d) => permissionShown(d.permission)).map((d) => <li key={d.permission} className="flex gap-2"><span className="min-w-0 flex-1 truncate">{permLabel(d.permission)}</span><span className="font-semibold tabular-nums">{d.count}</span></li>)}</ul> : <p className="text-sm text-[var(--ejo-success)]">Nothing refused.</p>}
         </SectionCard>
       </div>
 

@@ -10,6 +10,7 @@ import { jobIsLate, jobStatuses } from '@/lib/job-runs';
 import { schemaHealth } from '@/lib/schema-health';
 import { enyoReady } from '@/lib/enyo/settings';
 import type { SchemaVerdict } from '@/lib/schema-health-core';
+import { featureOn, moduleIsOn } from '@/lib/modules';
 
 /**
  * The two overview panels on the dashboard for the people who run the
@@ -62,6 +63,9 @@ export async function getLeadershipPulse(): Promise<LeadershipPulse> {
   const inB = { branchId: { in: branchIds } };
   const jcOpen = { ...inB, status: { notIn: [...OPEN_JC] } };
   const vsOpen = { ...inB, status: { notIn: [...OPEN_VS] } };
+  // Queues of areas switched off in this edition (lib/modules.ts) are not counted, nor listed.
+  const storeOn = moduleIsOn('inventory'), eprOn = featureOn('externalProcurement'), warrantyOn = moduleIsOn('warranty');
+  const none = Promise.resolve({ _count: { _all: 0 }, _min: { createdAt: null as Date | null } });
 
   const [jcIn, vsIn, jcReady, vsReady, parts, customer, out30, estSup, estMgr, prsHod, prsStore, eprFin, eprMgr, claimHod, claimMgr, passHead, passMgr, branches, jcByBranch, vsByBranch, readyByBranch, openedJc, openedVs, payJc, payVs] = await Promise.all([
     prisma.jobCard.count({ where: jcOpen }),
@@ -73,12 +77,12 @@ export async function getLeadershipPulse(): Promise<LeadershipPulse> {
     prisma.jobCard.findMany({ where: { ...inB, checkedOutAt: { gte: since30 } }, select: { createdAt: true, checkedOutAt: true }, take: 2000 }),
     prisma.estimate.aggregate({ where: { status: 'SUBMITTED', jobCard: inB }, _count: { _all: true }, _min: { submittedAt: true } }),
     prisma.estimate.aggregate({ where: { status: 'APPROVED', jobCard: inB }, _count: { _all: true }, _min: { approvedAt: true } }),
-    prisma.partRequestSlip.aggregate({ where: { status: 'PENDING_HOD_APPROVAL', OR: [{ jobCard: inB }, { vehicleService: inB }] }, _count: { _all: true }, _min: { createdAt: true } }),
-    prisma.partRequestSlip.aggregate({ where: { status: 'PENDING_STORE_APPROVAL', OR: [{ jobCard: inB }, { vehicleService: inB }] }, _count: { _all: true }, _min: { createdAt: true } }),
-    prisma.externalProcurementRequest.aggregate({ where: { ...inB, status: 'PENDING_FINANCE_REVIEW' }, _count: { _all: true }, _min: { createdAt: true } }),
-    prisma.externalProcurementRequest.aggregate({ where: { ...inB, status: 'PENDING_MANAGER_APPROVAL' }, _count: { _all: true }, _min: { createdAt: true } }),
-    prisma.warrantyClaim.aggregate({ where: { status: 'PENDING_HOD', OR: [{ jobCard: inB }, { vehicleService: inB }, { customer: { organisationId: org ?? '__none__' }, jobCardId: null, vehicleServiceId: null }] }, _count: { _all: true }, _min: { createdAt: true } }),
-    prisma.warrantyClaim.aggregate({ where: { status: 'PENDING_MANAGER', OR: [{ jobCard: inB }, { vehicleService: inB }, { customer: { organisationId: org ?? '__none__' }, jobCardId: null, vehicleServiceId: null }] }, _count: { _all: true }, _min: { createdAt: true } }),
+    storeOn ? prisma.partRequestSlip.aggregate({ where: { status: 'PENDING_HOD_APPROVAL', OR: [{ jobCard: inB }, { vehicleService: inB }] }, _count: { _all: true }, _min: { createdAt: true } }) : none,
+    storeOn ? prisma.partRequestSlip.aggregate({ where: { status: 'PENDING_STORE_APPROVAL', OR: [{ jobCard: inB }, { vehicleService: inB }] }, _count: { _all: true }, _min: { createdAt: true } }) : none,
+    eprOn ? prisma.externalProcurementRequest.aggregate({ where: { ...inB, status: 'PENDING_FINANCE_REVIEW' }, _count: { _all: true }, _min: { createdAt: true } }) : none,
+    eprOn ? prisma.externalProcurementRequest.aggregate({ where: { ...inB, status: 'PENDING_MANAGER_APPROVAL' }, _count: { _all: true }, _min: { createdAt: true } }) : none,
+    warrantyOn ? prisma.warrantyClaim.aggregate({ where: { status: 'PENDING_HOD', OR: [{ jobCard: inB }, { vehicleService: inB }, { customer: { organisationId: org ?? '__none__' }, jobCardId: null, vehicleServiceId: null }] }, _count: { _all: true }, _min: { createdAt: true } }) : none,
+    warrantyOn ? prisma.warrantyClaim.aggregate({ where: { status: 'PENDING_MANAGER', OR: [{ jobCard: inB }, { vehicleService: inB }, { customer: { organisationId: org ?? '__none__' }, jobCardId: null, vehicleServiceId: null }] }, _count: { _all: true }, _min: { createdAt: true } }) : none,
     prisma.exitPass.aggregate({ where: { ...inB, status: 'PENDING_HEAD' }, _count: { _all: true }, _min: { createdAt: true } }),
     prisma.exitPass.aggregate({ where: { ...inB, status: 'PENDING_MANAGER' }, _count: { _all: true }, _min: { createdAt: true } }),
     prisma.branch.findMany({ where: { id: { in: branchIds }, isActive: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
@@ -98,12 +102,9 @@ export async function getLeadershipPulse(): Promise<LeadershipPulse> {
   const waiting = [
     w('estimate_supervisor', 'Estimates waiting for the supervisor', estSup, '/approvals'),
     w('estimate_manager', 'Estimates waiting for final approval', estMgr, '/approvals'),
-    w('prs_hod', 'Parts requests waiting for the manager', prsHod, '/workshop/parts-requests'),
-    w('prs_store', 'Parts requests waiting for the Store', prsStore, '/workshop/parts-requests'),
-    w('epr_finance', 'Outside purchases waiting for Finance', eprFin, '/workshop/external-procurement'),
-    w('epr_manager', 'Outside purchases waiting for the manager', eprMgr, '/workshop/external-procurement'),
-    w('claim_hod', 'Warranty claims waiting for the head of warranty', claimHod, '/warranty/claims'),
-    w('claim_manager', 'Warranty claims waiting for the manager', claimMgr, '/warranty/claims'),
+    ...(storeOn ? [w('prs_hod', 'Parts requests waiting for the manager', prsHod, '/workshop/parts-requests'), w('prs_store', 'Parts requests waiting for the Store', prsStore, '/workshop/parts-requests')] : []),
+    ...(eprOn ? [w('epr_finance', 'Outside purchases waiting for Finance', eprFin, '/workshop/external-procurement'), w('epr_manager', 'Outside purchases waiting for the manager', eprMgr, '/workshop/external-procurement')] : []),
+    ...(warrantyOn ? [w('claim_hod', 'Warranty claims waiting for the head of warranty', claimHod, '/warranty/claims'), w('claim_manager', 'Warranty claims waiting for the manager', claimMgr, '/warranty/claims')] : []),
     w('pass_head', 'Exit passes waiting for the head of department', passHead, '/security/exit-passes'),
     w('pass_manager', 'Exit passes waiting for the manager', passMgr, '/security/exit-passes'),
   ];
@@ -217,8 +218,8 @@ export type PlantPulse = {
  * branch bar respected).
  */
 export async function getPlantPulse(): Promise<PlantPulse> {
-  // Quietly nothing for people who do not see the plant (a workshop manager's dashboard asks too).
-  if (!(await allows('plant.view'))) return null;
+  // Quietly nothing where the plant is switched off in this edition, and for people who do not see it (a workshop manager's dashboard asks too).
+  if (!moduleIsOn('plant') || !(await allows('plant.view'))) return null;
   const reach = await typedReach('plant.view', AREA_BRANCH_TYPES.plant);
   if (reach.reason !== 'ok' || !reach.branchIds.length) return null;
   const since = new Date(Date.now() - 14 * 86_400_000);

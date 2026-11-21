@@ -12,6 +12,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/ui/Icon';
 import { Wordmark } from '@/components/Wordmark';
+import { featureOn } from '@/lib/modules';
 
 /**
  * The sticky header: menu button and logo (phones/tablets), the master
@@ -111,9 +112,12 @@ export function Topbar({ userName, roleName, organisationName, onMenu, menuOpen 
                 <Link href="/support/help" onClick={() => setAccount(false)} className="flex items-center gap-3 rounded-[var(--ejo-radius-md)] px-3 py-2 text-sm text-[var(--ejo-text)] hover:bg-[var(--ejo-bg)]">
                   <span className="text-[var(--ejo-primary)]"><Icon name="help" size={17} /></span>Help centre
                 </Link>
-                <Link href="/roadmap" onClick={() => setAccount(false)} className="flex items-center gap-3 rounded-[var(--ejo-radius-md)] px-3 py-2 text-sm text-[var(--ejo-text)] hover:bg-[var(--ejo-bg)]">
-                  <span className="text-[var(--ejo-primary)]"><Icon name="roadmap" size={17} /></span>What’s coming next
-                </Link>
+                {/* Editions without a roadmap page (lib/modules.ts) leave the link out. */}
+                {featureOn('roadmap') ? (
+                  <Link href="/roadmap" onClick={() => setAccount(false)} className="flex items-center gap-3 rounded-[var(--ejo-radius-md)] px-3 py-2 text-sm text-[var(--ejo-text)] hover:bg-[var(--ejo-bg)]">
+                    <span className="text-[var(--ejo-primary)]"><Icon name="roadmap" size={17} /></span>What’s coming next
+                  </Link>
+                ) : null}
               </div>
               <div className="border-t border-[var(--ejo-border)] px-4 py-3">
                 <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ejo-text-muted)]">Appearance</p>

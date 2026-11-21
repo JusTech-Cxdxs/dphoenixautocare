@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getSapTrail } from '@/lib/actions/sap-postings';
 import { KINDS, LINE_STATUS_WORDS } from '@/lib/sap/postings';
 import { formatDateTimeCompact } from '@/lib/utils/format-date';
+import { featureOn } from '@/lib/modules';
 
 const TONE: Record<string, string> = {
   POSTED: 'text-[var(--ejo-success)]', REJECTED: 'text-[var(--ejo-error)]', SENT: 'text-[var(--ejo-warning-text)]', RESEND: 'text-[var(--ejo-warning-text)]', SUPERSEDED: 'text-[var(--ejo-text-muted)]',
@@ -13,9 +14,11 @@ const naira = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDi
  * its payments, refunds, parts issued, PDI decisions), the file it went in,
  * and what SAP answered — its document number, or its message. Shown only to
  * the people who send the branch's postings or confirm them; nothing when the
- * record has none.
+ * record has none, and nothing at all in an edition without the SAP link
+ * (lib/modules.ts) — the trail is not even read then.
  */
 export async function SapTrail({ entityType, entityId }: { entityType: string; entityId: string }) {
+  if (!featureOn('sap')) return null;
   const lines = await getSapTrail(entityType, entityId).catch(() => null);
   if (!lines?.length) return null;
   return (

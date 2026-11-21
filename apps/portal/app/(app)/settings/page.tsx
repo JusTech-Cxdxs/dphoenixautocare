@@ -43,7 +43,7 @@ const GROUPS: Group[] = [
   {
     id: 'support', title: 'Customer support', text: 'The Support centre: teams and their email addresses, hours, targets and how Enyo answers.',
     areas: [
-      { href: '/settings/support', icon: 'inbox', title: 'Support centre set-up', text: 'Teams (support@, warranty@, technical@ …), who works them, opening hours, targets and Enyo’s replies.', needs: 'support.manage' },
+      { href: '/settings/support', icon: 'inbox', title: 'Support centre set-up', text: 'Teams (support@, service@, technical@ …), who works them, opening hours, targets and Enyo’s replies.', needs: 'support.manage' },
       { href: '/crm/support/analytics', icon: 'chart', title: 'Support numbers', text: 'First answer, targets met, Enyo’s share, satisfaction and topics.', needs: 'support.tickets.manage' },
     ],
   },

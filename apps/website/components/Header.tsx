@@ -11,6 +11,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { LanguageSelector } from './LanguageSelector';
 import { SearchModal } from './SearchModal';
 import { PromoBar } from './site/PromoBar';
+import { PUBLIC_WEBSITE } from '@/lib/edition';
 
 /**
  * The site header. On a phone it is always a solid bar — wordmark, theme
@@ -69,7 +70,8 @@ export function Header() {
           className={`transition-[background-color,box-shadow] duration-300 ${glass ? 'bg-gradient-to-b from-black/55 to-transparent shadow-none' : 'bg-[var(--ejo-bg)]/95 shadow-[0_1px_0_var(--ejo-border)] backdrop-blur-md supports-[backdrop-filter]:bg-[var(--ejo-bg)]/85'}`}
           data-glass={glass ? 'true' : 'false'}
         >
-          <PromoBar dark={glass} />
+          {/* The store's offers and the site search exist only with the public website (lib/edition.ts). */}
+          {PUBLIC_WEBSITE ? <PromoBar dark={glass} /> : null}
           {/* Full width: the wordmark at the left edge, the sign-ins at the right, the pages between — room to breathe on a wide screen. */}
           <div className="flex h-16 w-full items-center gap-3 px-4 sm:px-6 lg:h-[76px] lg:px-5 2xl:px-7">
             <Link href="/" className="flex min-w-0 shrink-0 items-center" aria-label={siteConfig.organisationName}>
@@ -118,7 +120,7 @@ export function Header() {
 
             <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
               <span className="hidden xl:inline-flex"><LanguageSelector dark={glass} compact /></span>
-              <span className="hidden lg:inline-flex"><SearchModal dark={glass} /></span>
+              {PUBLIC_WEBSITE ? <span className="hidden lg:inline-flex"><SearchModal dark={glass} /></span> : null}
               <ThemeToggle dark={glass} />
               <span aria-hidden className={`mx-1 hidden h-6 w-px lg:block ${glass ? 'bg-white/25' : 'bg-[var(--ejo-border)]'}`} />
               <Link
@@ -178,7 +180,7 @@ export function Header() {
               </div>
               <div className="flex items-center gap-2 border-b border-[var(--ejo-border)] px-4 pb-3">
                 <LanguageSelector align="left" />
-                <SearchModal />
+                {PUBLIC_WEBSITE ? <SearchModal /> : null}
                 <span className="ml-auto"><ThemeToggle /></span>
               </div>
               <nav className="flex-1 overflow-y-auto px-2 py-2" aria-label="Main">

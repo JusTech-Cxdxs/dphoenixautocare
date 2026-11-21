@@ -6,6 +6,7 @@
  * tour can never promise a page the catalogue refuses, or the reverse.
  */
 import { STORE_COST_PERMISSIONS, type PermissionKey } from './catalogue';
+import { featureOn } from '../modules';
 
 /** Protected areas and the permission(s) any of which opens them (from each page's guard). */
 export const AREAS: { url: string; needs: PermissionKey[] }[] = [
@@ -57,6 +58,6 @@ export const AREAS: { url: string; needs: PermissionKey[] }[] = [
   { url: '/schedule/rooms', needs: ['schedule.view', 'schedule.manage'] },
   { url: '/notifications/broadcasts/analytics', needs: ['notifications.broadcast.send'] },
 ];
-/** Everyone signed in may open these. */
-export const EVERYONE = ['/dashboard', '/approvals', '/profile', '/notifications', '/security/exit-passes', '/roadmap'];
+/** Everyone signed in may open these (the roadmap only in editions that have one, lib/modules.ts). */
+export const EVERYONE = ['/dashboard', '/approvals', '/profile', '/notifications', '/security/exit-passes', ...(featureOn('roadmap') ? ['/roadmap'] : [])];
 

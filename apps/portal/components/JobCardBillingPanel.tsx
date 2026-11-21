@@ -4,8 +4,12 @@ import { SubmitButton } from '@/components/SubmitButton';
 import { setEstimateLineBillToFormAction } from '@/lib/actions/estimate-billing-form-handlers';
 import { BILL_TO_LABEL, type BillTo } from '@/lib/estimate-billing';
 import type { getJobCardBilling } from '@/lib/actions/estimate-billing';
+import { moduleIsOn } from '@/lib/modules';
 
 type Billing = NonNullable<Awaited<ReturnType<typeof getJobCardBilling>>>;
+// With Warranty switched off (the D'Phoenix Autocare edition) a line is paid by
+// the customer, as goodwill or internally; no warranty choice, claim or link.
+const WARRANTY_ON = moduleIsOn('warranty');
 const naira = (n: number | null) => (n === null ? '—' : `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 const CHIP: Record<BillTo, string> = {
   CUSTOMER: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]',
@@ -31,8 +35,8 @@ export function JobCardBillingPanel({ jobCardId, billing }: { jobCardId: string;
   const covered = lines.filter((l) => bt(l) !== 'CUSTOMER');
   const paidInFull = split.customer > 0 ? billing.netPaid >= split.customer - 0.009 : covered.length > 0;
   const settled = billing.isClosed || paidInFull || !billing.canEdit;
-  const hasWarranty = warranties.length > 0;
-  const claimable = [...new Map(lines.filter((l) => bt(l) === 'WARRANTY' && l.coveringWarranty).map((l) => [l.coveringWarranty!.id, l.coveringWarranty!])).values()];
+  const hasWarranty = WARRANTY_ON && warranties.length > 0;
+  const claimable = [...new Map(lines.filter((l) => WARRANTY_ON && bt(l) === 'WARRANTY' && l.coveringWarranty).map((l) => [l.coveringWarranty!.id, l.coveringWarranty!])).values()];
   const box = 'scroll-mt-24 rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)]';
   const claims = claimable.length ? (
     <div className="mt-3 flex flex-wrap gap-2">
@@ -61,7 +65,7 @@ export function JobCardBillingPanel({ jobCardId, billing }: { jobCardId: string;
           {covered.map((l) => (
             <li key={l.id}>
               <span className="text-[var(--ejo-text)]">{l.description}</span> — {naira(l.amount)} · {BILL_TO_LABEL[bt(l)]}
-              {l.coveringWarranty ? <> · <LoadingLink href={`/warranty/${l.coveringWarranty.id}`} className="text-[var(--ejo-primary)] hover:underline">{l.coveringWarranty.warrantyNumber}</LoadingLink></> : null}
+              {WARRANTY_ON && l.coveringWarranty ? <> · <LoadingLink href={`/warranty/${l.coveringWarranty.id}`} className="text-[var(--ejo-primary)] hover:underline">{l.coveringWarranty.warrantyNumber}</LoadingLink></> : null}
               {l.billToNote ? ` · ${l.billToNote}` : ''}
             </li>
           ))}

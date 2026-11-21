@@ -8,6 +8,7 @@
  * uses (KUNNR, NAME1, TELF1, SMTP_ADDR…), so an SAP extract maps itself.
  * Matching ignores case, spaces, dots, dashes and underscores.
  */
+import { featureOn, moduleIsOn } from '../modules';
 
 export type EntityKey = 'staff' | 'customers' | 'vehicles' | 'suppliers' | 'parts' | 'stock' | 'invoices' | 'jobs' | 'openJobs' | 'openServices' | 'warranties' | 'claims' | 'plantShipments' | 'plantVehicles' | 'plantKits' | 'plantKitIssues' | 'registers';
 
@@ -549,6 +550,33 @@ export const ENTITIES: Record<EntityKey, EntityDef> = {
 };
 
 export const ENTITY_KEYS = Object.keys(ENTITIES) as EntityKey[];
+
+/**
+ * The module each kind of record loads into, for the editions that switch it
+ * off (lib/modules.ts): the Store's suppliers, parts and opening stock,
+ * Warranty's warranties and claims, and the assembly plant's shipments,
+ * vehicles, kits, kit issues and registers. Kinds not listed are always on.
+ * Nothing is removed: imports already made stay readable and undoable.
+ */
+const ENTITY_MODULE: Partial<Record<EntityKey, string>> = {
+  suppliers: 'inventory', parts: 'inventory', stock: 'inventory',
+  warranties: 'warranty', claims: 'warranty',
+  plantShipments: 'plant', plantVehicles: 'plant', plantKits: 'plant', plantKitIssues: 'plant', registers: 'plant',
+};
+
+/** Whether a kind of record can be imported in this edition (its module is switched on). */
+export function entityInEdition(k: EntityKey, isOn: (key: string) => boolean = moduleIsOn): boolean {
+  const m = ENTITY_MODULE[k];
+  return !m || isOn(m);
+}
+
+/** The kinds of record offered for import in this edition, in the order above. */
+export const EDITION_ENTITY_KEYS: EntityKey[] = ENTITY_KEYS.filter((k) => entityInEdition(k));
+
+/** Where an import's file came from, in words: "SAP" only while this edition links with SAP. */
+export function sourceWords(sourceSystem: string, sap: boolean = featureOn('sap')): string {
+  return sap && sourceSystem === 'SAP' ? 'SAP' : 'an old system or spreadsheet';
+}
 
 /** SAP's unit codes (ISO and German) → the words the Store uses. Anything else is kept as written. */
 const SAP_UNITS: Record<string, string> = {

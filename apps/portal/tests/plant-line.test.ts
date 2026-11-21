@@ -110,7 +110,8 @@ test('roles and permissions: operators work the line, quality passes the gate (a
   assert.equal(approvalArea({ id: 'defect-verify-x', title: 'Verify rework' }), 'Plant');
   assert.equal(REFERENCE_TYPES.find((t) => t.prefix === 'DEF')!.path('v1'), '/plant/line/v1');
   assert.equal(REFERENCE_TYPES.find((t) => t.prefix === 'QAA')!.path('a1'), '/plant/qa/a1');
-  assert.match(read('../../packages/database/prisma/seed.ts'), /'Production Supervisor', 'Line Operator', 'QC Inspector', 'QA Auditor'\]/);
+  // The D'Phoenix edition has no assembly line: no line roles are seeded.
+  assert.doesNotMatch(read('../../packages/database/prisma/seed.ts'), /'Production Supervisor'|'Line Operator'|'QC Inspector'|'QA Auditor'/);
 });
 
 test('wired in: stations in order, failed checks need a defect, the gate and verification by a second person, refused during assisted sessions, nothing deleted; a kit release starts the build; PDI waits for the gate', () => {

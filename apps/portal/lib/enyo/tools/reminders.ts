@@ -11,18 +11,35 @@ import {
   type ReminderPrefill, type ReminderRecordType,
 } from '@/lib/reminders-rules';
 import { REFERENCE_TYPES } from '@/lib/search-plan';
+import { featureOn, moduleIsOn } from '@/lib/modules';
+
+// Store parts and parts requests, warranties and outside purchases only while their module is on in this edition (lib/modules.ts).
+const STORE_ON = moduleIsOn('inventory');
+const WARRANTY_ON = moduleIsOn('warranty');
+const OUTSIDE_ON = featureOn('externalProcurement');
 
 const PAGE_RECORD: [RegExp, ReminderRecordType][] = [
   [/^\/workshop\/job-cards\/([A-Za-z0-9_-]{8,64})/, 'JobCard'],
   [/^\/workshop\/vehicle-service\/([A-Za-z0-9_-]{8,64})/, 'VehicleService'],
   [/^\/crm\/customers\/([A-Za-z0-9_-]{8,64})/, 'Customer'],
   [/^\/workshop\/vehicles\/([A-Za-z0-9_-]{8,64})/, 'CustomerVehicle'],
-  [/^\/inventory\/parts\/([A-Za-z0-9_-]{8,64})/, 'Part'],
-  [/^\/warranty\/claims\/([A-Za-z0-9_-]{8,64})/, 'WarrantyClaim'],
-  [/^\/warranty\/(?!claims|policies|providers|analytics)([A-Za-z0-9_-]{8,64})/, 'Warranty'],
-  [/^\/workshop\/parts-requests\/([A-Za-z0-9_-]{8,64})/, 'PartRequestSlip'],
-  [/^\/workshop\/external-procurement\/([A-Za-z0-9_-]{8,64})/, 'ExternalProcurementRequest'],
+  ...(STORE_ON ? [[/^\/inventory\/parts\/([A-Za-z0-9_-]{8,64})/, 'Part'] as [RegExp, ReminderRecordType]] : []),
+  ...(WARRANTY_ON ? [
+    [/^\/warranty\/claims\/([A-Za-z0-9_-]{8,64})/, 'WarrantyClaim'],
+    [/^\/warranty\/(?!claims|policies|providers|analytics)([A-Za-z0-9_-]{8,64})/, 'Warranty'],
+  ] as [RegExp, ReminderRecordType][] : []),
+  ...(STORE_ON ? [[/^\/workshop\/parts-requests\/([A-Za-z0-9_-]{8,64})/, 'PartRequestSlip'] as [RegExp, ReminderRecordType]] : []),
+  ...(OUTSIDE_ON ? [[/^\/workshop\/external-procurement\/([A-Za-z0-9_-]{8,64})/, 'ExternalProcurementRequest'] as [RegExp, ReminderRecordType]] : []),
   [/^\/schedule\/([A-Za-z0-9_-]{8,64})$/, 'Appointment'],
+];
+
+/** The records a reference number may point a reminder at in this edition. */
+const REFERENCE_MODELS: string[] = [
+  'JobCard', 'VehicleService',
+  ...(STORE_ON ? ['PartRequestSlip'] : []),
+  ...(OUTSIDE_ON ? ['ExternalProcurementRequest'] : []),
+  ...(WARRANTY_ON ? ['Warranty', 'WarrantyClaim'] : []),
+  'Appointment',
 ];
 
 /** "JC-2026-000012" → the record, when the person can open it (the search applies their reach). */
@@ -30,7 +47,7 @@ async function recordFromReference(ref: string): Promise<{ type: ReminderRecordT
   const value = ref.trim().toUpperCase();
   const prefix = value.split('-')[0];
   const t = REFERENCE_TYPES.find((x) => x.prefix === prefix);
-  if (!t || !(['JobCard', 'VehicleService', 'PartRequestSlip', 'ExternalProcurementRequest', 'Warranty', 'WarrantyClaim', 'Appointment'] as string[]).includes(t.model)) return null;
+  if (!t || !REFERENCE_MODELS.includes(t.model)) return null;
   for (const g of await globalSearch(value)) {
     const hit = g.hits.find((h) => h.label === value);
     const id = hit?.href.split('?')[0]!.split('/').pop();

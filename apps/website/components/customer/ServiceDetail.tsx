@@ -6,6 +6,7 @@ import { Badge, BackLink, Card, KeyValue, Notice, SectionTitle, Stepper, Timelin
 import { PayHow, type BankDetails } from './PayHow';
 import { Meter } from './Charts';
 import { Icon } from './Icon';
+import { moduleOn } from '@/lib/edition';
 
 export type EstimateLine = { id: string; type: string; description: string; quantity: number; unitPrice: number | null; amount: number | null; unit: string | null };
 export type BranchInfo = { name: string; address: string | null; hotlines: string[]; email: string | null; bank: BankDetails };
@@ -241,7 +242,8 @@ export function ServiceDetail({ item, complaints, lines, branch, mileage, warran
                 <KeyValue label="Next service due">{[item.nextServiceDueDate ? fmtDate(item.nextServiceDueDate) : null, item.nextServiceDueOdometer ? `${item.nextServiceDueOdometer.toLocaleString('en-NG')} km` : null].filter(Boolean).join(' or ')}</KeyValue>
               ) : null}
             </dl>
-            {warranties.length ? (
+            {/* Warranties from the visit show only while the warranty module is on (lib/edition.ts). */}
+            {moduleOn('warranty') && warranties.length ? (
               <div className="mt-4 border-t border-[var(--ejo-border)] pt-3">
                 <p className="text-xs font-medium text-[var(--ejo-text-muted)]">Warranties from this visit</p>
                 <ul className="mt-2 space-y-1.5">

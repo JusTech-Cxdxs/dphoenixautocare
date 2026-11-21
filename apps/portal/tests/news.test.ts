@@ -73,6 +73,6 @@ test('publishing is a right of the communications team, administrators, executiv
 
 test('the D\'Phoenix edition loads no news stories: News & media is off and no deploy script inserts any', () => {
   const dir = join(ROOT, '../../scripts/postdeploy');
-  for (const f of readdirSync(dir)) assert.doesNotMatch(readFileSync(resolve(dir, f), 'utf8'), /INSERT INTO "news_posts"/, f);
+  for (const f of readdirSync(dir)) assert.doesNotMatch(readFileSync(join(dir, f), 'utf8'), /INSERT INTO "news_posts"/, f);
   assert.match(read('lib/schema-health-core.ts'), /news_posts/);
 });

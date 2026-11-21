@@ -5,6 +5,7 @@ import { authorize, getPrincipal, myOrganisationId, reachWhere } from '@/lib/aut
 import { ROLE_LABELS } from '@/lib/authz/catalogue';
 import { hqPeriod, type HqPeriodKey } from '@/lib/hq-core';
 import { summariseTeam, type Handled, type PersonRow } from '@/lib/team-core';
+import { featureOn, moduleIsOn } from '@/lib/modules';
 
 /**
  * Team performance for leadership (analytics.business.view): every person who
@@ -34,14 +35,16 @@ export async function getTeamPerformance(periodKey?: string): Promise<TeamPerfor
   const branches = typeof rb === 'string' ? all.filter((b) => b.id === rb) : rb && typeof rb === 'object' && 'in' in rb ? all.filter((b) => (rb.in as string[]).includes(b.id)) : all;
   const ids = branches.map((b) => b.id);
   const inB = { branchId: { in: ids } };
+  // Parts requests (the Store) and outside purchases (EPR) only where this edition has them (lib/modules.ts).
+  const storeOn = moduleIsOn('inventory'), eprOn = featureOn('externalProcurement');
 
   const [jcDone, vsDone, est, svEst, prs, epr, reworks, openJc, openVs] = await Promise.all([
     prisma.jobCard.findMany({ where: { ...inB, completedAt: range, status: { not: 'CANCELLED' }, assignedTechnicianId: { not: null } }, select: { id: true, assignedTechnicianId: true, workStartedAt: true, createdAt: true, completedAt: true, estimate: { select: { lineItems: { select: { amount: true } } } } }, take: 10_000 }),
     prisma.vehicleService.findMany({ where: { ...inB, completedAt: range, status: { not: 'CANCELLED' }, assignedTechnicianId: { not: null } }, select: { assignedTechnicianId: true, workStartedAt: true, checkedInAt: true, createdAt: true, completedAt: true, serviceEstimate: { select: { lineItems: { select: { amount: true } } } } }, take: 10_000 }),
     prisma.estimate.findMany({ where: { jobCard: inB, OR: [{ approvedAt: range }, { managerApprovedAt: range }] }, select: { submittedAt: true, approvedAt: true, approvedById: true, managerApprovedAt: true, managerApprovedById: true }, take: 10_000 }),
     prisma.serviceEstimate.findMany({ where: { vehicleService: inB, OR: [{ approvedAt: range }, { managerApprovedAt: range }] }, select: { submittedAt: true, approvedAt: true, approvedById: true, managerApprovedAt: true, managerApprovedById: true }, take: 10_000 }),
-    prisma.partRequestSlip.findMany({ where: { ...inB, OR: [{ hodApprovedAt: range }, { storeApprovedAt: range }, { releasedAt: range }] }, select: { createdAt: true, hodApprovedAt: true, hodApprovedById: true, storeApprovedAt: true, storeApprovedById: true, releasedAt: true, releasedById: true }, take: 10_000 }),
-    prisma.externalProcurementRequest.findMany({ where: { ...inB, OR: [{ financeReviewedAt: range }, { managerApprovedAt: range }, { disbursedAt: range }] }, select: { createdAt: true, financeReviewedAt: true, financeReviewedById: true, managerApprovedAt: true, managerApprovedById: true, disbursedAt: true, disbursedById: true, disbursedAmount: true }, take: 10_000 }),
+    storeOn ? prisma.partRequestSlip.findMany({ where: { ...inB, OR: [{ hodApprovedAt: range }, { storeApprovedAt: range }, { releasedAt: range }] }, select: { createdAt: true, hodApprovedAt: true, hodApprovedById: true, storeApprovedAt: true, storeApprovedById: true, releasedAt: true, releasedById: true }, take: 10_000 }) : [],
+    eprOn ? prisma.externalProcurementRequest.findMany({ where: { ...inB, OR: [{ financeReviewedAt: range }, { managerApprovedAt: range }, { disbursedAt: range }] }, select: { createdAt: true, financeReviewedAt: true, financeReviewedById: true, managerApprovedAt: true, managerApprovedById: true, disbursedAt: true, disbursedById: true, disbursedAmount: true }, take: 10_000 }) : [],
     org ? prisma.auditLog.findMany({ where: { organisationId: org, action: 'job_card.rework_requested', createdAt: range }, select: { entityId: true }, take: 10_000 }) : [],
     prisma.jobCard.groupBy({ by: ['assignedTechnicianId'], where: { ...inB, status: { notIn: [...CLOSED_JC] }, assignedTechnicianId: { not: null } }, _count: { _all: true } }),
     prisma.vehicleService.groupBy({ by: ['assignedTechnicianId'], where: { ...inB, status: { notIn: ['CLOSED', 'COLLECTED', 'CANCELLED', 'ESCALATED'] }, assignedTechnicianId: { not: null } }, _count: { _all: true } }),

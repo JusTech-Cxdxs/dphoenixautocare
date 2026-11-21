@@ -19,6 +19,7 @@ import { writeAuditLog } from '@/lib/workshop-core';
 import { getPlantDashboardItems } from '@/lib/actions/plant';
 import { getKitDashboardItems } from '@/lib/actions/plant-kits';
 import { getLineDashboardItems } from '@/lib/actions/plant-line';
+import { featureOn, moduleIsOn } from '@/lib/modules';
 
 export type DashboardNotification = {
   id: string;
@@ -48,9 +49,13 @@ export async function getDashboardNotifications(): Promise<DashboardNotification
 async function getDashboardNotificationsInner(): Promise<DashboardNotification[]> {
   const user = await requireUser();
   // Each module's items start now and run alongside the Workshop checks
-  // below, so the wait is the slowest module, not the sum.
-  const warrantyP = getWarrantyDashboardItems().catch(() => []);
-  const claimsP = getWarrantyClaimDashboardItems().catch(() => []);
+  // below, so the wait is the slowest module, not the sum. A module switched
+  // off in this edition (lib/modules.ts) is not even asked.
+  const storeOn = moduleIsOn('inventory');
+  const warrantyOn = moduleIsOn('warranty');
+  const plantOn = moduleIsOn('plant');
+  const warrantyP = warrantyOn ? getWarrantyDashboardItems().catch(() => []) : Promise.resolve([]);
+  const claimsP = warrantyOn ? getWarrantyClaimDashboardItems().catch(() => []) : Promise.resolve([]);
   const securityP = getSecurityDashboardItems().catch(() => []);
   const schedulingP = getSchedulingDashboardItems().catch(() => []);
   const workflowP = getWorkflowActionItems().catch(() => []);
@@ -71,12 +76,13 @@ async function getDashboardNotificationsInner(): Promise<DashboardNotification[]
 
   if (isEligibleManagerAnywhere) {
     const [openAlerts, pendingCancellations, pendingCloses, pendingServiceCloses, pendingServiceCancellations] = await Promise.all([
-      prisma.pricingAlert.findMany({
+      // Pricing alerts are the Store's (parts at their goods-receipt cost): only where the Store is on.
+      storeOn ? prisma.pricingAlert.findMany({
         where: { status: 'OPEN', part: isMasterAdmin ? undefined : { branchId: branchId ?? undefined } },
         orderBy: { createdAt: 'desc' },
         take: 10,
         select: { id: true, severity: true, createdAt: true, part: { select: { id: true, name: true, branchId: true } } },
-      }),
+      }) : [],
       prisma.cancellationRequest.findMany({
         where: { status: 'PENDING', jobCard: isMasterAdmin ? undefined : { branchId: branchId ?? undefined } },
         orderBy: { requestedAt: 'desc' },
@@ -247,19 +253,21 @@ async function getDashboardNotificationsInner(): Promise<DashboardNotification[]
   for (const w of await myWorkP) notifications.push({ ...w, kind: 'WORKFLOW' });
   // Data Exchange: imports waiting for this approver (never their own), and their own approved or sent back.
   for (const w of await getDataExchangeDashboardItems().catch(() => [])) notifications.push({ ...w, kind: 'WORKFLOW' });
-  // Assembly plant: PDIs waiting for this approver (never one they inspected), and their own PDIs sent back to rework.
-  for (const w of await getPlantDashboardItems().catch(() => [])) notifications.push({ ...w, kind: 'WORKFLOW' });
-  // Kits waiting for this supervisor's release (never one they checked), and the inspector's own kits on hold.
-  for (const w of await getKitDashboardItems().catch(() => [])) notifications.push({ ...w, kind: 'WORKFLOW' });
-  // The line: gates waiting for this inspector, reworked defects to verify, A-defects open.
-  for (const w of await getLineDashboardItems().catch(() => [])) notifications.push({ ...w, kind: 'WORKFLOW' });
+  // Assembly plant (only where that module is on): PDIs waiting for this approver (never one they inspected), and their own PDIs sent back to rework.
+  if (plantOn) {
+    for (const w of await getPlantDashboardItems().catch(() => [])) notifications.push({ ...w, kind: 'WORKFLOW' });
+    // Kits waiting for this supervisor's release (never one they checked), and the inspector's own kits on hold.
+    for (const w of await getKitDashboardItems().catch(() => [])) notifications.push({ ...w, kind: 'WORKFLOW' });
+    // The line: gates waiting for this inspector, reworked defects to verify, A-defects open.
+    for (const w of await getLineDashboardItems().catch(() => [])) notifications.push({ ...w, kind: 'WORKFLOW' });
+  }
   // Integrity watch reviewers: new alerts (never ones about themselves).
   const integrity = await countOpenIntegrityAlerts().catch(() => ({ open: 0, high: 0 }));
   if (integrity.open) {
     notifications.push({
       id: 'integrity-new', kind: 'WORKFLOW', url: '/integrity?status=NEW', createdAt: new Date(),
       title: `${integrity.open} new integrity alert${integrity.open === 1 ? '' : 's'} to review`,
-      detail: integrity.high ? `${integrity.high} high — unusual money, parts, gate or access activity` : 'Unusual money, parts, warranty, gate or access activity',
+      detail: integrity.high ? `${integrity.high} high — unusual money, parts, gate or access activity` : warrantyOn ? 'Unusual money, parts, warranty, gate or access activity' : 'Unusual money, parts, gate or access activity',
     });
   }
   for (const item of schedulingItems) {
@@ -400,12 +408,15 @@ export async function getPlatformGlance(): Promise<GlanceTile[]> {
     requireUser().then((u) => prisma.user.findUnique({ where: { id: u.id }, select: { id: true, organisationId: true, branchId: true, departmentId: true, roles: { select: { role: { select: { slug: true } } } } } })),
   ]);
   const claimReach = typeof work.branchId === 'string' ? { OR: [{ jobCard: work }, { vehicleService: work }] } : { customer: await orgWhere() };
+  // Areas switched off in this edition (lib/modules.ts): their counts are not run and their tiles not shown.
+  const storeOn = moduleIsOn('inventory'), eprOn = featureOn('externalProcurement'), warrantyOn = moduleIsOn('warranty');
+  const off = Promise.resolve(0);
   const [jcActive, svActive, prsOpen, eprOpen, claimsOpen, visitors, incidents, apptsToday, broadcasts, grnsToday] = await Promise.all([
     n(prisma.jobCard.count({ where: { ...work, ...jobCardActive() } })),
     n(prisma.vehicleService.count({ where: { ...work, ...serviceInside() } })),
-    n(prisma.partRequestSlip.count({ where: { ...store, status: { in: ['PENDING_HOD_APPROVAL', 'PENDING_STORE_APPROVAL', 'APPROVED'] } } })),
-    n(prisma.externalProcurementRequest.count({ where: { ...store, status: { in: ['PENDING_FINANCE_REVIEW', 'PENDING_MANAGER_APPROVAL', 'APPROVED'] } } })),
-    n(prisma.warrantyClaim.count({ where: { ...claimReach, status: { in: ['DRAFT', 'PENDING_HOD', 'PENDING_MANAGER', 'APPROVED_TO_SUBMIT', 'SUBMITTED'] } } })),
+    storeOn ? n(prisma.partRequestSlip.count({ where: { ...store, status: { in: ['PENDING_HOD_APPROVAL', 'PENDING_STORE_APPROVAL', 'APPROVED'] } } })) : off,
+    eprOn ? n(prisma.externalProcurementRequest.count({ where: { ...store, status: { in: ['PENDING_FINANCE_REVIEW', 'PENDING_MANAGER_APPROVAL', 'APPROVED'] } } })) : off,
+    warrantyOn ? n(prisma.warrantyClaim.count({ where: { ...claimReach, status: { in: ['DRAFT', 'PENDING_HOD', 'PENDING_MANAGER', 'APPROVED_TO_SUBMIT', 'SUBMITTED'] } } })) : off,
     n(prisma.visit.count({ where: { ...gate, status: 'CHECKED_IN' } })),
     n(prisma.securityIncident.count({ where: { ...gate, status: { in: ['OPEN', 'UNDER_REVIEW'] } } })),
     // The scheduling admin: every calendar in reach; everyone else: their own calendar.
@@ -414,12 +425,12 @@ export async function getPlatformGlance(): Promise<GlanceTile[]> {
     // matching what their bell shows.
     n(prisma.broadcast.findMany({ where: { organisationId: me?.organisationId ?? '__none__', isActive: true, startsAt: { lte: new Date() }, OR: [{ endsAt: null }, { endsAt: { gt: new Date() } }] }, select: { audience: true, audienceIds: true }, take: 500 })
       .then((list: { audience: string; audienceIds: string[] }[]) => list.filter((b) => reaches(b, { branchId: me?.branchId ?? null, departmentId: me?.departmentId ?? null, roleSlugs: (me?.roles ?? []).map((r: { role: { slug: string } }) => r.role.slug) })).length)),
-    n(prisma.goodsReceipt.count({ where: { ...store, receivedAt: { gte: dayStart, lt: dayEnd } } })),
+    storeOn ? n(prisma.goodsReceipt.count({ where: { ...store, receivedAt: { gte: dayStart, lt: dayEnd } } })) : off,
   ]);
   const p = (v: number, one: string, many: string) => `${v} ${v === 1 ? one : many}`;
   // Each tile only for the people whose work it is (same rule as its page).
   const [cw, cs, cwa, csec, csch, ccost] = await Promise.all([allows('workshop.view'), allows('store.view'), allows('warranty.view'), allows('security.view'), allows('schedule.view'), Promise.all(STORE_COST_PERMISSIONS.map((k) => allows(k))).then((xs) => xs.some(Boolean))]);
-  const NEED: Record<string, boolean> = { '/workshop/custody': cw, '/workshop/vehicle-service-custody': cw, '/workshop/parts-requests': cs, '/workshop/external-procurement': cs, '/inventory/goods-receipts': ccost, '/warranty/claims': cwa, '/security/on-premises': csec, '/security/incidents?tab=open': csec, '/schedule/appointments?show=today': csch, '/notifications?tab=broadcasts': true };
+  const NEED: Record<string, boolean> = { '/workshop/custody': cw, '/workshop/vehicle-service-custody': cw, '/workshop/parts-requests': cs && storeOn, '/workshop/external-procurement': cs && eprOn, '/inventory/goods-receipts': ccost && storeOn, '/warranty/claims': cwa && warrantyOn, '/security/on-premises': csec, '/security/incidents?tab=open': csec, '/schedule/appointments?show=today': csch, '/notifications?tab=broadcasts': true };
   const tiles: GlanceTile[] = [
     { label: 'Job Cards in progress', value: jcActive, hint: 'Open, not yet checked out', href: '/workshop/custody', tone: 'primary' },
     { label: 'Vehicle Services in custody', value: svActive, hint: 'Still in the workshop (cancelled ones awaiting hand-back included)', href: '/workshop/vehicle-service-custody', tone: 'info' },

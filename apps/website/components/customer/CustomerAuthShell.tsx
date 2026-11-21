@@ -5,15 +5,18 @@ import { Wordmark } from './Wordmark';
 import { PoweredByEjo } from './PoweredByEjo';
 import { ThemeSwitch } from './ThemeSwitch';
 import { Icon, type IconName } from './Icon';
+import { moduleOn, PUBLIC_WEBSITE } from '@/lib/edition';
+import { DPHOENIX } from '@/lib/content/dphoenix';
 
 const HIGHLIGHTS: { title: string; text: string; icon: IconName }[] = [
   { title: 'Follow every step', text: 'Job Cards and services, from check-in to collection, as it happens.', icon: 'route' },
   { title: 'Estimates & payments', text: 'Approve estimates, see what is due, keep every receipt.', icon: 'wallet' },
+  // Only while the warranty module is on (lib/edition.ts); filtered out below otherwise.
   { title: 'Warranties', text: 'What is covered, for how long, and how to claim.', icon: 'shield' },
   { title: 'Service reminders', text: 'When your next service is due, before it is late.', icon: 'calendarCheck' },
   { title: 'Ask Enyo, any time', text: 'Our assistant answers about your own vehicles, day or night.', icon: 'sparkles' },
   { title: 'Talk to a person', text: 'Open a request or complaint; our customer care replies by email or phone.', icon: 'chat' },
-];
+].filter((h) => moduleOn('warranty') || h.title !== 'Warranties');
 
 const STEPS = ['Checked in', 'Estimate approved', 'Work in progress', 'Quality check', 'Ready to collect'];
 
@@ -94,9 +97,16 @@ export function CustomerAuthShell({ title, subtitle, children, footer }: { title
       {/* Form panel */}
       <section className="relative flex w-full flex-1 flex-col lg:w-[54%]">
         <div className="flex items-center justify-between px-5 pt-5 sm:px-10 sm:pt-6">
-          <Link href="/" className="inline-flex items-center gap-1.5 rounded-full px-1 py-1 text-sm text-[var(--ejo-text-muted)] transition-colors hover:text-[var(--ejo-primary)]">
-            <Icon name="arrowLeft" size={16} /> Back to website
-          </Link>
+          {/* Without the public website here (lib/edition.ts), "Back to website" goes to D'Phoenix Autocare's own website. */}
+          {PUBLIC_WEBSITE ? (
+            <Link href="/" className="inline-flex items-center gap-1.5 rounded-full px-1 py-1 text-sm text-[var(--ejo-text-muted)] transition-colors hover:text-[var(--ejo-primary)]">
+              <Icon name="arrowLeft" size={16} /> Back to website
+            </Link>
+          ) : (
+            <a href={DPHOENIX.website} className="inline-flex items-center gap-1.5 rounded-full px-1 py-1 text-sm text-[var(--ejo-text-muted)] transition-colors hover:text-[var(--ejo-primary)]">
+              <Icon name="arrowLeft" size={16} /> Back to website
+            </a>
+          )}
           <div className="hidden lg:block"><ThemeSwitch /></div>
         </div>
         <div className="flex flex-1 items-start justify-center px-5 py-8 sm:items-center sm:px-10 sm:py-10">

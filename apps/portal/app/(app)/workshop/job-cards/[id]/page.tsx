@@ -46,6 +46,14 @@ import { PageTitle, StatusChip } from '@/components/ui';
 import { CustomerLink } from '@/components/CustomerLink';
 import { RefineTextButton } from '@/components/enyo/RefineTextButton';
 import { SapTrail } from '@/components/data-exchange/SapTrail';
+import { featureOn, moduleIsOn } from '@/lib/modules';
+
+// Switched per edition (the D'Phoenix Autocare edition has no Store, Warranty
+// or outside-purchase approvals): their parts of this page are hidden, the
+// code is kept, and switching a module back on brings them back.
+const STORE_ON = moduleIsOn('inventory');
+const WARRANTY_ON = moduleIsOn('warranty');
+const EPR_ON = featureOn('externalProcurement');
 
 
 const STATUS_LABEL: Record<string, string> = {
@@ -276,6 +284,8 @@ const ESTIMATE_TYPE_LABEL: Record<string, string> = {
   LABOUR: 'Labour',
   SUNDRY: 'Sundry',
 };
+// The subtotal legend, in order; no Store Part row when the Store is off.
+const ESTIMATE_TYPES = (['STORE_PART', 'EXTERNAL_PART', 'EXTERNAL_JOB', 'INTERNAL_JOB', 'LABOUR', 'SUNDRY'] as const).filter((t) => t !== 'STORE_PART' || STORE_ON);
 
 const PAYMENT_STATUS_LABEL: Record<string, string> = {
   AWAITING_PAYMENT: 'Awaiting Payment',
@@ -354,7 +364,7 @@ export default async function JobCardDetailPage({
   // Round 1: everything that needs only the id, in parallel (each database
   // round trip crosses regions). An id the viewer can't see is a 404.
   if (!(await jobCardVisible(id, 'page'))) notFound();
-  const [jobCard, technicians, isMasterAdmin, viewerId, auditTrail, eligibleSupervisors, estimate, payments, cancellationRequests, closeRequests, sourcingNeeds, refunds, warranties, roadTests, billing, binOffer] = await Promise.all([
+  const [jobCard, technicians, isMasterAdmin, viewerId, auditTrail, eligibleSupervisors, estimate, payments, cancellationRequests, closeRequests, sourcingFound, refunds, warranties, roadTests, billing, binOffer] = await Promise.all([
     getJobCard(id),
     listTechnicianCandidates(),
     currentUserIsMasterAdmin(),
@@ -367,12 +377,21 @@ export default async function JobCardDetailPage({
     getCloseRequests(id),
     getJobCardSourcingNeeds(id),
     listRefunds({ jobCardId: id }),
-    listWarrantiesFor({ jobCardId: id }),
+    WARRANTY_ON ? listWarrantiesFor({ jobCardId: id }) : Promise.resolve([]),
     listRoadTestsFor({ jobCardId: id }),
     getJobCardBilling(id),
     getRecycleBinOffer('JobCard', id),
   ]);
   if (!jobCard) notFound();
+  // Parts requests (PRS) need the Store; external procurement (EPR) needs its
+  // approvals. Either switched off: nothing to raise, list or link to.
+  const sourcingNeeds = {
+    ...sourcingFound,
+    needsStoreParts: STORE_ON && sourcingFound.needsStoreParts,
+    needsExternalProcurement: EPR_ON && sourcingFound.needsExternalProcurement,
+    existingPartRequestSlips: STORE_ON ? sourcingFound.existingPartRequestSlips : [],
+    existingExternalProcurementRequests: EPR_ON ? sourcingFound.existingExternalProcurementRequests : [],
+  };
   const origin = jobCard.importJobId ? await getImportOrigin(jobCard.importJobId).catch(() => null) : null;
   // Customer names link to their Customers (CRM) page for those who may open it.
   const canSeeCustomers = await allows('crm.view');
@@ -380,9 +399,10 @@ export default async function JobCardDetailPage({
   const [eligibleManagers, eligibleFinance, partCategories, partTypes, partWarrantyBadges] = await Promise.all([
     listEligibleManagersForBranch(jobCard.branchId),
     listEligibleFinanceOfficersForBranch(jobCard.branchId),
-    listPartCategories(jobCard.branchId),
-    listPartTypes(jobCard.branchId),
-    getPartWarrantyBadges((estimate?.lineItems ?? []).map((li: { matchedPartId: string | null }) => li.matchedPartId ?? '')),
+    STORE_ON ? listPartCategories(jobCard.branchId) : Promise.resolve([]),
+    STORE_ON ? listPartTypes(jobCard.branchId) : Promise.resolve([]),
+    // No part-warranty badges when Warranty is off.
+    WARRANTY_ON ? getPartWarrantyBadges((estimate?.lineItems ?? []).map((li: { matchedPartId: string | null }) => li.matchedPartId ?? '')) : Promise.resolve({} as Record<string, string>),
   ]);
   // Enyo, when switched on at Assist: unusual typed-in prices and when the vehicle is likely ready. Never in the way.
   // The record's own organisation decides (its model and level), never the viewer's.
@@ -420,7 +440,8 @@ export default async function JobCardDetailPage({
     }
     return item.amount !== null ? Number(item.amount) : 0;
   }
-  const hasUnmatchedStoreParts = estimateLineItems.some((li: (typeof estimateLineItems)[number]) => li.type === 'STORE_PART' && !li.matchedPartId);
+  // With the Store off nothing waits on Store matching (the server agrees).
+  const hasUnmatchedStoreParts = STORE_ON && estimateLineItems.some((li: (typeof estimateLineItems)[number]) => li.type === 'STORE_PART' && !li.matchedPartId);
   // What the customer pays — covered lines (warranty / goodwill / internal) excluded.
   const estimateTotal = customerTotal(estimateLineItems);
   const minimumDeposit = Math.round(estimateTotal * MINIMUM_DEPOSIT_FRACTION * 100) / 100;
@@ -796,7 +817,7 @@ export default async function JobCardDetailPage({
                       description: item.description,
                       notes: (
                         <>
-                          {item.type === 'STORE_PART' && item.matchedPartId && partWarrantyBadges[item.matchedPartId] ? (
+                          {WARRANTY_ON && item.type === 'STORE_PART' && item.matchedPartId && partWarrantyBadges[item.matchedPartId] ? (
                             <div className="mt-0.5 text-[11px] font-medium text-[var(--ejo-success)]">Warranty: {partWarrantyBadges[item.matchedPartId]} — issued automatically when released</div>
                           ) : null}
                           {item.type === 'STORE_PART' ? (
@@ -850,7 +871,7 @@ export default async function JobCardDetailPage({
                   })}
                 />
                 <div className="mt-3 space-y-1 border-t border-[var(--ejo-border)] pt-3 text-sm">
-                  {(['STORE_PART', 'EXTERNAL_PART', 'EXTERNAL_JOB', 'INTERNAL_JOB', 'LABOUR', 'SUNDRY'] as const).map((type) => {
+                  {ESTIMATE_TYPES.map((type) => {
                     const subtotal = estimate.lineItems
                       .filter((item: (typeof estimate.lineItems)[number]) => item.type === type)
                       .reduce((sum: number, item: (typeof estimate.lineItems)[number]) => sum + getLiveLineAmount(item), 0);
@@ -876,7 +897,7 @@ export default async function JobCardDetailPage({
                   {estimate.lineItems.some((item: (typeof estimate.lineItems)[number]) => !isCustomerLine(item)) ? (
                     <>
                       <div className="flex justify-between text-sm text-[var(--ejo-success)]">
-                        <span>Covered — warranty / goodwill / internal (not charged)</span>
+                        <span>{WARRANTY_ON ? 'Covered — warranty / goodwill / internal (not charged)' : 'Covered — goodwill / internal (not charged)'}</span>
                         <span>
                           −{formatNaira(
                             estimate.lineItems
@@ -1056,7 +1077,7 @@ export default async function JobCardDetailPage({
 
           <RoadTestsPanel rows={roadTests} ready={jobCard.status === 'QUALITY_CHECK'} requestHref={['CHECKED_IN', 'IN_PROGRESS', 'AWAITING_PARTS', 'QUALITY_CHECK', 'AWAITING_CUSTOMER_APPROVAL', 'COMPLETED', 'READY_FOR_COLLECTION', 'CLOSED'].includes(jobCard.status) && canRoadTest ? `/security/road-tests/new?jobCardId=${jobCard.id}` : null} />
 
-          <WarrantyList warranties={warranties} title="Warranties issued" />
+          {WARRANTY_ON ? <WarrantyList warranties={warranties} title="Warranties issued" /> : null}
 
           {refunds.length > 0 || ((jobCard.status === 'CANCELLED' || pendingCancellationRequest) && paymentsTotal > 0) || (billing?.overpaid ?? 0) > 0 ? (
             <RefundsPanel
@@ -1778,7 +1799,7 @@ export default async function JobCardDetailPage({
         </div>
       </div>
 
-      <SapTrail entityType="JobCard" entityId={jobCard.id} />
+      {featureOn('sap') ? <SapTrail entityType="JobCard" entityId={jobCard.id} /> : null}
 
       <div className="mt-6 rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-6">
         <h2 className="text-sm font-semibold text-[var(--ejo-text)]">Audit trail</h2>

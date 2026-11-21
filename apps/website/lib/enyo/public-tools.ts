@@ -8,6 +8,7 @@ import { openHandover } from './handover';
 import { checkHandoverContact } from './rules';
 import type { WebTool } from './types';
 import { searchWebsiteTool } from './site-knowledge';
+import { PUBLIC_WEBSITE } from '@/lib/edition';
 
 /** Shown to the visitor before they share contact details (the widget shows the same line). */
 export const CONSENT_LINE = 'We use your name and phone number or email only to reply to this request, and keep it with the conversation.';
@@ -20,7 +21,7 @@ const companyInfo: WebTool = {
   status: 'Looking up our details…',
   async run(_args, ctx) {
     const info = await loadCompanyInfo(ctx.organisationId);
-    return { ok: true, data: info, sources: [{ label: 'Contact us', href: '/contact' }] };
+    return { ok: true, data: info, sources: [PUBLIC_WEBSITE ? { label: 'Contact us', href: '/contact' } : { label: 'Customer support', href: '/support' }] };
   },
 };
 
@@ -50,7 +51,7 @@ const requestHandover: WebTool = {
     if (!r.ticketNumber) {
       const text = r.emailed
         ? `Thank you. I have emailed your request to our customer care team. They will ${how} soon.`
-        : 'I could not pass this on just now. Please call us on the numbers on our Contact page, or try again in a few minutes.';
+        : `I could not pass this on just now. Please call us on the numbers on our ${PUBLIC_WEBSITE ? 'Contact' : 'Customer support'} page, or try again in a few minutes.`;
       if (r.emailed) ctx.emit({ type: 'handover', ticketNumber: '', text });
       return r.emailed ? { ok: true, data: { emailedTheTeam: true, tellTheVisitor: text } } : { ok: false, message: `${text} Give them the phone numbers from the organisation information tool.` };
     }
@@ -63,4 +64,5 @@ const requestHandover: WebTool = {
   },
 };
 
-export const publicTools: WebTool[] = [searchWebsiteTool, companyInfo, requestHandover];
+/** The website search only while there is a public website to search (lib/edition.ts). */
+export const publicTools: WebTool[] = [...(PUBLIC_WEBSITE ? [searchWebsiteTool] : []), companyInfo, requestHandover];

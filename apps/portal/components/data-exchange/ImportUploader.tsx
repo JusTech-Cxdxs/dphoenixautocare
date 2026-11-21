@@ -5,7 +5,14 @@ import { useRouter } from 'next/navigation';
 import { appendImportRows, createImportJob, finishImportUpload } from '@/lib/actions/data-exchange';
 import { fingerprint, readFileRows, sniffKind } from '@/lib/data-exchange/read-file';
 import { Icon } from '@/components/ui';
+import { featureOn } from '@/lib/modules';
 import { BLOCK_BYTES, ROW_BYTES_MAX, rowBytes } from '@/lib/data-exchange/block-size';
+
+// Without the SAP link (lib/modules.ts) files come from Zoho, an old system or a spreadsheet.
+const SAP_ON = featureOn('sap');
+const SOURCES: readonly (readonly ['SAP' | 'LEGACY', string])[] = SAP_ON
+  ? [['SAP', 'SAP (an export or extract)'], ['LEGACY', 'An old system or our own spreadsheet']]
+  : [['LEGACY', 'Zoho, an old system or our own spreadsheet']];
 
 type Phase = 'idle' | 'reading' | 'sending' | 'finishing' | 'error';
 
@@ -44,7 +51,7 @@ const MIN_SEND_GAP_MS = 600;
 export function ImportUploader({ entity, entityLabel, branches, needsBranch = false, needsDate = false, needsKind = false }: { entity: string; entityLabel: string; branches?: { id: string; name: string }[]; needsBranch?: boolean; needsDate?: boolean; needsKind?: boolean }) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
-  const [source, setSource] = useState<'SAP' | 'LEGACY'>('SAP');
+  const [source, setSource] = useState<'SAP' | 'LEGACY'>(SAP_ON ? 'SAP' : 'LEGACY');
   const [branchId, setBranchId] = useState(branches && branches.length === 1 ? branches[0]!.id : '');
   const [registerKind, setRegisterKind] = useState('');
   const [asOf, setAsOf] = useState(() => new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Lagos' }).format(new Date()));
@@ -130,14 +137,14 @@ export function ImportUploader({ entity, entityLabel, branches, needsBranch = fa
       <fieldset disabled={busy} className="space-y-2">
         <legend className="text-sm font-medium text-[var(--ejo-text)]">Where is the file from?</legend>
         <div className="flex flex-wrap gap-3">
-          {([['SAP', 'SAP (an export or extract)'], ['LEGACY', 'An old system or our own spreadsheet']] as const).map(([v, label]) => (
+          {SOURCES.map(([v, label]) => (
             <label key={v} className={`flex cursor-pointer items-center gap-2 rounded-[var(--ejo-radius-md)] border px-3 py-2 text-sm ${source === v ? 'border-[var(--ejo-primary)] bg-[var(--ejo-primary)]/5 text-[var(--ejo-text)]' : 'border-[var(--ejo-border)] text-[var(--ejo-text-muted)]'}`}>
               <input type="radio" name="source" value={v} checked={source === v} onChange={() => setSource(v)} className="accent-[var(--ejo-primary)]" />
               {label}
             </label>
           ))}
         </div>
-        <p className="text-xs text-[var(--ejo-text-muted)]">The numbers in the file (SAP customer numbers and the like) are kept with each record under this source, so a later file is recognised.</p>
+        <p className="text-xs text-[var(--ejo-text-muted)]">The numbers in the file ({SAP_ON ? 'SAP customer numbers' : 'customer numbers'} and the like) are kept with each record under this source, so a later file is recognised.</p>
       </fieldset>
 
       {needsBranch || needsDate || needsKind ? (

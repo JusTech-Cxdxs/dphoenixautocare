@@ -13,6 +13,7 @@ import { VehiclePartsFitted } from '@/components/VehiclePartsFitted';
 import { humanizeAction } from '@/lib/humanize-action';
 import { listWarrantiesFor } from '@/lib/actions/warranty';
 import { WarrantyList } from '@/components/WarrantyList';
+import { moduleIsOn } from '@/lib/modules';
 import { getVehicle, getLastEditInfo, getVehicleAuditTrail } from '@/lib/actions/workshop';
 import { getRecycleBinOffer } from '@/lib/actions/recycle-bin';
 import { RecycleBinPanel } from '@/components/RecycleBinPanel';
@@ -92,7 +93,8 @@ export default async function VehiclePage({
   // Everything on this page needs only the vehicle's id — one round, all at once.
   const [vehicle, vehicleWarranties, partsFitted, lastEdit, auditTrail, binOffer, serviceHealth, analytics, reminderHistory, coveredValue, beforeEjo] = await Promise.all([
     getVehicle(id),
-    listWarrantiesFor({ vehicleId: id }),
+    // No warranties to show or register when Warranty is switched off (the D'Phoenix Autocare edition).
+    moduleIsOn('warranty') ? listWarrantiesFor({ vehicleId: id }) : Promise.resolve([]),
     listPartsFittedToVehicle(id),
     getLastEditInfo('CustomerVehicle', id, 'vehicle.updated'),
     getVehicleAuditTrail(id),
@@ -483,7 +485,7 @@ export default async function VehiclePage({
             </div>
           ) : null}
 
-          {vehicleWarranties.length > 0 ? (
+          {!moduleIsOn('warranty') ? null : vehicleWarranties.length > 0 ? (
             <div className="space-y-2">
               <WarrantyList warranties={vehicleWarranties} title="Warranties" />
               <LoadingLink href={`/warranty/register?vehicleId=${vehicle.id}`} className="inline-block text-xs text-[var(--ejo-primary)] hover:underline">
@@ -531,6 +533,8 @@ export default async function VehiclePage({
         </div>
       </div>
 
+      {/* Parts fitted are Store releases: no panel when the Store is switched off. */}
+      {moduleIsOn('inventory') ? (
       <div className="mt-6">
         <VehiclePartsFitted
           rows={partsFitted.map((r: (typeof partsFitted)[number]) => ({
@@ -552,6 +556,7 @@ export default async function VehiclePage({
           }))}
         />
       </div>
+      ) : null}
 
       <div className="mt-6 space-y-6">
         <h2 className="text-sm font-semibold text-[var(--ejo-text)]">Vehicle analytics</h2>

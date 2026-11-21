@@ -1,6 +1,6 @@
 import { allows } from '@/lib/authz/server';
 import { getOrganisation } from '@/lib/actions/organisation';
-import { ENTITIES, isEntityKey } from '@/lib/data-exchange/fields';
+import { ENTITIES, entityInEdition, isEntityKey } from '@/lib/data-exchange/fields';
 import { templateCsv, templateSheets } from '@/lib/data-exchange/templates';
 import { writeXlsx } from '@/lib/data-exchange/xlsx-writer';
 
@@ -9,7 +9,8 @@ export const dynamic = 'force-dynamic';
 /** The import template for one kind of record: Excel (with instructions and dropdowns) or CSV. No data in it. */
 export async function GET(req: Request, { params }: { params: Promise<{ entity: string }> }): Promise<Response> {
   const { entity } = await params;
-  if (!isEntityKey(entity) || !((await allows('dataexchange.import.run')) || (await allows('dataexchange.import.approve')))) {
+  // A kind of record whose module is switched off in this edition (lib/modules.ts) has no template.
+  if (!isEntityKey(entity) || !entityInEdition(entity) || !((await allows('dataexchange.import.run')) || (await allows('dataexchange.import.approve')))) {
     return new Response('Not available.', { status: 404, headers: { 'Cache-Control': 'no-store' } });
   }
   const csv = new URL(req.url).searchParams.get('format') === 'csv';

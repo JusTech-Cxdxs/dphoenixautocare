@@ -3,6 +3,9 @@
  * (store.view), and purchase cost and margin only for people who already
  * see costs on the Store pages (STORE_COST_PERMISSIONS). Parts are read
  * through listParts / getPricingAlertSummary, fenced to the person's Store.
+ *
+ * Both tools belong to the Store (inventory) module: while it is switched off
+ * in this edition (lib/modules.ts) they are never offered (lib/enyo/edition.ts).
  */
 import { allows } from '@/lib/authz/server';
 import { STORE_COST_PERMISSIONS } from '@/lib/authz/catalogue';

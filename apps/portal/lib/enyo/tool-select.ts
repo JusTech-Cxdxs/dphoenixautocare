@@ -8,7 +8,14 @@
  * fast; the core set (the guide, my work, records search, the organisation,
  * the staff directory) is always there, and anything unclear gets the
  * broader everyday set.
+ *
+ * Only tools of modules switched on in this edition are ever picked
+ * (lib/enyo/edition.ts): with the Store and Warranty off, "stock" or
+ * "warranty" pick nothing from those areas.
  */
+import { moduleIsOn } from '../modules';
+import { toolOn } from './edition';
+
 type Group = { test: RegExp; tools: string[] };
 
 export const CORE_TOOLS = ['guide_search', 'my_work', 'search_records', 'organisation_info', 'staff_directory'];
@@ -41,16 +48,23 @@ const WEB = /\bwho (is|was)\b|what (is|are|was) (a|an|the)\b|\bnews\b|\bweather\
 
 /**
  * The tool names for this question (and the previous one, so a follow-up such
- * as "and last month?" keeps its tools). At most `max`.
+ * as "and last month?" keeps its tools). At most `max`. `isOn` is the module
+ * switch (lib/modules.ts), a parameter for the tests.
  */
-export function selectToolNames(message: string, previous = '', max = 16): { names: string[]; web: boolean } {
+export function selectToolNames(message: string, previous = '', max = 16, isOn: (key: string) => boolean = moduleIsOn): { names: string[]; web: boolean } {
   const text = `${previous}\n${message}`;
-  const picked = new Set<string>(CORE_TOOLS);
+  const on = (t: string) => toolOn(t, isOn);
+  const picked = new Set<string>(CORE_TOOLS.filter(on));
   let matched = false;
   for (const g of GROUPS) {
-    if (g.test.test(message) || (previous && g.test.test(previous))) { matched = true; for (const t of g.tools) picked.add(t); }
+    if (g.test.test(message) || (previous && g.test.test(previous))) {
+      const tools = g.tools.filter(on);
+      if (!tools.length) continue;
+      matched = true;
+      for (const t of tools) picked.add(t);
+    }
   }
-  if (!matched) for (const t of BROAD) picked.add(t);
+  if (!matched) for (const t of BROAD.filter(on)) picked.add(t);
   return { names: [...picked].slice(0, max), web: WEB.test(text) };
 }
 
