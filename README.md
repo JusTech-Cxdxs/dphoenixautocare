@@ -1,4 +1,12 @@
-# EJO 100
+# EJO 100 — D'Phoenix Autocare edition
+
+**Setting it up:** start with [docs/DPHOENIX_SETUP.md](docs/DPHOENIX_SETUP.md) (Supabase, Vercel, email,
+Enyo, your domain and the first sign-in, step by step).
+
+This edition runs the workshop (one Job Card for repairs and services), customers and company
+fleets, the customer portal, scheduling, reminders, business analytics, security and Enyo. The
+Store, Warranty, the assembly plant and the SAP link stay in the code, switched off
+(`apps/portal/lib/modules.ts`).
 
 EJO 100 is a web system for running the day-to-day operations of an automotive business: the
 workshop, the parts store, warranty, the security gate and the assembly plant, with a portal
