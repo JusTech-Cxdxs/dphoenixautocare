@@ -30,7 +30,7 @@ function jobSummary(i: ServiceItem) {
   const estimateReady = i.estimateNotifiedAt !== null;
   return {
     number: i.number,
-    type: i.kind === 'jc' ? 'Job Card (repair)' : 'Vehicle Service',
+    type: i.kind === 'jc' ? (i.isServiceJobCard ? 'Job Card (service)' : 'Job Card (repair)') : 'Vehicle Service',
     status: i.info.label,
     meaning: i.info.explain,
     nextStep: nextStepFor({ kind: i.kind, status: i.status, awaitingApproval: i.awaitingApproval, waitingForCollection: i.waitingForCollection, balance: i.money.balance, estimateReady }),

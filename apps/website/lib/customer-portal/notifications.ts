@@ -34,7 +34,7 @@ const FEED_LIMIT = 80;
 function servicesEvents(items: ServiceItem[]): Omit<NoticeItem, 'read'>[] {
   const out: Omit<NoticeItem, 'read'>[] = [];
   for (const i of items) {
-    const name = `${i.kind === 'jc' ? 'Job Card' : 'Service'} ${i.number}`;
+    const name = `${i.kind === 'jc' && !i.isServiceJobCard ? 'Job Card' : 'Service'} ${i.number}`;
     const car = i.vehicle.plate ? `${i.vehicle.label} (${i.vehicle.plate})` : i.vehicle.label;
     const add = (event: string, at: Date | null, title: string, body: string, icon: string, tone: Tone) => {
       if (at) out.push({ key: `${i.kind}:${i.id}:${event}`, title, body, at, href: i.href, icon, tone });

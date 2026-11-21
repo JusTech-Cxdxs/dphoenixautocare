@@ -124,3 +124,8 @@ export function initials(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1]![0] : '')).toUpperCase() || '•';
 }
+
+/** What the customer sees a visit called: a Job Card opened as a service is a "Service". */
+export function itemKindLabel(i: { kind: 'jc' | 'vs'; isServiceJobCard: boolean }): string {
+  return i.kind === 'vs' ? 'Vehicle service' : i.isServiceJobCard ? 'Service' : 'Job Card';
+}

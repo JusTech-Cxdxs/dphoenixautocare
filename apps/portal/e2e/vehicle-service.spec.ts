@@ -3,7 +3,7 @@ import { CUSTOMER, SEED_PARTS, who } from './people';
 import { as, open, expectNoUrlError, latestMail, readStock, waitOutcome } from './helpers';
 import { freshVehicle, idOfPart } from './db';
 import { card, jcForm, pickSearchable } from './workflows';
-import { INVENTORY_ENABLED } from './edition';
+import { INVENTORY_ENABLED, SEPARATE_VEHICLE_SERVICE, SEPARATE_VEHICLE_SERVICE_OFF } from './edition';
 
 /**
  * Vehicle Service (routine maintenance), by the people who do it:
@@ -15,7 +15,10 @@ import { INVENTORY_ENABLED } from './edition';
  * handed back, and a service that turns into a repair is escalated to a
  * Job Card. Without the Store (the D'Phoenix edition, edition.ts) the spark
  * plugs are an Internal Job line the supervisor prices, and nothing is matched.
+ * Only with a separate Vehicle Service (E2E_SEPARATE_VEHICLE_SERVICE=1): the
+ * D'Phoenix edition opens services as a Job Card (job-card-service.spec.ts).
  */
+test.skip(!SEPARATE_VEHICLE_SERVICE, SEPARATE_VEHICLE_SERVICE_OFF);
 
 // The status chip beside the title (PageTitle wraps the h1; the chip is the title block's next sibling).
 const vsStatus = (page: Page) => page.getByRole('heading', { level: 1 }).locator('xpath=parent::div/following-sibling::span[1]');

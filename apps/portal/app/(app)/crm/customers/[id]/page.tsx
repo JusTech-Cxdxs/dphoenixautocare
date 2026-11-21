@@ -25,6 +25,7 @@ import { RefineTextButton } from '@/components/enyo/RefineTextButton';
 import { ExportAction } from '@/components/ExportAction';
 import { SapTrail } from '@/components/data-exchange/SapTrail';
 import { featureOn, moduleIsOn } from '@/lib/modules';
+import { bookServiceHref, separateVehicleServiceOn, OPEN_SERVICE_JOB_CARD } from '@/lib/service-entry';
 
 /** Where records from before EJO came from, in this edition's words. */
 const OLD_SYSTEM = featureOn('sap') ? 'SAP' : 'the previous system';
@@ -225,7 +226,7 @@ export default async function Customer360Page({ params, searchParams }: { params
                     </dl>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Link href={`/workshop/vehicles/${v.id}/edit`} prefetch={false} className={ghost}>Vehicle page →</Link>
-                      {can.openJobs ? <Link href={`/workshop/vehicle-service/book?vehicleId=${encodeURIComponent(v.id)}`} prefetch={false} className={ghost}><CrmIcon name="calendar" size={14} />Book service</Link> : null}
+                      {can.openJobs ? <Link href={bookServiceHref(v.id)} prefetch={false} className={ghost}><CrmIcon name="calendar" size={14} />{separateVehicleServiceOn() ? 'Book service' : OPEN_SERVICE_JOB_CARD}</Link> : null}
                     </div>
                   </li>
                 ))}

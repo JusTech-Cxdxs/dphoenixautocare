@@ -8,7 +8,8 @@ import { getOrganisation } from '@/lib/actions/organisation';
 import { DocumentHeader, SignatureBlock, DocumentFooter } from '@/components/print/DocumentHeader';
 import { PrintOnLoad } from '@/components/print/PrintOnLoad';
 import { pluralize, pluralizeWord } from '@/lib/utils/pluralize';
-import { formatDateTime } from '@/lib/utils/format-date';
+import { formatDateOnly, formatDateTime } from '@/lib/utils/format-date';
+import { serviceJobCardCycle } from '@/lib/vehicle-service-cycle';
 import { visitDurations } from '@/lib/visit-durations';
 import { featureOn, moduleIsOn } from '@/lib/modules';
 
@@ -89,6 +90,11 @@ export default async function PrintJobCardPage({
   // Money in and money returned — the refund story, on both copies.
   const totalRefunded = jobCard.refunds.reduce((sum: number, r: (typeof jobCard.refunds)[number]) => sum + Number(r.amount), 0);
   const netPaid = Math.round((totalPaid - totalRefunded) * 100) / 100;
+  // A Job Card opened as a service: the next-service point it set (not on a cancelled hand-back).
+  const nextService = jobCard.isService && !wasCancelled ? await serviceJobCardCycle(id).catch(() => null) : null;
+  const nextServiceDue = nextService
+    ? [nextService.nextServiceDueOdometer != null ? `${nextService.nextServiceDueOdometer.toLocaleString('en-NG')} km` : null, nextService.nextServiceDueDate ? formatDateOnly(nextService.nextServiceDueDate) : null].filter(Boolean).join(' or ')
+    : '';
   const paymentRefs = jobCard.payments.map((p: (typeof jobCard.payments)[number]) => p.notes?.trim()).filter((n: string | undefined): n is string => Boolean(n));
 
   return (
@@ -115,6 +121,8 @@ export default async function PrintJobCardPage({
         <Field label="VIN / CHASSIS" value={jobCard.vehicle.chassisNumber ?? '—'} />
         <Field label="CHECKED IN" value={formatDateTime(new Date(jobCard.createdAt))} />
         <Field label="CHECKED OUT" value={jobCard.checkedOutAt ? formatDateTime(new Date(jobCard.checkedOutAt)) : '—'} />
+        {jobCard.isService ? <Field label="VISIT" value="Service" /> : null}
+        {nextServiceDue ? <Field label="NEXT SERVICE DUE" value={`${nextServiceDue} — whichever comes first`} /> : null}
         {jobCard.escalatedFromVehicleService ? <Field label="ESCALATED FROM" value={`Vehicle Service ${jobCard.escalatedFromVehicleService.serviceNumber}`} /> : null}
         {paymentRefs.length > 0 ? <Field label={pluralize(paymentRefs.length, 'PAYMENT REF', 'PAYMENT REFS')} value={paymentRefs.join(', ')} /> : null}
         {jobCard.refunds.length > 0 ? (

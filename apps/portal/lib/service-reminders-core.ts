@@ -7,7 +7,7 @@ import { websiteBaseUrl } from '@/lib/portal-url';
 
 import { prisma, getAuditActor } from '@ejo/database';
 import { writeAuditLog } from '@/lib/workshop-core';
-import { loadServiceTracking } from '@/lib/vehicle-service-cycle';
+import { loadServiceTracking, SERVICE_JOB_CARD_WHERE } from '@/lib/vehicle-service-cycle';
 import { sendEmail } from '@/lib/email';
 import { renderServiceReminderEmail, serviceReminderSubject, type ServiceReminderStage } from '@/lib/email-templates/service-reminder';
 import { PLATFORM } from '@/lib/brand';
@@ -68,11 +68,23 @@ export async function sendServiceReminder(need: VehicleNeedingReminder, trigger?
         take: 1,
         select: { primaryServiceMileage: true, primaryServiceDate: true, branch: { select: { name: true, businessUnit: { select: { organisation: { select: { name: true } } } } } } },
       },
+      // A Job Card opened as a service counts as the last service too (the later one wins).
+      jobCards: {
+        where: SERVICE_JOB_CARD_WHERE,
+        orderBy: { checkedOutAt: 'desc' },
+        take: 1,
+        select: { mileageAtCheckIn: true, checkedOutAt: true, branch: { select: { name: true, businessUnit: { select: { organisation: { select: { name: true } } } } } } },
+      },
     },
   });
   if (!vehicle || !vehicle.customer.email) return;
 
-  const lastService = vehicle.vehicleServices[0];
+  const serviceRow = vehicle.vehicleServices[0];
+  const serviceCard = vehicle.jobCards[0];
+  const lastService =
+    serviceCard?.checkedOutAt && (!serviceRow?.primaryServiceDate || serviceCard.checkedOutAt > serviceRow.primaryServiceDate)
+      ? { primaryServiceMileage: serviceCard.mileageAtCheckIn, primaryServiceDate: serviceCard.checkedOutAt as Date | null, branch: serviceCard.branch }
+      : serviceRow;
   const branchContext = lastService?.branch;
   const websiteUrl = websiteBaseUrl();
   const vehicleDescription = [vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'your vehicle';

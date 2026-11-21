@@ -6,6 +6,7 @@ import { Icon, SectionCard, StatTile, StatusChip } from '@/components/ui';
 import { formatDateTime } from '@/lib/utils/format-date';
 import { pluralize } from '@/lib/utils/pluralize';
 import { moduleIsOn } from '@/lib/modules';
+import { separateVehicleServiceOn } from '@/lib/service-entry';
 
 const naira = (n: number | null | undefined) => (n === null || n === undefined ? '—' : `₦${Math.round(n).toLocaleString('en-NG')}`);
 const age = (h: number | null) => (h === null ? '' : h < 1 ? 'under an hour' : h < 48 ? `${h} h` : `${Math.round(h / 24)} days`);
@@ -74,7 +75,8 @@ export async function LeadershipOverview() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
             {[
               { label: 'Job Cards in', value: p.workshop.jobCardsIn, href: '/workshop/custody' },
-              { label: 'Services in', value: p.workshop.servicesIn, href: '/workshop/vehicle-service-custody' },
+              // No separate Vehicle Service in this edition: shown only while old ones are still in.
+              ...(separateVehicleServiceOn() || p.workshop.servicesIn > 0 ? [{ label: 'Services in', value: p.workshop.servicesIn, href: '/workshop/vehicle-service-custody' }] : []),
               { label: 'Ready to collect', value: p.workshop.ready, href: '/workshop/custody' },
               // The parts requests list is the Store's: without it, the jobs themselves.
               { label: 'Waiting for parts', value: p.workshop.awaitingParts, href: moduleIsOn('inventory') ? '/workshop/parts-requests' : '/workshop/custody' },

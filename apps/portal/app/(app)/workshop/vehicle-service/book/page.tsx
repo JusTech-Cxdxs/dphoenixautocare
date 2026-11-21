@@ -10,6 +10,7 @@ import { ServiceComplaintListInput } from '@/components/ServiceComplaintListInpu
 import { formatDateOnly } from '@/lib/utils/format-date';
 import { PageHeader } from '@/components/ui';
 import { CustomerLink } from '@/components/CustomerLink';
+import { separateVehicleServiceOn } from '@/lib/service-entry';
 
 /**
  * "Customer is back" — book a known vehicle straight in for its next
@@ -20,6 +21,8 @@ import { CustomerLink } from '@/components/CustomerLink';
  */
 export default async function BookVehicleServicePage({ searchParams }: { searchParams: Promise<{ vehicleId?: string }> }) {
   await guardAnyPage(['workshop.view'], '/workshop');
+  // No separate Vehicle Service for new work in this edition: a service is opened as a Job Card.
+  if (!separateVehicleServiceOn()) notFound();
   const { vehicleId } = await searchParams;
   if (!vehicleId) notFound();
   const vehicle = await getVehicle(vehicleId);

@@ -26,6 +26,7 @@ import { LiveSearchInput } from '@/components/LiveSearchInput';
 import { BackLink, PageTitle, StatusChip } from '@/components/ui';
 import { CustomerLink } from '@/components/CustomerLink';
 import { ExportAction } from '@/components/ExportAction';
+import { separateVehicleServiceOn, VEHICLE_SERVICE_OFF_MESSAGE } from '@/lib/service-entry';
 
 const STATUS_LABEL: Record<string, string> = {
   SCHEDULED: 'Scheduled',
@@ -200,8 +201,16 @@ export default async function VehicleServicePage({
         </button>
       </form>
 
-      <FormJumpLink target="open-vehicle-service">New Vehicle Service</FormJumpLink>
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      {/* No separate Vehicle Service for new work in this edition: past ones stay listed and searchable here. */}
+      {separateVehicleServiceOn() ? (
+        <FormJumpLink target="open-vehicle-service">New Vehicle Service</FormJumpLink>
+      ) : (
+        <p role="status" data-testid="vehicle-service-off" className="mb-4 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-info)]/30 bg-[var(--ejo-info)]/5 px-3 py-2 text-sm text-[var(--ejo-text)]">
+          {VEHICLE_SERVICE_OFF_MESSAGE}{' '}
+          <LoadingLink href="/workshop/job-cards?service=1#open-job-card" className="font-medium text-[var(--ejo-primary)] hover:underline">Open a service Job Card</LoadingLink>
+        </p>
+      )}
+      <div className={separateVehicleServiceOn() ? 'grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]' : 'grid gap-6'}>
         <ResponsiveTable className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)]">
           {shown.length === 0 ? (
             <div className="p-8 text-center text-sm text-[var(--ejo-text-muted)]">
@@ -261,6 +270,7 @@ export default async function VehicleServicePage({
           )}
         </ResponsiveTable>
 
+        {separateVehicleServiceOn() ? (
         <div id="open-vehicle-service" className="h-fit rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-5 xl:sticky xl:top-6 scroll-mt-20">
           <h2 className="text-sm font-semibold text-[var(--ejo-text)]">Open a Vehicle Service</h2>
           <form action={createVehicleServiceFormAction} className="mt-4 space-y-3">
@@ -281,6 +291,7 @@ export default async function VehicleServicePage({
             />
           </form>
         </div>
+        ) : null}
       </div>
     </div>
   );

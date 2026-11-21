@@ -1,5 +1,6 @@
 'use server';
 import { getDataExchangeDashboardItems } from '@/lib/actions/data-exchange';
+import { separateVehicleServiceOn } from '@/lib/service-entry';
 import { logFailure } from '@/lib/log';
 
 import { countOpenIntegrityAlerts } from './integrity';
@@ -430,7 +431,8 @@ export async function getPlatformGlance(): Promise<GlanceTile[]> {
   const p = (v: number, one: string, many: string) => `${v} ${v === 1 ? one : many}`;
   // Each tile only for the people whose work it is (same rule as its page).
   const [cw, cs, cwa, csec, csch, ccost] = await Promise.all([allows('workshop.view'), allows('store.view'), allows('warranty.view'), allows('security.view'), allows('schedule.view'), Promise.all(STORE_COST_PERMISSIONS.map((k) => allows(k))).then((xs) => xs.some(Boolean))]);
-  const NEED: Record<string, boolean> = { '/workshop/custody': cw, '/workshop/vehicle-service-custody': cw, '/workshop/parts-requests': cs && storeOn, '/workshop/external-procurement': cs && eprOn, '/inventory/goods-receipts': ccost && storeOn, '/warranty/claims': cwa && warrantyOn, '/security/on-premises': csec, '/security/incidents?tab=open': csec, '/schedule/appointments?show=today': csch, '/notifications?tab=broadcasts': true };
+  // No separate Vehicle Service in this edition: its custody tile shows only while old ones are still in the workshop.
+  const NEED: Record<string, boolean> = { '/workshop/custody': cw, '/workshop/vehicle-service-custody': cw && (separateVehicleServiceOn() || svActive > 0), '/workshop/parts-requests': cs && storeOn, '/workshop/external-procurement': cs && eprOn, '/inventory/goods-receipts': ccost && storeOn, '/warranty/claims': cwa && warrantyOn, '/security/on-premises': csec, '/security/incidents?tab=open': csec, '/schedule/appointments?show=today': csch, '/notifications?tab=broadcasts': true };
   const tiles: GlanceTile[] = [
     { label: 'Job Cards in progress', value: jcActive, hint: 'Open, not yet checked out', href: '/workshop/custody', tone: 'primary' },
     { label: 'Vehicle Services in custody', value: svActive, hint: 'Still in the workshop (cancelled ones awaiting hand-back included)', href: '/workshop/vehicle-service-custody', tone: 'info' },

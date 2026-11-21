@@ -25,7 +25,8 @@ export default async function JobCardPage({ params }: { params: Promise<{ id: st
       complaint: true,
       mileageAtCheckIn: true,
       complaints: { orderBy: { sequenceNumber: 'asc' }, select: { description: true } },
-      branch: { select: branchSelect },
+      // With the service interval, for a service Job Card's next-service point.
+      branch: { select: { ...branchSelect, businessUnit: jobCardItemSelect.branch.select.businessUnit } },
       estimate: { select: jobCardEstimateSelect },
       warranties: { where: { customerId: me.id }, select: { id: true, warrantyNumber: true, subjectDescription: true, endsAt: true, status: true } },
     },

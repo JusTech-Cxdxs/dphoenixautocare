@@ -14,6 +14,7 @@ import { humanizeAction } from '@/lib/humanize-action';
 import { listWarrantiesFor } from '@/lib/actions/warranty';
 import { WarrantyList } from '@/components/WarrantyList';
 import { moduleIsOn } from '@/lib/modules';
+import { bookServiceHref, separateVehicleServiceOn, OPEN_SERVICE_JOB_CARD } from '@/lib/service-entry';
 import { getVehicle, getLastEditInfo, getVehicleAuditTrail } from '@/lib/actions/workshop';
 import { getRecycleBinOffer } from '@/lib/actions/recycle-bin';
 import { RecycleBinPanel } from '@/components/RecycleBinPanel';
@@ -474,8 +475,8 @@ export default async function VehiclePage({
                   </LoadingLink>
                 ) : null}
                 {!serviceHealth.inWorkshop ? (
-                  <LoadingLink href={`/workshop/vehicle-service/book?vehicleId=${vehicle.id}`} className="text-[var(--ejo-primary)] hover:underline">
-                    Book in for service
+                  <LoadingLink href={bookServiceHref(vehicle.id)} className="text-[var(--ejo-primary)] hover:underline">
+                    {separateVehicleServiceOn() ? 'Book in for service' : OPEN_SERVICE_JOB_CARD}
                   </LoadingLink>
                 ) : null}
                 <LoadingLink href="/workshop/service-tracker" className="text-[var(--ejo-primary)] hover:underline">

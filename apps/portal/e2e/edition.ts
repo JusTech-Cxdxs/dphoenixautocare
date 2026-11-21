@@ -41,6 +41,14 @@ export const SPEAK_UP_ENABLED = process.env.E2E_SPEAK_UP === '1';
 export const SPEAK_UP_OFF = "Speak Up is off in the D'Phoenix edition";
 
 /**
+ * A separate Vehicle Service flow for new work (featureOn('separateVehicleService')).
+ * Off in the D'Phoenix edition: a service is a Job Card with "Service" chosen;
+ * old Vehicle Services stay readable by link and search.
+ */
+export const SEPARATE_VEHICLE_SERVICE = process.env.E2E_SEPARATE_VEHICLE_SERVICE === '1';
+export const SEPARATE_VEHICLE_SERVICE_OFF = "New Vehicle Services are off in the D'Phoenix edition (a service is opened as a Job Card with Service chosen)";
+
+/**
  * The D'Phoenix edition has no public marketing website: apps/website is the
  * customer portal only (its root redirects to /customer-portal, the business
  * has its own website), so there are no marketing pages and no public Enyo
@@ -70,6 +78,7 @@ export const OFF_URL_PREFIXES: string[] = [
   ...(DATA_REQUESTS_ENABLED ? [] : ['/data-requests']),
   ...(ROADMAP_ENABLED ? [] : ['/roadmap']),
   ...(SPEAK_UP_ENABLED ? [] : ['/support/speak-up']),
+  ...(SEPARATE_VEHICLE_SERVICE ? [] : ['/workshop/vehicle-service/book']),
 ];
 /** Whether an address is in this edition (not under OFF_URL_PREFIXES). */
 export const inEdition = (url: string): boolean => !OFF_URL_PREFIXES.some((p) => url === p || url.startsWith(`${p}/`) || url.startsWith(`${p}?`));

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { ServiceItem } from '@/lib/customer-portal/data';
-import { fmtDate, fmtDateTime, naira, COLLECTION_FRIENDLY_NOTICE_DAYS } from '@/lib/customer-portal/format';
+import { fmtDate, fmtDateTime, itemKindLabel, naira, COLLECTION_FRIENDLY_NOTICE_DAYS } from '@/lib/customer-portal/format';
 import { MINIMUM_DEPOSIT_FRACTION } from '@/lib/workshop-payment-constants';
 import { Badge, BackLink, Card, KeyValue, Notice, SectionTitle, Stepper, Timeline, type TimelineEntry } from './ui';
 import { PayHow, type BankDetails } from './PayHow';
@@ -83,7 +83,7 @@ export function ServiceDetail({ item, complaints, lines, branch, mileage, warran
         <div className="ejo-orb pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-[var(--ejo-primary)]/15 blur-3xl" aria-hidden="true" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ejo-primary)]">{item.kind === 'jc' ? 'Job Card' : 'Vehicle service'}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ejo-primary)]">{itemKindLabel(item)}</p>
             <h1 className="mt-1 break-words text-xl font-bold tracking-tight text-[var(--ejo-text)] min-[360px]:text-2xl sm:text-3xl">{item.number}</h1>
             <p className="mt-1 flex items-center gap-1.5 text-sm text-[var(--ejo-text-muted)]"><span className="shrink-0"><Icon name="car" size={15} /></span><span>{item.vehicle.label}{item.vehicle.plate ? <> · <span className="whitespace-nowrap">{item.vehicle.plate}</span></> : null}</span></p>
           </div>

@@ -57,10 +57,12 @@ export const suggestion = (page: Page, option: RegExp | string): Locator =>
   page.locator('button[role="option"]').filter({ hasText: option }).first();
 
 /** Front desk opens a Job Card for a vehicle; returns its path. */
-export async function openJobCard(page: Page, opts: { plate: string; customer?: string; supervisor?: Person; complaint?: string; mileage?: number }): Promise<string> {
-  return test.step(`front desk opens a Job Card for ${opts.plate}`, async () => {
+export async function openJobCard(page: Page, opts: { plate: string; customer?: string; supervisor?: Person; complaint?: string; mileage?: number; service?: boolean }): Promise<string> {
+  return test.step(`front desk opens a ${opts.service ? 'service ' : ''}Job Card for ${opts.plate}`, async () => {
     await page.goto('/workshop/job-cards');
     const form = jcForm(page, 'Open Job Card');
+    // "What is this visit for?" — Repair is chosen by default.
+    if (opts.service) await form.getByRole('radio', { name: 'Service' }).check();
     await form.getByPlaceholder('Search by name, email, or phone…').fill(opts.customer ?? CUSTOMER.name);
     await page.getByRole('option', { name: new RegExp(opts.customer ?? CUSTOMER.name) }).first().click();
     const vehicle = form.locator('select[name="vehicleId"]');

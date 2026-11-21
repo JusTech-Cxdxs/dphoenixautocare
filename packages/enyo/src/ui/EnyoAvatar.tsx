@@ -52,8 +52,10 @@ const LIP_LINE = '#8f3446';
 const MOUTH = '#5e1f2c';
 const TEETH = '#fffaf5';
 const TONGUE = '#de7783';
-const TOP = '#22983f';
-const TOP_SHADE = '#1a7c33';
+// Dressed in the D'Phoenix colours: a navy top with orange trim.
+const TOP = '#13294b';
+const TOP_SHADE = '#0a1628';
+const TRIM = '#f09e2c';
 const GOLD = '#e2b04a';
 const GOLD_SHINE = '#f7dc8f';
 const BROW = '#3b241b';
@@ -65,8 +67,8 @@ const PUPIL = '#170d09';
 /** Styles shared by every avatar on the page (React hoists and de-duplicates this tag). */
 const CSS = `
 .enyo-av{--enyo-av-bg:#fdf1dc;--enyo-av-ring:#d6890b;display:inline-block;flex:none;line-height:0}
-:root[data-theme='dark'] .enyo-av{--enyo-av-bg:#285a3e}
-@media (prefers-color-scheme: dark){:root:not([data-theme='light']) .enyo-av{--enyo-av-bg:#285a3e}}
+:root[data-theme='dark'] .enyo-av{--enyo-av-bg:#1c2c47}
+@media (prefers-color-scheme: dark){:root:not([data-theme='light']) .enyo-av{--enyo-av-bg:#1c2c47}}
 .enyo-av svg{display:block;overflow:visible}
 .enyo-av g,.enyo-av path,.enyo-av circle,.enyo-av ellipse,.enyo-av rect{transform-box:view-box}
 .enyo-av .av-body{transform-origin:60px 112px;animation:enyo-av-breathe 4.8s ease-in-out infinite}
@@ -290,11 +292,11 @@ export function EnyoAvatar({ mood, size = 48, level = 0, hair = 'straight', glas
               )}
             </g>
 
-            {/* Neck and shoulders: the green top */}
+            {/* Neck and shoulders: the navy top */}
             <path fill={TOP} d="M12 124C13.6 103.4 27.4 91.4 46.6 88.2L60 101.6L73.4 88.2C92.6 91.4 106.4 103.4 108 124Z" />
             <path fill={SKIN_SHADE} d="M47.2 88.1L60 100.9L72.8 88.1C70.4 87.4 68.6 86.6 68.5 85.6C66 89.2 62.8 90.6 60 90.6S54 89.2 51.5 85.6C51.4 86.6 49.6 87.4 47.2 88.1Z" />
             <path fill={TOP_SHADE} d="M46.6 88.2L60 101.6L73.4 88.2L76.2 88.8L60 105.2L43.8 88.8Z" />
-            <path fill="none" stroke="#3fb35c" strokeWidth=".8" strokeLinecap="round" opacity=".55" d="M30 104Q36 98 44 95.4M90 104Q84 98 76 95.4" />
+            <path fill="none" stroke={TRIM} strokeWidth=".8" strokeLinecap="round" opacity=".8" d="M30 104Q36 98 44 95.4M90 104Q84 98 76 95.4" />
             {/* A thin gold chain */}
             <path d="M51.2 88.6Q60 98.6 68.8 88.6" fill="none" stroke={GOLD} strokeWidth="1" strokeLinecap="round" opacity=".95" />
             <circle cx="60" cy="96" r="1.5" fill={GOLD} />
@@ -403,12 +405,12 @@ export function EnyoAvatar({ mood, size = 48, level = 0, hair = 'straight', glas
         </g>
         {/* Thinking: three dots in a small bubble (top-right corner, outside the circle) */}
         <g className="av-dots">
-          <circle cx="84.6" cy="29.6" r="1.5" fill="#fff" stroke="#cfe3d6" strokeWidth=".5" />
-          <circle cx="88.4" cy="25.4" r="2.1" fill="#fff" stroke="#cfe3d6" strokeWidth=".5" />
-          <rect x="88.5" y="12.5" width="21" height="11.5" rx="5.75" fill="#fff" stroke="#cfe3d6" strokeWidth=".5" />
-          <circle className="av-dot" cx="93.6" cy="18.25" r="1.7" fill={TOP} />
-          <circle className="av-dot" cx="99" cy="18.25" r="1.7" fill={TOP} />
-          <circle className="av-dot" cx="104.4" cy="18.25" r="1.7" fill={TOP} />
+          <circle cx="84.6" cy="29.6" r="1.5" fill="#fff" stroke="#f3dcb5" strokeWidth=".5" />
+          <circle cx="88.4" cy="25.4" r="2.1" fill="#fff" stroke="#f3dcb5" strokeWidth=".5" />
+          <rect x="88.5" y="12.5" width="21" height="11.5" rx="5.75" fill="#fff" stroke="#f3dcb5" strokeWidth=".5" />
+          <circle className="av-dot" cx="93.6" cy="18.25" r="1.7" fill={TRIM} />
+          <circle className="av-dot" cx="99" cy="18.25" r="1.7" fill={TRIM} />
+          <circle className="av-dot" cx="104.4" cy="18.25" r="1.7" fill={TRIM} />
         </g>
       </svg>
     </span>

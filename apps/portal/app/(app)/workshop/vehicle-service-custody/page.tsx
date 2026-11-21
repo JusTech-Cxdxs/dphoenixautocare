@@ -11,6 +11,7 @@ import { FormFeedbackBanner } from '@/components/FormFeedbackBanner';
 import { pluralize } from '@/lib/utils/pluralize';
 import { ordinal } from '@/lib/custody-reminders';
 import { formatDateOnly } from '@/lib/utils/format-date';
+import { bookServiceHref, separateVehicleServiceOn, OPEN_SERVICE_JOB_CARD } from '@/lib/service-entry';
 import { LiveSearchInput } from '@/components/LiveSearchInput';
 import { EmptyState, PageHeader } from '@/components/ui';
 import { CustomerLink } from '@/components/CustomerLink';
@@ -93,10 +94,10 @@ function DueEntryCard({ entry, canSeeCustomers = false }: { entry: VehicleDueFor
                 </form>
               ) : null}
               <LoadingLink
-                href={`/workshop/vehicle-service/book?vehicleId=${entry.vehicleId}`}
+                href={bookServiceHref(entry.vehicleId)}
                 className="rounded-[var(--ejo-radius-md)] bg-[var(--ejo-primary)] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
               >
-                Book in
+                {separateVehicleServiceOn() ? 'Book in' : OPEN_SERVICE_JOB_CARD}
               </LoadingLink>
             </>
           )}

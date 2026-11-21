@@ -34,6 +34,8 @@ export type GuideEntry = {
   module?: string;
   /** Only while this part of the platform is switched on in this edition (lib/modules.ts). */
   feature?: EditionFeature;
+  /** Only while this part of the platform is switched OFF (the way the edition does it instead). */
+  featureOff?: EditionFeature;
 };
 
 const WORKSHOP: PermissionKey[] = ['workshop.view'];
@@ -201,7 +203,19 @@ export const GUIDE: GuideEntry[] = [
   },
   // ── Vehicle Services ──────────────────────────────────────────────
   {
-    id: 'service-open', title: 'Open a Vehicle Service', page: '/workshop/vehicle-service', needs: WORKSHOP, does: ['workshop.job_card.create'], who: 'The front desk',
+    // This edition opens services as a Job Card (no separate Vehicle Service for new work).
+    id: 'job-card-service', featureOff: 'separateVehicleService', title: 'Open a service Job Card', page: '/workshop/job-cards', needs: WORKSHOP, does: ['workshop.job_card.create'], who: 'The front desk',
+    keywords: ['vehicle service', 'service', 'routine service', 'oil change', 'maintenance', 'open service', 'book service', 'next service'],
+    steps: [
+      'Go to Workshop → Job Cards (or press "Open a service Job Card" on the vehicle, the customer or the Service Tracker).',
+      'In the "Open Job Card" form, under "What is this visit for?", choose "Service".',
+      'Pick the customer, the vehicle and the supervisor, enter the mileage at check-in and list what the customer asked for.',
+      'Press "Open Job Card". The work, estimate, payment and checkout are the same as for a repair.',
+      'Once the vehicle is checked out, the Job Card shows when the next service is due and the Service Tracker follows it.',
+    ],
+  },
+  {
+    id: 'service-open', feature: 'separateVehicleService', title: 'Open a Vehicle Service', page: '/workshop/vehicle-service', needs: WORKSHOP, does: ['workshop.job_card.create'], who: 'The front desk',
     keywords: ['vehicle service', 'service', 'sv', 'oil change', 'maintenance', 'open service', 'book service'],
     steps: [
       'Go to Workshop → Vehicle Service.',
@@ -676,7 +690,7 @@ export type GuideHit = { id: string; title: string; href: string; youCanDoThis: 
  */
 /** Whether an entry belongs to this edition (the Store's, Warranty's and other switched-off areas' steps only while they are on). */
 export function guideInEdition(e: GuideEntry, isOn: (key: string) => boolean = moduleIsOn, has: (f: EditionFeature) => boolean = featureOn): boolean {
-  return (!e.module || isOn(e.module)) && (!e.feature || has(e.feature));
+  return (!e.module || isOn(e.module)) && (!e.feature || has(e.feature)) && (!e.featureOff || !has(e.featureOff));
 }
 
 export function searchGuide(q: string, p: Principal, limit = 3): { results: GuideHit[]; notYours: string[] } {

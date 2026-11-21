@@ -41,7 +41,7 @@ import { workingDaysBetween, addWorkingDays } from '@/lib/utils/working-days';
 import { pluralize } from '@/lib/utils/pluralize';
 import { getOrganisation } from '@/lib/actions/organisation';
 import { getSelectableJobCardStatuses, isReworkTransition as isReworkMove } from '@/lib/job-card-status-rules';
-import { anchorEscalatedServiceFromJobCard } from '@/lib/vehicle-service-cycle';
+import { anchorEscalatedServiceFromJobCard, serviceJobCardCycle } from '@/lib/vehicle-service-cycle';
 import { custodyReminderState, notDueYetMessage, type CustodyReminderKind } from '@/lib/custody-reminders';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { EstimatePdf } from '@/lib/pdf/estimate-pdf';
@@ -1090,6 +1090,7 @@ export async function updateJobCardStatus(id: string, status: JobCardStatus, col
       workStartedAt: true,
       completedAt: true,
       checkedOutAt: true,
+      isService: true,
       createdById: true,
       supervisorId: true,
       assignedTechnicianId: true,
@@ -1361,6 +1362,9 @@ export async function updateJobCardStatus(id: string, status: JobCardStatus, col
       const websiteLogoUrl = `${websiteUrl}/images/logo/email-logo.png`;
       const portalLogoUrl = `${portalUrl}/images/logo/email-logo.png`;
       const realCollectedByName = result.collectedByName ?? collectedByName?.trim() ?? 'the customer';
+      // A Job Card opened as a service (not a cancelled hand-back): tell the customer when the next service is due.
+      const nextService = jobCard.isService && priorStatus !== JobCardStatus.CANCELLED ? await serviceJobCardCycle(id).catch(() => null) : null;
+      const longDate = (d: Date) => d.toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Africa/Lagos' });
 
       await sendEmail(
         jobCard.customer.email,
@@ -1374,6 +1378,8 @@ export async function updateJobCardStatus(id: string, status: JobCardStatus, col
           logoUrl: websiteLogoUrl,
           companyName: orgContext.companyName,
           branchName: orgContext.branchName,
+          nextServiceDueMileage: nextService?.nextServiceDueOdometer != null ? `${nextService.nextServiceDueOdometer.toLocaleString('en-NG')} km` : null,
+          nextServiceDueDate: nextService?.nextServiceDueDate ? longDate(nextService.nextServiceDueDate) : null,
         }),
       );
 
@@ -3838,6 +3844,8 @@ export type WorkshopCustodyEntry = {
   vehicleId: string;
   vehicleType: string | null;
   jobNumber: string;
+  /** Opened as a routine service (shown with a Service badge). */
+  isService?: boolean;
   customerId?: string;
   customerName: string;
   vehicleDescription: string;
@@ -3900,6 +3908,7 @@ export async function getWorkshopCustodySummary(search?: string): Promise<{
     select: {
       id: true,
       jobNumber: true,
+      isService: true,
       status: true,
       readyForCollectionAt: true,
       customer: { select: { id: true, fullName: true } },
@@ -3930,6 +3939,7 @@ export async function getWorkshopCustodySummary(search?: string): Promise<{
   for (const jc of jobCards as Array<{
     id: string;
     jobNumber: string;
+    isService: boolean;
     status: string;
     readyForCollectionAt: Date | null;
     customer: { id: string; fullName: string };
@@ -3943,6 +3953,7 @@ export async function getWorkshopCustodySummary(search?: string): Promise<{
       vehicleId: jc.vehicle.id,
       vehicleType: jc.vehicle.vehicleType ?? null,
       jobNumber: jc.jobNumber,
+      isService: jc.isService,
       customerId: jc.customer.id,
       customerName: jc.customer.fullName,
       vehicleDescription,

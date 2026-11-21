@@ -1,5 +1,6 @@
 import { cache } from 'react';
 import { prisma, type Prisma } from '@ejo/database';
+import { serviceCycleFrom } from '@ejo/utils';
 import {
   jobCardPhase, jobCardStatus, jobCardStep, servicePhase, serviceStatus, serviceStep,
   JOB_CARD_STEPS, SERVICE_STEPS, warrantyState, type Phase, type StatusInfo, type WarrantyState,
@@ -63,6 +64,10 @@ export type ServiceItem = {
   linked: { kind: 'jc' | 'vs'; id: string; number: string; relation: 'continued-as' | 'started-as' } | null;
   nextServiceDueDate: Date | null;
   nextServiceDueOdometer: number | null;
+  /** When the visit that set the next-service point was done (the latest one wins). */
+  nextServiceFrom: Date | null;
+  /** A Job Card opened as a routine service (shown to the customer as "Service"). */
+  isServiceJobCard: boolean;
 };
 
 function latest(...dates: (Date | null | undefined)[]): Date {
@@ -74,8 +79,10 @@ const toRefund = (r: { id: string; amount: unknown; method: unknown; recordedAt:
 export const jobCardItemSelect = {
   id: true, jobNumber: true, status: true, createdAt: true, updatedAt: true,
   workStartedAt: true, completedAt: true, readyForCollectionAt: true, closedAt: true, checkedOutAt: true,
-  vehicle: { select: vehicleSelect },
-  branch: { select: { name: true } },
+  isService: true, mileageAtCheckIn: true,
+  // The service interval (the vehicle's own, else the organisation's), for a service Job Card's next-service point.
+  vehicle: { select: { ...vehicleSelect, serviceIntervalKm: true, serviceIntervalDays: true } },
+  branch: { select: { name: true, businessUnit: { select: { organisation: { select: { primaryServiceIntervalKm: true, primaryServiceIntervalDays: true } } } } } },
   estimate: { select: { customerNotifiedAt: true, lineItems: { where: { billTo: 'CUSTOMER' as const }, select: { amount: true } } } },
   payments: { select: paySelect, orderBy: { recordedAt: 'asc' as const } },
   refunds: { select: refundSelect, orderBy: { recordedAt: 'asc' as const } },
@@ -87,7 +94,7 @@ export const serviceItemSelect = {
   id: true, serviceNumber: true, status: true, createdAt: true,
   checkedInAt: true, workStartedAt: true, completedAt: true, readyForCollectionAt: true, closedAt: true,
   collectedAt: true, cancelledAt: true, escalatedAt: true,
-  nextServiceDueDate: true, nextServiceDueOdometer: true,
+  nextServiceDueDate: true, nextServiceDueOdometer: true, primaryServiceDate: true,
   vehicle: { select: vehicleSelect },
   branch: { select: { name: true } },
   serviceEstimate: { select: { customerNotifiedAt: true, lineItems: { select: { amount: true } } } },
@@ -99,8 +106,24 @@ export const serviceItemSelect = {
 type JobCardRow = Prisma.JobCardGetPayload<{ select: typeof jobCardItemSelect }>;
 type ServiceRow = Prisma.VehicleServiceGetPayload<{ select: typeof serviceItemSelect }>;
 
+/**
+ * The next-service point a Job Card opened as a service sets: checked out
+ * (not a cancelled hand-back), never one that continues a Vehicle Service
+ * (that service carries the point). Same maths as the staff portal.
+ */
+export function serviceJobCardDue(jc: Pick<JobCardRow, 'isService' | 'status' | 'checkedOutAt' | 'mileageAtCheckIn' | 'cancellationRequests' | 'escalatedFromVehicleService' | 'vehicle' | 'branch'>): { date: Date | null; odometer: number | null; from: Date } | null {
+  const status = String(jc.status);
+  if (!jc.isService || !jc.checkedOutAt || (status !== 'CHECKED_OUT' && status !== 'CLOSED') || jc.cancellationRequests.length > 0 || jc.escalatedFromVehicleService) return null;
+  const org = jc.branch?.businessUnit.organisation;
+  if (!org) return null;
+  const cycle = serviceCycleFrom(jc.mileageAtCheckIn, jc.checkedOutAt, { vehicle: jc.vehicle, organisation: org });
+  if (cycle.nextServiceDueOdometer === null && cycle.nextServiceDueDate === null) return null;
+  return { date: cycle.nextServiceDueDate, odometer: cycle.nextServiceDueOdometer, from: jc.checkedOutAt };
+}
+
 export function jobCardItem(jc: JobCardRow, now = new Date()): ServiceItem {
   const status = String(jc.status);
+  const due = serviceJobCardDue(jc);
   const notifiedAt = jc.estimate?.customerNotifiedAt ?? null;
   const money = moneyFor({ notified: Boolean(notifiedAt), lines: jc.estimate?.lineItems ?? [], payments: jc.payments, refunds: jc.refunds });
   const cancelledAt = status === 'CANCELLED' ? (jc.cancellationRequests[0]?.decidedAt ?? jc.updatedAt) : null;
@@ -128,8 +151,10 @@ export function jobCardItem(jc: JobCardRow, now = new Date()): ServiceItem {
     // A cancelled Job Card's vehicle stays with us until it is checked out.
     inCustody: status !== 'CHECKED_OUT' && !jc.checkedOutAt,
     linked: jc.escalatedFromVehicleService ? { kind: 'vs', id: jc.escalatedFromVehicleService.id, number: jc.escalatedFromVehicleService.serviceNumber, relation: 'started-as' } : null,
-    nextServiceDueDate: null,
-    nextServiceDueOdometer: null,
+    nextServiceDueDate: due?.date ?? null,
+    nextServiceDueOdometer: due?.odometer ?? null,
+    nextServiceFrom: due?.from ?? null,
+    isServiceJobCard: jc.isService,
   };
 }
 
@@ -162,6 +187,8 @@ export function serviceItem(vs: ServiceRow, now = new Date()): ServiceItem {
     linked: vs.escalatedToJobCard ? { kind: 'jc', id: vs.escalatedToJobCard.id, number: vs.escalatedToJobCard.jobNumber, relation: 'continued-as' } : null,
     nextServiceDueDate: vs.nextServiceDueDate,
     nextServiceDueOdometer: vs.nextServiceDueOdometer,
+    nextServiceFrom: vs.primaryServiceDate,
+    isServiceJobCard: false,
   };
 }
 
@@ -202,9 +229,12 @@ export const loadVehicles = cache(async (customerId: string): Promise<VehicleCar
   }));
 });
 
-/** Next service due for a vehicle: the latest service's own prediction. */
+/** Next service due for a vehicle: the latest service's own prediction (a Vehicle Service or a Job Card opened as a service; the later one wins). */
 export function nextServiceFor(vehicleId: string, items: ServiceItem[]): { date: Date | null; odometer: number | null; from: ServiceItem } | null {
-  const done = items.find((i) => i.kind === 'vs' && i.vehicle.id === vehicleId && (i.nextServiceDueDate || i.nextServiceDueOdometer));
+  const when = (i: ServiceItem) => (i.nextServiceFrom ?? i.createdAt).getTime();
+  const done = items
+    .filter((i) => i.vehicle.id === vehicleId && (i.nextServiceDueDate || i.nextServiceDueOdometer))
+    .reduce<ServiceItem | null>((best, i) => (!best || when(i) > when(best) ? i : best), null);
   return done ? { date: done.nextServiceDueDate, odometer: done.nextServiceDueOdometer, from: done } : null;
 }
 

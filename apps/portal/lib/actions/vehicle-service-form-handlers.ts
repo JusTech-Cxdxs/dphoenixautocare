@@ -195,14 +195,17 @@ export async function escalateVehicleServiceFormAction(formData: FormData) {
 
 export async function updatePrimaryServiceIntervalFormAction(formData: FormData) {
   const organisationId = str(formData, 'organisationId');
+  // Set from the Vehicle Service page or the Service Tracker; back to whichever it came from.
+  const returnTo = safeWorkshopPath(str(formData, 'returnTo'), '/workshop/vehicle-service');
   try {
     await updatePrimaryServiceInterval(organisationId, num(formData, 'primaryServiceIntervalKm'), num(formData, 'primaryServiceIntervalDays'));
   } catch (err) {
     const message = friendlyError(err, 'Could not update the Primary Service interval.', 'vehicle-service-form-handlers');
-    redirect(`/workshop/vehicle-service?error=${encodeURIComponent(message)}`);
+    redirect(`${returnTo}?error=${encodeURIComponent(message)}`);
   }
   revalidatePath('/workshop/vehicle-service');
-  redirect('/workshop/vehicle-service?status=interval_updated');
+  revalidatePath('/workshop/service-tracker');
+  redirect(`${returnTo}?status=interval_updated`);
 }
 
 export async function attendToOverdueVehicleFormAction(formData: FormData) {

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { ServiceItem } from '@/lib/customer-portal/data';
-import { fmtDate, naira, timeAgo } from '@/lib/customer-portal/format';
+import { fmtDate, itemKindLabel, naira, timeAgo } from '@/lib/customer-portal/format';
 import { Badge, Stepper } from './ui';
 import { Icon } from './Icon';
 
@@ -21,7 +21,7 @@ export function ServiceCard({ item, delay }: { item: ServiceItem; delay?: number
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <p className="text-sm font-semibold text-[var(--ejo-text)]">{item.number}</p>
-            <span className="text-xs text-[var(--ejo-text-muted)]">{item.kind === 'jc' ? 'Job Card' : 'Vehicle service'}</span>
+            <span className="text-xs text-[var(--ejo-text-muted)]">{itemKindLabel(item)}</span>
           </div>
           <p className="mt-0.5 break-words text-sm text-[var(--ejo-text-muted)]">{item.vehicle.label}{item.vehicle.plate ? <> · <span className="whitespace-nowrap">{item.vehicle.plate}</span></> : null}</p>
           <div className="mt-1.5 sm:hidden"><Badge tone={item.info.tone}>{item.info.label}</Badge></div>

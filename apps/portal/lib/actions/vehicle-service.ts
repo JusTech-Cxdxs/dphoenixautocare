@@ -41,6 +41,7 @@ import { renderTechnicianVehicleServiceResponseEmail } from '@/lib/email-templat
 import { lagosDayKey, lagosYear } from '@/lib/utils/format-date';
 import { schedulePrediction } from '@/lib/enyo/predict/lines';
 import { customerLinks } from '@/lib/customer-links-core';
+import { separateVehicleServiceOn, VEHICLE_SERVICE_OFF_MESSAGE } from '@/lib/service-entry';
 
 class VehicleServiceActionError extends Error {}
 
@@ -67,6 +68,8 @@ export type CreateVehicleServiceInput = {
 };
 
 export async function createVehicleService(input: CreateVehicleServiceInput): Promise<{ id: string; serviceNumber: string }> {
+  // No separate Vehicle Service for new work in this edition: a service is opened as a Job Card with Service chosen.
+  if (!separateVehicleServiceOn()) throw new VehicleServiceActionError(VEHICLE_SERVICE_OFF_MESSAGE);
   await authorize('workshop.job_card.create', undefined, 'createVehicleService');
   const user = await requireUser();
   if (!input.supervisorId) {

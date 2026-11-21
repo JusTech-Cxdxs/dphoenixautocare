@@ -29,6 +29,7 @@ import { ACTION_ICON, CATEGORY_ICON, CATEGORY_TILE } from '@/components/ui/notif
 import { APPROVAL_PERMISSIONS, type PermissionKey } from '@/lib/authz/catalogue';
 import { isOffPermission, permissionShown } from '@/lib/edition';
 import { featureOn, moduleIsOn } from '@/lib/modules';
+import { separateVehicleServiceOn, OPEN_SERVICE_JOB_CARD } from '@/lib/service-entry';
 
 /** The shortcuts a person sees — only for what they may do. */
 const QUICK: { key: PermissionKey; label: string; href: string; icon: IconName }[] = [
@@ -43,7 +44,10 @@ const QUICK: { key: PermissionKey; label: string; href: string; icon: IconName }
   { key: 'audit.view', label: 'Error log', href: '/audit-logs/errors', icon: 'alert' },
   { key: 'admin.settings.manage', label: 'System health', href: '/settings#health', icon: 'activity' },
   { key: 'workshop.job_card.create', label: 'Open a Job Card', href: '/workshop/job-cards', icon: 'clipboard' },
-  { key: 'workshop.job_card.create', label: 'Book a service', href: '/workshop/vehicle-service/book', icon: 'droplet' },
+  // No separate Vehicle Service in this edition: a service is a Job Card with Service chosen.
+  separateVehicleServiceOn()
+    ? { key: 'workshop.job_card.create', label: 'Book a service', href: '/workshop/vehicle-service/book', icon: 'droplet' }
+    : { key: 'workshop.job_card.create', label: OPEN_SERVICE_JOB_CARD, href: '/workshop/job-cards?service=1#open-job-card', icon: 'droplet' },
   { key: 'workshop.view', label: 'Vehicles in custody', href: '/workshop/custody', icon: 'garage' },
   // Store and Warranty: shown only where those modules are on (isOffPermission, below).
   { key: 'store.grn.record', label: 'Record goods receipt', href: '/inventory/goods-receipts/new', icon: 'receipt' },
@@ -125,7 +129,8 @@ export default async function DashboardPage() {
   const stats: { label: string; value: number; href: string; icon: IconName }[] = [
     { label: 'Active Job Cards', value: counts.activeJobCards, href: '/workshop/custody', icon: 'clipboard' },
     { label: 'Job Cards in custody', value: counts.inWorkshop, href: '/workshop/custody', icon: 'garage' },
-    { label: 'Vehicle Services in custody', value: counts.servicesInWorkshop, href: '/workshop/vehicle-service-custody', icon: 'droplet' },
+    // Only while old Vehicle Services are still in the workshop when the separate Vehicle Service is off.
+    ...(separateVehicleServiceOn() || counts.servicesInWorkshop > 0 ? [{ label: 'Vehicle Services in custody', value: counts.servicesInWorkshop, href: '/workshop/vehicle-service-custody', icon: 'droplet' as IconName }] : []),
     { label: 'Total Customers', value: counts.totalCustomers, href: canCrm ? '/crm' : '/workshop/customers', icon: 'users' },
     { label: 'Vehicles registered', value: counts.totalVehicles, href: '/workshop/vehicles', icon: 'car' },
   ];

@@ -1,6 +1,9 @@
 import { ResponsiveTable } from '@/components/ui/ResponsiveTable';
 import { guardAnyPage, allows } from '@/lib/authz/server';
 import { getServiceTracker } from '@/lib/actions/vehicle-service';
+import { currentUserIsMasterAdmin } from '@/lib/actions/workshop';
+import { bookServiceHref, separateVehicleServiceOn, OPEN_SERVICE_JOB_CARD } from '@/lib/service-entry';
+import { serviceAnchorHref } from '@/lib/vehicle-service-cycle';
 import { getWorkshopBranchId } from '@/lib/workshop-core';
 import { attendToOverdueVehicleFormAction, sendManualServiceReminderFormAction, runServiceRemindersNowFormAction } from '@/lib/actions/vehicle-service-form-handlers';
 import { LoadingLink } from '@/components/LoadingLink';
@@ -37,6 +40,8 @@ export default async function ServiceTrackerPage({
   const branchId = await getWorkshopBranchId();
   const tracker = await getServiceTracker(branchId);
   const { remindersLast30Days, canRunReminders } = tracker;
+  // The organisation's service interval is set on the Vehicle Service page, which has no Workshop tile in this edition: linked from here.
+  const intervalLink = !separateVehicleServiceOn() && (await currentUserIsMasterAdmin());
   // Passenger / Commercial filter narrows everything below, counts included.
   const vehicles = vehicleType ? tracker.vehicles.filter((v) => v.vehicleType === vehicleType) : tracker.vehicles;
 
@@ -95,7 +100,7 @@ export default async function ServiceTrackerPage({
           <p className="mt-1 max-w-3xl text-sm text-[var(--ejo-text-muted)]">
             Vehicles that have left the workshop: when each is next due (mileage or date, whichever comes first),
             where it stands now, and the reminders sent. Vehicles still with us are on{' '}
-            <LoadingLink href="/workshop/vehicle-service-custody" className="text-[var(--ejo-primary)] hover:underline">
+            <LoadingLink href={separateVehicleServiceOn() ? '/workshop/vehicle-service-custody' : '/workshop/custody'} className="text-[var(--ejo-primary)] hover:underline">
               Vehicles In Custody
             </LoadingLink>
             .
@@ -116,6 +121,15 @@ export default async function ServiceTrackerPage({
         Reminders are never sent automatically. A Send button appears when one is due: a first note when the vehicle is due
         soon (within 1,000 km or 30 days), follow-ups 7 working days apart, then an overdue reminder. Nothing is due while
         the vehicle is back in the workshop or once it has been attended to.
+        {intervalLink ? (
+          <>
+            {' '}
+            <LoadingLink href="/workshop/vehicle-service?editInterval=true" className="text-[var(--ejo-primary)] hover:underline">
+              Change the organisation&rsquo;s service interval
+            </LoadingLink>
+            .
+          </>
+        ) : null}
       </p>
 
       {error ? (
@@ -225,7 +239,7 @@ export default async function ServiceTrackerPage({
                       </div>
                     </td>
                     <td data-label="Last Service" className="px-3 py-2 text-xs">
-                      <LoadingLink href={v.lastService.source === 'SAP' ? `/workshop/vehicles/${v.vehicleId}/edit` : `/workshop/vehicle-service/${v.lastService.id}`} className="text-[var(--ejo-primary)] hover:underline">
+                      <LoadingLink href={serviceAnchorHref(v)} className="text-[var(--ejo-primary)] hover:underline">
                         {v.lastService.serviceNumber}
                       </LoadingLink>
                       {v.viaJobCard ? (
@@ -318,10 +332,10 @@ export default async function ServiceTrackerPage({
                         ) : null}
                         {!v.inWorkshop ? (
                           <LoadingLink
-                            href={`/workshop/vehicle-service/book?vehicleId=${v.vehicleId}`}
+                            href={bookServiceHref(v.vehicleId)}
                             className="self-start whitespace-nowrap rounded-[var(--ejo-radius-md)] bg-[var(--ejo-primary)] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
                           >
-                            Book in
+                            {separateVehicleServiceOn() ? 'Book in' : OPEN_SERVICE_JOB_CARD}
                           </LoadingLink>
                         ) : null}
                       </div>
