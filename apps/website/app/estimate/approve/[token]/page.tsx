@@ -23,6 +23,9 @@ export default async function EstimateApprovalPage({ params }: { params: Promise
       <main className="mx-auto max-w-2xl px-4 pb-16 pt-28 sm:px-6 lg:px-10 sm:pt-32">
         <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center" data-testid="estimate-link-problem">
           <h1 className="text-xl font-bold text-slate-900">{view.state === 'used' ? 'This link has been used' : view.state === 'expired' ? 'This link has expired' : view.state === 'revoked' ? 'This link has been replaced' : 'This estimate cannot be answered here'}</h1>
+          {view.state === 'used' && view.answered ? (
+            <p className="mt-2 text-sm font-medium text-slate-800">You {view.answered.answer} this estimate on {view.answered.at.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Africa/Lagos' })}.</p>
+          ) : null}
           <p className="mt-2 text-sm text-slate-600">{LINK_PROBLEM[view.state]}</p>
         </div>
       </main>
