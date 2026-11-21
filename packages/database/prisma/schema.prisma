@@ -855,6 +855,15 @@ model JobCard {
   // Name of whoever collected the vehicle (the customer or someone they
   // sent). Free text: collectors usually have no account.
   collectedByName String?
+  // Opened as a routine service, not a repair (one Job Card for both). Once
+  // checked out (not cancelled), it starts the vehicle's next-service count
+  // like a completed Vehicle Service does: anchored on mileageAtCheckIn and
+  // checkedOutAt, with the vehicle's or organisation's interval. Always false
+  // on a Job Card escalated from a Vehicle Service (that row carries the count).
+  isService Boolean @default(false)
+  // Staff marked this Job Card's next-service prediction handled (Attend To
+  // on the Service Tracker), as VehicleService.attendedAt does for services.
+  serviceAttendedAt DateTime?
   // Brought in open from another system at the cut-over (P5): where from
   // (SAP, LEGACY), its number there (kept and searchable) and the import.
   externalSource String?

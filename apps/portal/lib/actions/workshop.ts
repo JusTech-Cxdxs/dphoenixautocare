@@ -871,6 +871,11 @@ export type CreateJobCardInput = {
   /** Set when this Job Card continues an escalated Vehicle Service; the
    * customer's acknowledgment email then explains the escalation. */
   escalatedFromServiceNumber?: string;
+  /** A routine service rather than a repair: once checked out, this Job Card
+   * starts the vehicle's next-service count (Service Tracker, reminders, the
+   * customer's "next service"). Never set on an escalated Job Card — its
+   * Vehicle Service carries the count. */
+  isService?: boolean;
 };
 
 
@@ -933,6 +938,8 @@ export async function createJobCard(input: CreateJobCardInput) {
   }
 
   const branchId = await getWorkshopBranchId();
+  // An escalated Job Card continues a Vehicle Service, whose row keeps the clock.
+  const isService = input.isService === true && !escalatedServiceId;
 
   // Retries only on a jobNumber collision (two creates reading the same
   // latest number). Any other error is re-thrown immediately.
@@ -954,6 +961,7 @@ export async function createJobCard(input: CreateJobCardInput) {
         vehicleId: input.vehicleId,
         supervisorId: input.supervisorId,
         mileageAtCheckIn: input.mileageAtCheckIn ?? null,
+        isService,
         createdById: user.id,
         status: JobCardStatus.CHECKED_IN,
         // Escalation: linked to its Vehicle Service in the same write.
@@ -1060,7 +1068,7 @@ export async function createJobCard(input: CreateJobCardInput) {
     action: 'job_card.created',
     entityType: 'JobCard',
     entityId: created.id,
-    metadata: { jobNumber: created.jobNumber, departmentId: department.id, supervisorId: input.supervisorId },
+    metadata: { jobNumber: created.jobNumber, departmentId: department.id, supervisorId: input.supervisorId, isService },
   });
 
   // Enyo: what similar past jobs needed, stored after the creation has
