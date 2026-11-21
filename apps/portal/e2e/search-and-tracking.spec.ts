@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { as, uniq, open } from './helpers';
 import { db } from './db';
 import { who } from './people';
-import { SAP_ENABLED } from './edition';
+import { IMPORT_SOURCE, SAP_ENABLED } from './edition';
 
 /**
  * Search and tracking: a record is found by the number SAP gave it, every
@@ -19,6 +19,9 @@ const kunnr = `7${STAMP}`; // a fresh SAP customer number for this run
 const belnr = `5${STAMP.slice(-6)}`; // an SAP document number reused in two fiscal years
 /** How search labels a number another system gave: "SAP …" only while the edition links with SAP (the D'Phoenix edition says "Old system …"). */
 const SRC = SAP_ENABLED ? 'SAP' : 'Old system';
+/** How the customer page and the lists' Source filter name an import: SAP's own file, or an old system's (a spreadsheet) while the SAP link is off. */
+const IMPORTED = SAP_ENABLED ? 'Imported from SAP' : 'Imported from a spreadsheet';
+const SOURCE_KEY = IMPORT_SOURCE === 'SAP' ? 'sap' : 'legacy';
 const NAME = `Tracked Haulage ${T}`;
 const csv = (rows: string[][]) => rows.map((r) => r.join(',')).join('\r\n');
 
@@ -94,7 +97,7 @@ test('the customer page says where it came from: imported from SAP by IMP-…, w
   await as(page, 'workshop-manager');
   await open(page, `/crm/customers/${customerId}`);
   const box = page.getByRole('region', { name: 'Where this came from' }).or(page.locator('section[aria-labelledby="provenance"]'));
-  await expect(box.getByText('Imported from SAP')).toBeVisible();
+  await expect(box.getByText(IMPORTED)).toBeVisible();
   await expect(box.getByRole('link', { name: importNumber })).toBeVisible();
   await expect(box.getByText(kunnr)).toBeVisible();
   await expect(box.getByText('15/09/2011')).toBeVisible();
@@ -102,11 +105,11 @@ test('the customer page says where it came from: imported from SAP by IMP-…, w
 
 test('the customer list filters by source, import, and both dates', async ({ page }) => {
   await as(page, 'workshop-manager');
-  await open(page, `/crm?source=sap&imp=${encodeURIComponent(importNumber.toLowerCase())}&originalTo=2012-12-31`);
+  await open(page, `/crm?source=${SOURCE_KEY}&imp=${encodeURIComponent(importNumber.toLowerCase())}&originalTo=2012-12-31`);
   await expect(page.getByText(NAME)).toBeVisible();
   await open(page, `/crm?source=ejo&q=${encodeURIComponent(NAME)}`);
   await expect(page.getByText(NAME)).toHaveCount(0);
-  await open(page, `/crm?source=sap&originalFrom=2015-01-01&q=${encodeURIComponent(NAME)}`);
+  await open(page, `/crm?source=${SOURCE_KEY}&originalFrom=2015-01-01&q=${encodeURIComponent(NAME)}`);
   await expect(page.getByText(NAME)).toHaveCount(0);
 });
 

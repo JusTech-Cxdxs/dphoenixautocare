@@ -37,6 +37,11 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 
+/** "What is this visit for?": each choice a pill at least 44px tall, the radio itself covering it (see the form). */
+const VISIT_PILL = 'relative flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full border border-[var(--ejo-border)] px-4 font-medium has-[:checked]:border-[var(--ejo-primary)] has-[:checked]:bg-[var(--ejo-primary)]/10 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[var(--ejo-primary)]';
+const VISIT_RADIO = 'peer absolute inset-0 z-10 m-0 h-full w-full cursor-pointer appearance-none rounded-full opacity-0';
+const VISIT_DOT = 'h-4 w-4 shrink-0 rounded-full border-2 border-[var(--ejo-border)] peer-checked:border-[var(--ejo-primary)] peer-checked:bg-[var(--ejo-primary)] peer-checked:shadow-[inset_0_0_0_2px_var(--ejo-surface)]';
+
 export default async function WorkshopJobCardsPage({
   searchParams,
 }: {
@@ -174,13 +179,17 @@ export default async function WorkshopJobCardsPage({
             <FormPendingOverlay />
             <fieldset>
               <legend className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">What is this visit for?</legend>
-              <div className="flex gap-4 text-sm text-[var(--ejo-text)]">
-                <label className="flex items-center gap-2">
-                  <input type="radio" name="visitType" value="REPAIR" defaultChecked={!forService} data-testid="visit-type-repair" />
+              {/* Two thumb-sized pills. The real radio covers its whole pill (see-through), so the
+                  whole pill is the control for touch, keyboard and screen readers; the dot only shows the choice. */}
+              <div className="grid grid-cols-2 gap-2 text-sm text-[var(--ejo-text)]">
+                <label className={VISIT_PILL}>
+                  <input type="radio" name="visitType" value="REPAIR" defaultChecked={!forService} data-testid="visit-type-repair" className={VISIT_RADIO} />
+                  <span aria-hidden="true" className={VISIT_DOT} />
                   Repair
                 </label>
-                <label className="flex items-center gap-2">
-                  <input type="radio" name="visitType" value="SERVICE" defaultChecked={forService} data-testid="visit-type-service" />
+                <label className={VISIT_PILL}>
+                  <input type="radio" name="visitType" value="SERVICE" defaultChecked={forService} data-testid="visit-type-service" className={VISIT_RADIO} />
+                  <span aria-hidden="true" className={VISIT_DOT} />
                   Service
                 </label>
               </div>

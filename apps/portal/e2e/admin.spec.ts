@@ -15,6 +15,8 @@ import { as, open, expectAuditEntry, signIn, urlOrExplain, visibleOrExplain, vis
 const card = (page: Page) => page.getByRole('listitem', { name: SWITCHABLE.name });
 
 test('an administrator gives a role; the person’s menu follows; the role is taken away again', async ({ page }) => {
+  // Fixture: a retry starts without the role even if the first attempt stopped half-way.
+  await db().userRole.deleteMany({ where: { user: { email: SWITCHABLE.email }, role: { slug: 'technician' } } });
   await as(page, 'administrator');
   await page.goto(`/users?q=${encodeURIComponent(SWITCHABLE.email)}`);
   await expect(card(page)).toBeVisible();
@@ -34,10 +36,16 @@ test('an administrator gives a role; the person’s menu follows; the role is ta
   await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Workshop', exact: true })).toBeVisible();
 
   await as(page, 'administrator');
-  await page.goto(`/users?q=${encodeURIComponent(SWITCHABLE.email)}`);
-  await card(page).getByRole('button', { name: `Remove the role Technician from ${SWITCHABLE.name}` }).click();
+  await open(page, `/users?q=${encodeURIComponent(SWITCHABLE.email)}`);
+  // As with giving it: a click made the moment the live pulse re-renders the card is lost, so click until the action answers.
+  const remove = () => card(page).getByRole('button', { name: `Remove the role Technician from ${SWITCHABLE.name}` });
+  await expect(async () => {
+    if (/[?&](status|error)=/.test(page.url())) return;
+    await remove().click({ timeout: 5_000 });
+    await page.waitForURL(/[?&](status|error)=/, { timeout: 10_000 });
+  }).toPass({ timeout: 45_000 });
   await waitOutcome(page, /status=/);
-  await expect(card(page).getByRole('button', { name: `Remove the role Technician from ${SWITCHABLE.name}` })).toHaveCount(0);
+  await expect(remove()).toHaveCount(0);
 });
 
 test('switching an account off signs the person out at once; switching on lets them back in', async ({ page, browser }) => {

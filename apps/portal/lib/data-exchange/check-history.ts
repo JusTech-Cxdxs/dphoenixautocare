@@ -40,6 +40,16 @@ export function sapRange(companyCode: string | null, fiscalYear: number | null, 
   return given ? `SAP/${companyCode ?? '-'}/${fiscalYear ?? '-'}` : 'SAP';
 }
 
+/**
+ * The numbering range an invoice is stored under (externalSource): SAP's range for an SAP file; for an
+ * old system's file "LEGACY", or "LEGACY/<company code>/<year>" when the file gives either — an old system
+ * that starts its numbers again each year (or an SAP extract loaded as an old system's file) reuses a
+ * number in another year, and those are different invoices.
+ */
+export function invoiceRange(sourceSystem: string, source: string): string {
+  return sourceSystem === 'LEGACY' ? source.replace(/^SAP(?=\/|$)/, 'LEGACY') : source;
+}
+
 export function checkInvoiceRow(cells: unknown[], mapping: Mapping, today = lagosToday()): Checked<InvoiceValues> {
   const issues: Issue[] = [];
   const warn = (field: string, message: string) => issues.push({ field, message, level: 'warning' });
