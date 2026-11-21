@@ -84,10 +84,11 @@ test.describe('a signed-in customer', () => {
 
   test('asks for a person: a SUP ticket opens, the customer gets a confirmation email', async ({ page, request }) => {
     await customerSignedIn(page, PORTAL_CUSTOMER);
+    const since = Date.now();
     const answer = await ask(page, `[[tool:request_handover {"topic":"Enyo handover ${S.tag}"}]]`);
     S.ticket = await handoverNumber(answer);
     await expect(answer).toContainText(S.ticket);
-    const mail = await latestMail(request, PORTAL_CUSTOMER.email, new RegExp(`We have your request \\(${S.ticket}\\)`));
+    const mail = await latestMail(request, PORTAL_CUSTOMER.email, new RegExp(`We have your request \\(${S.ticket}\\)`), { since });
     expect(mail.html).toContain(S.ticket);
     // Asking again in the same conversation never opens a second ticket.
     const again = await ask(page, '[[tool:request_handover {"topic":"again"}]]');
@@ -112,12 +113,13 @@ test.describe('a signed-in customer', () => {
 
     const reply = `Your Honda will be ready on Friday ${S.tag}`;
     await page.getByLabel('Reply to the customer').fill(reply);
+    const since = Date.now();
     await page.getByRole('button', { name: 'Send reply' }).click();
     await expect(page.getByText('Reply sent and emailed to the customer.')).toBeVisible();
     await expect(page.locator('#replies')).toContainText(reply);
     await expect(page.getByText(/after opening/)).toBeVisible();
 
-    const mail = await latestMail(request, PORTAL_CUSTOMER.email, new RegExp(`Reply to your request ${S.ticket}`));
+    const mail = await latestMail(request, PORTAL_CUSTOMER.email, new RegExp(`Reply to your request ${S.ticket}`), { since });
     expect(mail.html).toContain(`Friday ${S.tag}`);
 
     await customerSignedIn(page, PORTAL_CUSTOMER);

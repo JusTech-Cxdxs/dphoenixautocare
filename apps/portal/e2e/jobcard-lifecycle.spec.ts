@@ -119,7 +119,7 @@ test('approvals respect segregation of duties; the customer is notified by email
   await as(page, 'receptionist');
   await open(page, S.url);
   await notifyCustomer(page);
-  const mail = await latestMail(request, CUSTOMER.email, new RegExp(`Estimate ready for ${S.number}`));
+  const mail = await latestMail(request, CUSTOMER.email, new RegExp(`Estimate ready for ${S.number}\\b.*\\(${S.plate}\\)`));
   expect(mail.html).toContain(S.number);
   // The customer sees one combined figure — never the internal line types.
   expect(mail.html).not.toContain('STORE_PART');
@@ -317,5 +317,7 @@ test('the whole story is on the audit trail and in the Audit Logs', async ({ pag
   expect(res?.status()).toBeLessThan(400);
   await expect(page.getByText(S.number).first()).toBeVisible();
   expect(await db().jobCard.count({ where: { id: S.id, status: 'CHECKED_OUT' } })).toBe(1);
-  expect(await countMail(page.request, CUSTOMER.email, new RegExp(`Estimate ready for ${S.number}`))).toBe(1);
+  // Exactly one estimate email for this Job Card. The plate is in the subject too: a Job Card number
+  // comes round again after the test database is rebuilt, while the mailbox may still hold older runs' mail.
+  expect(await countMail(page.request, CUSTOMER.email, new RegExp(`Estimate ready for ${S.number}\\b.*\\(${S.plate}\\)`))).toBe(1);
 });

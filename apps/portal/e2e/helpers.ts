@@ -229,13 +229,20 @@ export async function readStock(page: Page, partUrl: string): Promise<{ onHand: 
 
 type Mail = { id: string; subject: string; html: string; to: string[] };
 
-/** The newest email to `to` (Mailpit), waiting up to `ms`. */
-export async function latestMail(request: APIRequestContext, to: string, subject?: RegExp, ms = 20_000): Promise<Mail> {
+/**
+ * The newest email to `to` (Mailpit), waiting up to `ms`. With `since` (a
+ * Date.now() taken before the action that sends it), only an email that
+ * arrived after it counts — never an older one left by an earlier test or run.
+ */
+export async function latestMail(request: APIRequestContext, to: string, subject?: RegExp, wait: number | { ms?: number; since?: number } = 20_000): Promise<Mail> {
+  const { ms = 20_000, since } = typeof wait === 'number' ? { ms: wait } : wait;
   const until = Date.now() + ms;
   while (Date.now() < until) {
     const res = await request.get(`${MAIL}/api/v1/search?query=${encodeURIComponent(`to:"${to}"`)}&limit=50`);
     const list = ((await res.json()) as { messages?: { ID: string; Subject: string; Created: string; To?: { Address: string }[] }[] }).messages ?? [];
-    const hit = list.filter((m) => !subject || subject.test(m.Subject)).sort((a, b) => +new Date(b.Created) - +new Date(a.Created))[0];
+    const hit = list
+      .filter((m) => (!subject || subject.test(m.Subject)) && (since === undefined || +new Date(m.Created) >= since - 2000))
+      .sort((a, b) => +new Date(b.Created) - +new Date(a.Created))[0];
     if (hit) {
       const full = (await (await request.get(`${MAIL}/api/v1/message/${hit.ID}`)).json()) as { HTML: string; Subject: string; To?: { Address: string }[] };
       return { id: hit.ID, subject: full.Subject, html: full.HTML, to: (full.To ?? []).map((t) => t.Address) };

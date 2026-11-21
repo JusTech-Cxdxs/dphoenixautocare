@@ -69,7 +69,7 @@ test('an organisation pays no deposit: approval by phone moves the Job Card to I
 
 test('the link in the estimate email approves once and refuses a second time', async ({ page, request }) => {
   const url = await awaitingApproval(page, S.individualPlate);
-  const mail = await latestMail(request, CUSTOMER.email, /^Estimate ready for /);
+  const mail = await latestMail(request, CUSTOMER.email, new RegExp(`^Estimate ready for .*\\(${S.individualPlate}\\)`));
   const link = linkIn(mail.html, /\/estimate\/approve\/[A-Za-z0-9_-]{43}$/);
   const path = new URL(link).pathname;
 

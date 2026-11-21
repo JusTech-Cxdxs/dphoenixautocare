@@ -88,10 +88,11 @@ test.describe('portal access, from the front desk', () => {
   test('"Send set-password link": the email arrives; the customer sets a password and signs in', async ({ page, request }) => {
     await as(page, 'receptionist');
     S.url = await openCustomer(page, SWITCH_CUSTOMER.name);
+    const since = Date.now();
     await page.locator('#main').getByRole('button', { name: 'Send set-password link' }).first().click();
     await urlOrExplain(page, /status=link_sent/);
     await expect(page.getByText('Set-password link sent').first()).toBeVisible();
-    const mail = await latestMail(request, SWITCH_CUSTOMER.email, /set your customer portal password/);
+    const mail = await latestMail(request, SWITCH_CUSTOMER.email, /set your customer portal password/, { since });
     const link = linkIn(mail.html, /\/customer-portal\/reset-password\?token=/);
     if (!(await websiteRunning(request))) return;
     S.password = `Link-${uniq()}-Pw!`;

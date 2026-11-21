@@ -50,9 +50,10 @@ test.describe('Sign-in', () => {
     const email = RESET.email;
     await page.goto('/forgot-password');
     await page.getByLabel('Work email').fill(email);
+    const since = Date.now();
     await page.getByRole('button', { name: 'Send reset link' }).click();
     await expect(page.getByText('If an account exists')).toBeVisible();
-    const mail = await latestMail(request, email, /Reset your EJO 100 password/);
+    const mail = await latestMail(request, email, /Reset your EJO 100 password/, { since });
     const link = linkIn(mail.html, /reset-password/);
     await page.goto(link);
     await expect(page.getByRole('heading', { name: 'Set your password' })).toBeVisible();

@@ -140,7 +140,8 @@ test('while assisting: the technician\'s Job Card is accepted as the technician,
 test('the technician is told who helped and what was recorded', async ({ page }) => {
   await as(page, TECH);
   await eventually(page, async () => {
-    await open(page, '/notifications');
+    // The Activity tab: the page opens on "Action required" while the technician has something waiting there.
+    await open(page, '/notifications?tab=activity');
     await expect(page.getByText(new RegExp(`${ASSISTANT.name} helped you with your work from \\d{2}:\\d{2} to \\d{2}:\\d{2} — [1-9]\\d* actions? recorded`)).first()).toBeVisible({ timeout: 5_000 });
   });
   await open(page, '/profile');

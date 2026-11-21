@@ -39,13 +39,16 @@ test('today is already in the story (the load claimed it); a later Monday adds i
   const monday = later(0); // 2030-01-07 + whole weeks: a Monday
   const out = pulse(monday);
   expect(out).toMatch(/: added .*"jobCards":3.*"broadcasts":1/);
+  // A service is a Job Card with Service ticked: Monday's three repairs and its one service all check in as Job Cards.
+  expect(out).toMatch(/"servicesToday":1/);
   expect(pulse(monday)).toMatch(/: already/);
   const dayKey = monday.slice(0, 10);
   const marker = await db().demoRecord.findUnique({ where: { model_recordId: { model: 'DemoPulse', recordId: `${org.id}:${dayKey}` } } });
   expect(marker).not.toBeNull();
   const jobs = await db().demoRecord.findMany({ where: { organisationId: org.id, model: 'PulseJobCard' }, select: { recordId: true } });
-  const monJobs = await db().jobCard.findMany({ where: { id: { in: jobs.map((j) => j.recordId) }, createdAt: { gte: new Date(`${dayKey}T00:00:00Z`), lt: new Date(new Date(`${dayKey}T00:00:00Z`).getTime() + DAY) } }, select: { id: true, status: true, technicianAcceptanceStatus: true, jobNumber: true } });
-  expect(monJobs).toHaveLength(3);
+  const monJobs = await db().jobCard.findMany({ where: { id: { in: jobs.map((j) => j.recordId) }, createdAt: { gte: new Date(`${dayKey}T00:00:00Z`), lt: new Date(new Date(`${dayKey}T00:00:00Z`).getTime() + DAY) } }, select: { id: true, status: true, technicianAcceptanceStatus: true, jobNumber: true, isService: true } });
+  expect(monJobs).toHaveLength(4);
+  expect(monJobs.filter((j) => j.isService).length).toBeGreaterThanOrEqual(1);
   for (const j of monJobs) { expect(j.status).toBe('CHECKED_IN'); expect(j.jobNumber).toMatch(new RegExp(`^JC-${dayKey.slice(0, 4)}-\\d{6}$`)); }
   // Every record it made is listed for the reset.
   for (const j of monJobs) expect(await db().demoRecord.count({ where: { model: 'JobCard', recordId: j.id } })).toBe(1);
@@ -53,7 +56,7 @@ test('today is already in the story (the load claimed it); a later Monday adds i
   const notice = await db().broadcast.findFirstOrThrow({ where: { organisationId: org.id, title: 'This week in the workshop', startsAt: { gte: new Date(`${dayKey}T00:00:00Z`) } }, orderBy: { startsAt: 'asc' }, select: { sendEmail: true, audience: true } });
   expect(notice).toEqual({ sendEmail: false, audience: 'BRANCH' });
   // Tuesday: Monday's check-ins accepted and estimated (no money, no stock).
-  expect(pulse(later(1))).toMatch(/: added .*"estimatesWritten":3/);
+  expect(pulse(later(1))).toMatch(/: added .*"estimatesWritten":4/);
   const moved = await db().jobCard.findMany({ where: { id: { in: monJobs.map((j) => j.id) } }, select: { technicianAcceptanceStatus: true, status: true, payments: { select: { id: true } }, partRequestSlips: { select: { id: true } }, estimate: { select: { status: true } } } });
   for (const j of moved) { expect(j.technicianAcceptanceStatus).toBe('ACCEPTED'); expect(j.status).toBe('CHECKED_IN'); expect(j.estimate?.status).toBe('SUBMITTED'); expect(j.payments).toHaveLength(0); expect(j.partRequestSlips).toHaveLength(0); }
   // Switched off: nothing.
