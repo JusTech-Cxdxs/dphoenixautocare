@@ -59,19 +59,29 @@ async function main() {
     });
   }
 
-  // --- Kewalram Nigeria hierarchy ------------------------------------------
+  // --- D'Phoenix Autocare hierarchy -----------------------------------------
+  // One business, one workshop: the details printed on every estimate, invoice,
+  // receipt and email come from here (Settings → Organisation edits them).
   const organisation = await prisma.organisation.upsert({
-    where: { slug: 'kewalram-nigeria' },
+    where: { slug: 'dphoenix-autocare' },
     update: {},
     create: {
-      name: 'Kewalram Nigeria',
-      slug: 'kewalram-nigeria',
-      legalName: 'Kewalram Chanrai Group Nigeria',
+      name: "D'Phoenix Autocare",
+      slug: 'dphoenix-autocare',
+      legalName: "D'PHOENIX AUTOCARE LIMITED",
+      website: 'https://www.dphoenixautocare.com',
+      email: 'dphoenixautocare@gmail.com',
+      hqAddress: 'Plot 1 Muri Okunola Street, opposite NNPC Hospital, beside Prime Shopping Complex, Sandfill Bus Stop, Victoria Island, Lagos',
+      hotlines: ['+234 811 496 6212', '+234 807 654 4837'],
+      // Service reminders: every 5,000 km or 6 months, whichever comes first (changeable in Settings).
+      primaryServiceIntervalKm: 5000,
+      primaryServiceIntervalDays: 180,
       branding: {
         create: {
-          primaryColor: '#16A34A',
-          secondaryColor: '#0F172A',
-          accentColor: '#22C55E',
+          // The website's own colours: orange, navy and the logo gold.
+          primaryColor: '#F09E2C',
+          secondaryColor: '#0A1628',
+          accentColor: '#D6890B',
         },
       },
     },
@@ -83,16 +93,16 @@ async function main() {
     create: { name: 'Nigeria', isoCode: 'NG' },
   });
 
-  const automobile = await prisma.businessUnit.upsert({
-    where: { organisationId_slug: { organisationId: organisation.id, slug: 'automobile-division' } },
+  const workshopUnit = await prisma.businessUnit.upsert({
+    where: { organisationId_slug: { organisationId: organisation.id, slug: 'workshop-fleet' } },
     update: {},
-    create: { organisationId: organisation.id, name: 'Automobile Division', slug: 'automobile-division' },
+    create: { organisationId: organisation.id, name: 'Workshop & Fleet Services', slug: 'workshop-fleet' },
   });
 
   await prisma.countryLink.upsert({
-    where: { businessUnitId_countryId: { businessUnitId: automobile.id, countryId: nigeria.id } },
+    where: { businessUnitId_countryId: { businessUnitId: workshopUnit.id, countryId: nigeria.id } },
     update: {},
-    create: { businessUnitId: automobile.id, countryId: nigeria.id },
+    create: { businessUnitId: workshopUnit.id, countryId: nigeria.id },
   });
 
   const lagos = await prisma.state.upsert({
@@ -101,84 +111,56 @@ async function main() {
     create: { countryId: nigeria.id, name: 'Lagos State' },
   });
 
-  const isolo = await prisma.city.upsert({
-    where: { stateId_name: { stateId: lagos.id, name: 'Isolo' } },
+  const victoriaIsland = await prisma.city.upsert({
+    where: { stateId_name: { stateId: lagos.id, name: 'Victoria Island' } },
     update: {},
-    create: { stateId: lagos.id, name: 'Isolo' },
+    create: { stateId: lagos.id, name: 'Victoria Island' },
   });
 
-  const isoloBranch = await prisma.branch.upsert({
-    where: { id: `${automobile.id}-isolo-seed` }, // placeholder unique lookup for idempotency
+  const workshopBranch = await prisma.branch.upsert({
+    where: { id: `${workshopUnit.id}-vi-seed` }, // fixed id so the seed can run again safely
     update: {},
     create: {
-      id: `${automobile.id}-isolo-seed`,
-      businessUnitId: automobile.id,
-      cityId: isolo.id,
-      name: 'Isolo Branch',
-      code: 'KWL-WS',
+      id: `${workshopUnit.id}-vi-seed`,
+      businessUnitId: workshopUnit.id,
+      cityId: victoriaIsland.id,
+      name: 'Victoria Island Workshop',
+      code: 'DPA',
+      address: 'Plot 1 Muri Okunola Street, opposite NNPC Hospital, beside Prime Shopping Complex, Sandfill Bus Stop, Victoria Island, Lagos',
+      email: 'dphoenixautocare@gmail.com',
+      hotlines: ['+234 811 496 6212', '+234 807 654 4837'],
     },
   });
 
-  // The assembly plant is its own branch (kind ASSEMBLY_PLANT, SAP plant 1100):
-  // kits, the line, quality, PDI and the yard live here; the workshop's job
-  // cards and store stay on Isolo Branch. Its departments follow
-  // apps/portal/lib/branch-types.ts (PLANT_DEPARTMENTS).
-  const afprint = await prisma.branch.upsert({
-    where: { id: `${automobile.id}-afprint-seed` },
-    update: { type: 'ASSEMBLY_PLANT', sapPlant: '1100' },
-    create: {
-      id: `${automobile.id}-afprint-seed`,
-      businessUnitId: automobile.id,
-      cityId: isolo.id,
-      name: 'Afprint Assembly Plant',
-      code: 'KWL-AP',
-      type: 'ASSEMBLY_PLANT',
-      sapPlant: '1100',
-    },
-  });
-  for (const d of [
-    ['plant-kit-receiving', 'Kit receiving & plant store'], ['plant-production', 'Production (the line)'], ['plant-quality', 'Quality (QC and QA audit)'],
-    ['plant-pdi', 'PDI'], ['plant-yard', 'Yard & dispatch'], ['plant-maintenance', 'Plant maintenance'],
-  ] as const) {
-    await prisma.department.upsert({ where: { branchId_slug: { branchId: afprint.id, slug: d[0] } }, update: {}, create: { branchId: afprint.id, name: d[1], slug: d[0] } });
-  }
-  // eslint-disable-next-line no-console
-  console.log(`Seeded the assembly plant: ${afprint.name} (${afprint.id}, SAP plant ${afprint.sapPlant})`);
-
+  // The workshop department, and the two operational workshops (cars, and
+  // commercial and fleet vehicles), each with its own supervisor. Job cards
+  // route to one of them by vehicle type. "workshop" stays: the platform
+  // finds the workshop branch through it.
   await prisma.department.upsert({
-    where: { branchId_slug: { branchId: isoloBranch.id, slug: 'workshop' } },
+    where: { branchId_slug: { branchId: workshopBranch.id, slug: 'workshop' } },
     update: {},
-    create: { branchId: isoloBranch.id, name: 'Workshop', slug: 'workshop' },
+    create: { branchId: workshopBranch.id, name: 'Workshop', slug: 'workshop' },
   });
-
-  // Store: a sibling of Workshop under the same branch, not a sub-department.
-  await prisma.department.upsert({
-    where: { branchId_slug: { branchId: isoloBranch.id, slug: 'store' } },
-    update: {},
-    create: { branchId: isoloBranch.id, name: 'Store', slug: 'store' },
-  });
-
-  // The two operational Workshop departments (Passenger and Commercial), each
-  // with its own supervisor. Job Cards route to one of them by vehicle type.
-  // The original "workshop" department stays: getWorkshopBranchId() resolves
-  // the branch through it.
   const [passengerWorkshop, commercialWorkshop] = await Promise.all([
     prisma.department.upsert({
-      where: { branchId_slug: { branchId: isoloBranch.id, slug: 'workshop-passenger' } },
+      where: { branchId_slug: { branchId: workshopBranch.id, slug: 'workshop-passenger' } },
       update: {},
-      create: { branchId: isoloBranch.id, name: 'Passenger Vehicle Workshop', slug: 'workshop-passenger' },
+      create: { branchId: workshopBranch.id, name: 'Cars and SUVs', slug: 'workshop-passenger' },
     }),
     prisma.department.upsert({
-      where: { branchId_slug: { branchId: isoloBranch.id, slug: 'workshop-commercial' } },
+      where: { branchId_slug: { branchId: workshopBranch.id, slug: 'workshop-commercial' } },
       update: {},
-      create: { branchId: isoloBranch.id, name: 'Commercial Vehicle Workshop', slug: 'workshop-commercial' },
+      create: { branchId: workshopBranch.id, name: 'Fleet and commercial vehicles', slug: 'workshop-commercial' },
     }),
   ]);
   // eslint-disable-next-line no-console
-  console.log(`Seeded Workshop departments: ${passengerWorkshop.name} (${passengerWorkshop.id}), ${commercialWorkshop.name} (${commercialWorkshop.id})`);
+  console.log(`Seeded workshop departments: ${passengerWorkshop.name} (${passengerWorkshop.id}), ${commercialWorkshop.name} (${commercialWorkshop.id})`);
 
   // --- Baseline roles (system roles, cannot be deleted) --------------------
-  const roleNames = ['Administrator', 'Workshop Manager', 'Workshop Supervisor', 'Technician', 'Store Manager', 'Store Officer', 'Finance Officer', 'Warranty HOD', 'Warranty Officer', 'Department Head', 'Chief Security Officer', 'Security Officer', 'Receptionist', 'Calendar User', 'Scheduling Admin', 'Broadcaster', 'Customer Care', 'Customer Care Lead', 'Executive', 'IT Administrator', 'Plant Manager', 'PDI Supervisor', 'PDI Inspector', 'Quality Supervisor', 'Kit Inspector', 'Production Supervisor', 'Line Operator', 'QC Inspector', 'QA Auditor'];
+  // The D'Phoenix edition's roles: the workshop, front desk, finance, security,
+  // customer care, leadership and IT. No Store, Warranty or assembly-plant
+  // roles while those modules are off (apps/portal/lib/modules.ts).
+  const roleNames = ['Administrator', 'Workshop Manager', 'Workshop Supervisor', 'Technician', 'Finance Officer', 'Department Head', 'Chief Security Officer', 'Security Officer', 'Receptionist', 'Calendar User', 'Scheduling Admin', 'Broadcaster', 'Customer Care', 'Customer Care Lead', 'Executive', 'IT Administrator'];
   for (const name of roleNames) {
     await prisma.role.upsert({
       where: { organisationId_slug: { organisationId: organisation.id, slug: slugify(name) } },
@@ -256,7 +238,7 @@ async function main() {
   }
 
   // eslint-disable-next-line no-console
-  console.log(`Seed complete: module registry + Kewalram Nigeria hierarchy + Master Administrator (${MASTER_ADMIN.email}).`);
+  console.log(`Seed complete: module registry + D'Phoenix Autocare hierarchy + Master Administrator (${MASTER_ADMIN.email}).`);
 }
 
 function slugify(value: string): string {

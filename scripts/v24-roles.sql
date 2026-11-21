@@ -13,10 +13,6 @@ CROSS JOIN (VALUES
   ('Technician', 'technician', 'Accepts or turns down jobs, inspects, works and writes estimates.'),
   ('Workshop Manager', 'workshop-manager', 'Final approvals, closing and cancelling jobs, branch approvals.'),
   ('Finance Officer', 'finance-officer', 'Payments, refunds, outside-purchase review and cash.'),
-  ('Store Manager', 'store-manager', 'Runs the Store: parts, prices, stock, receipts and releases.'),
-  ('Store Officer', 'store-officer', 'Store work: matching, receiving and releasing parts.'),
-  ('Warranty HOD', 'warranty-hod', 'Heads Warranty: approves claims, providers and policies.'),
-  ('Warranty Officer', 'warranty-officer', 'Registers warranties and prepares claims.'),
   ('Department Head', 'department-head', 'Approves the exit passes of their department.'),
   ('Chief Security Officer', 'chief-security-officer', 'Heads Security: the gate, reception and incidents.'),
   ('Security Officer', 'security-officer', 'The gate: visitors, vehicles and passes in and out.'),
@@ -31,7 +27,7 @@ CROSS JOIN (VALUES
 ) AS r(name, slug, description)
 ON CONFLICT ("organisationId", "slug") DO NOTHING;
 
--- Check: the roles each organisation now has (expect at least 22 per organisation).
+-- Check: the roles each organisation now has (expect at least 18 per organisation).
 SELECT o."name" AS organisation, COUNT(r."id") AS roles
 FROM "organisations" o LEFT JOIN "roles" r ON r."organisationId" = o."id"
 GROUP BY o."name";
