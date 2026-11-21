@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSessionCookie } from 'better-auth/cookies';
 import { newNonce, nonceCsp, themeScriptHash } from '@/lib/security-headers';
-import { PUBLIC_WEBSITE } from '@/lib/edition';
 
 /**
- * Only the customer area needs middleware on the public website.
+ * Only the customer area needs middleware on this site (the customer
+ * portal; any other path that is not a page simply answers 404).
  *  - /customer-portal is the sign-in page: public, but someone already
  *    signed in goes straight to the dashboard (unless they arrive with a
  *    notice to read — ?error= / ?reset= — e.g. after a session ended).
@@ -41,20 +41,8 @@ async function pass(request: NextRequest, requestId: string): Promise<NextRespon
   return noStore(res, requestId);
 }
 
-/**
- * The public marketing pages (About, Businesses, Store, News, Investors …).
- * While the edition has no public website (lib/edition.ts, PUBLIC_WEBSITE =
- * false) each one opens the customer portal sign-in instead, as in the Zinox
- * edition; the pages stay in code. With the public website on they pass
- * through untouched, as before. The home page redirects in app/page.tsx.
- */
-const MARKETING = /^\/(about|businesses|careers|contact|investors|news|products|services|store|sustainability)(\/|$)/;
-
 export async function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
-  if (MARKETING.test(pathname)) {
-    return PUBLIC_WEBSITE ? NextResponse.next() : NextResponse.redirect(new URL('/customer-portal', request.url));
-  }
   const requestId = crypto.randomUUID();
   const sessionCookie = getSessionCookie(request, { cookiePrefix: 'customer-auth' });
 
@@ -79,9 +67,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/customer-portal', '/customer-portal/:path*', '/api/customer/:path*',
-    // The public marketing pages (see MARKETING above).
-    '/(about|businesses|careers|contact|investors|news|products|services|store|sustainability)/:path*',
-  ],
+  matcher: ['/customer-portal', '/customer-portal/:path*', '/api/customer/:path*'],
 };

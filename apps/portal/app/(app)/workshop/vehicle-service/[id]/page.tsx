@@ -76,7 +76,7 @@ import { BackLink, PageTitle, StatusChip } from '@/components/ui';
 import { CustomerLink } from '@/components/CustomerLink';
 import { RefineTextButton } from '@/components/enyo/RefineTextButton';
 import { SapTrail } from '@/components/data-exchange/SapTrail';
-import { featureOn, moduleIsOn } from '@/lib/modules';
+import { featureOn, moduleIsOn, oldSystemName } from '@/lib/modules';
 
 // Switched per edition (the D'Phoenix Autocare edition has no Store or
 // Warranty): their parts of this page are hidden, the code is kept, and
@@ -584,7 +584,7 @@ export default async function VehicleServiceDetailPage({
       ) : null}
       {service.externalId ? (
         <div className="mb-4 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-info)]/40 bg-[var(--ejo-info)]/10 px-4 py-3 text-sm text-[var(--ejo-text)]" role="note" data-testid="service-origin">
-          <span className="font-semibold">Brought in from {service.externalSource === 'LEGACY' ? 'the old system' : 'SAP'} as {service.status === 'SCHEDULED' ? 'booking' : 'service'} {service.externalId}.</span>{' '}
+          <span className="font-semibold">Brought in from {oldSystemName(service.externalSource)} as {service.status === 'SCHEDULED' ? 'booking' : 'service'} {service.externalId}.</span>{' '}
           {serviceOrigin ? <>Brought into EJO by import {serviceOrigin.mayOpen ? <LoadingLink href={`/data-exchange/imports/${service.importJobId}`} className="font-medium text-[var(--ejo-primary)] hover:underline">{serviceOrigin.number}</LoadingLink> : serviceOrigin.number}{serviceOrigin.loadedAt ? ` on ${formatDateOnly(serviceOrigin.loadedAt)}` : ''}. </> : null}
           {service.status !== 'SCHEDULED' && service.checkedInAt ? `It came in on ${formatDateOnly(service.checkedInAt)} and was accepted before EJO; it carries on here.` : ''}
         </div>

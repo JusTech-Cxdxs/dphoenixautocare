@@ -112,7 +112,7 @@ test('logs carry no secrets and no full email addresses', () => {
   const line = logged[0]!;
   for (const secret of ['hunter2', 'admin:pw', 'abc123', 'ada.obi@', 'AbCdEfGhIjKlMnOp']) assert.ok(!line.includes(secret), `${secret} leaked: ${line}`);
   assert.ok(line.includes('a***@example.com'));
-  assert.equal(maskEmails('x bola@kcg.ng y'), 'x b***@kcg.ng y');
+  assert.equal(maskEmails('x bola@fleet.ng y'), 'x b***@fleet.ng y');
   assert.ok(!redact('Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig_part').includes('eyJhbGci'));
 });
 

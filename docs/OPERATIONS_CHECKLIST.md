@@ -56,17 +56,16 @@ Names only. Values never go into the repository, chat, or tickets.
 | `DATABASE_URL`, `DIRECT_URL` | yes | As above |
 | `BETTER_AUTH_SECRET` | yes | The same value as the portal |
 | `NEXT_PUBLIC_WEBSITE_URL` | yes | This site's public address |
-| `NEXT_PUBLIC_PORTAL_URL` | yes | The portal's address (the "Employee login" button) |
+| `NEXT_PUBLIC_PORTAL_URL` | yes | The staff portal's address (links in the emails sent to staff) |
 | `NEXT_PUBLIC_ORGANISATION_NAME` | yes | Display name: header, footer, page titles, emails |
 | `NEXT_PUBLIC_ORGANISATION_LEGAL_NAME` | optional | Registered name for the copyright line |
-| `NEXT_PUBLIC_ORGANISATION_FOUNDED_YEAR` | optional | Shows the "years of excellence" badge |
 | `NEXT_PUBLIC_SITE_TAGLINE`, `NEXT_PUBLIC_SITE_DESCRIPTION` | optional | Page title suffix and search description |
 | `NEXT_PUBLIC_CONTACT_EMAIL`, `NEXT_PUBLIC_CONTACT_PHONE`, `NEXT_PUBLIC_CONTACT_ADDRESS` | optional | Footer contact lines (hidden when not set) |
 | `NEXT_PUBLIC_SOCIAL_FACEBOOK`, `_LINKEDIN`, `_X`, `_YOUTUBE`, `_INSTAGRAM` | optional | Footer social links (hidden when not set) |
 | `SMTP_*` | yes | Outgoing email (customer password reset) |
 | `CUSTOMER_SIGNIN_PER_MINUTE`, `CUSTOMER_RESET_REQUESTS_PER_5_MIN` | optional | Sign-in limits per address |
-| `ENYO_LLM_BASE_URL`, `ENYO_LLM_API_KEY`, `ENYO_LLM_MODEL` (and the optional ones) | for Enyo | The same model settings as the portal, for the customer-portal and website assistants |
-| `WEBSITE_ORGANISATION_SLUG` | for Enyo | The organisation the public website belongs to (its slug in the database). Without it the website assistant stays off when the names don't match |
+| `ENYO_LLM_BASE_URL`, `ENYO_LLM_API_KEY`, `ENYO_LLM_MODEL` (and the optional ones) | for Enyo | The same model settings as the portal, for Enyo in the customer portal and on the support page |
+| `WEBSITE_ORGANISATION_SLUG` | for Enyo | The organisation this site belongs to (its slug in the database). Without it Enyo on the support page stays off when the names don't match |
 | `ENYO_IP_HASH_KEY` | recommended | A long random secret used only to hash visitors' addresses for rate limits |
 | `ENYO_CUSTOMER_PER_MINUTE`, `ENYO_PUBLIC_PER_MINUTE`, `ENYO_PUBLIC_PER_DAY`, `ENYO_PUBLIC_IP_PER_MINUTE`, `ENYO_PUBLIC_IP_PER_DAY` | optional | Chat limits (defaults 12, 6, 60, 20, 200) |
 

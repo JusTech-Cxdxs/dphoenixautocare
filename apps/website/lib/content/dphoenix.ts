@@ -1,10 +1,7 @@
 /**
- * D'Phoenix Autocare's own published facts, for the pages and the assistant
- * that remain while the public marketing site is off (lib/edition.ts,
- * PUBLIC_WEBSITE = false): the customer portal, the legal pages, the support
- * page and Enyo. The Kewalram group content in lib/content/group.ts is kept
- * for EJO's public website and is not shown in this edition. Only what the
- * business publishes; no staff or founder names.
+ * D'Phoenix Autocare's own published facts, for the customer portal, the
+ * legal pages, the support page and Enyo. Only what the business publishes;
+ * no staff or founder names.
  */
 export const DPHOENIX = {
   legalName: 'D\'PHOENIX AUTOCARE LIMITED',

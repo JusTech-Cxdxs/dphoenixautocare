@@ -1,6 +1,7 @@
 import { prisma, type Prisma } from '@ejo/database';
 import { serviceCycleFrom } from '@ejo/utils';
 import { addWorkingDays } from '@/lib/utils/working-days';
+import { featureOn } from '@/lib/modules';
 
 /**
  * The next-service clock for Vehicle Services and service Job Cards.
@@ -296,7 +297,7 @@ async function historyAnchors(scope: { branchId?: string; vehicleId?: string }, 
     const cycle = computeServiceCycle(j.mileage, at, { vehicle: v, branch: { businessUnit: { organisation: org } } });
     if (cycle.nextServiceDueOdometer === null && cycle.nextServiceDueDate === null) continue;
     out.push({
-      id: `hist:${j.id}`, vehicleId, serviceNumber: `${j.jobNumber} (SAP, before EJO)`, attendedAt: j.attendedAt,
+      id: `hist:${j.id}`, vehicleId, serviceNumber: `${j.jobNumber} (${featureOn('sap') ? 'SAP, ' : ''}before EJO)`, attendedAt: j.attendedAt,
       primaryServiceDate: cycle.primaryServiceDate, primaryServiceMileage: cycle.primaryServiceMileage, nextServiceDueOdometer: cycle.nextServiceDueOdometer, nextServiceDueDate: cycle.nextServiceDueDate,
       customer: v.customer, vehicle: { make: v.make, model: v.model, year: v.year, plateNumber: v.plateNumber, mileage: v.mileage, vehicleType: v.vehicleType }, escalatedToJobCard: null,
     });

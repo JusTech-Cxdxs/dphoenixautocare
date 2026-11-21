@@ -285,9 +285,9 @@ export type EmailLayoutOptions = {
 
 /**
  * The vehicle brands the organisation represents, shown as a quiet line at the
- * foot of every email ("Authorised dealer · FOTON · ISUZU · SOUEAST"), in each
+ * foot of every email ("Authorised dealer · TOYOTA · LEXUS"), in each
  * brand's colour, as text (no pictures to block or load). Set once per
- * installation: NEXT_PUBLIC_DEALER_BRANDS="FOTON:#111111,ISUZU:#E4002B,SOUEAST:#F39800".
+ * installation: NEXT_PUBLIC_DEALER_BRANDS="TOYOTA:#EB0A1E,LEXUS:#111111".
  */
 export function dealerBrands(value: string | undefined = process.env.NEXT_PUBLIC_DEALER_BRANDS): { name: string; color: string }[] {
   return String(value ?? '')

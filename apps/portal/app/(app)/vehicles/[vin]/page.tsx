@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { guardAnyPage } from '@/lib/authz/server';
+import { featureOn } from '@/lib/modules';
 import { getVehiclePassport, type VehiclePassport } from '@/lib/actions/vehicle-passport';
 import { LoadingLink } from '@/components/LoadingLink';
 import { EmptyState, Icon, PageHeader, SectionCard, StatusChip } from '@/components/ui';
@@ -139,8 +140,8 @@ function AfterSale({ p }: { p: VehiclePassport }) {
     { title: 'Warranty claims', icon: 'file', rows: a.claims?.map((r) => ({ id: r.id, number: r.number, href: referenceUrl('WC', r.id), when: r.at, text: `${r.status} · ${r.complaint}` })) ?? null },
     { title: 'Road tests', icon: 'road', rows: a.roadTests?.map((r) => ({ id: r.id, number: r.number, href: referenceUrl('RT', r.id), when: r.at, text: r.status })) ?? null },
     { title: 'Gate exits', icon: 'exit', rows: a.gateExits?.map((r) => ({ id: r.id, number: r.number, href: referenceUrl('VX', r.id), when: r.at, text: r.branch })) ?? null },
-    // Read-only history from SAP (before EJO): the number is the SAP order; it opens the vehicle's workshop page where the whole history sits.
-    { title: 'Before EJO (SAP)', icon: 'clipboard', rows: a.beforeEjo?.map((r) => ({ id: r.id, number: `${r.number} (SAP)`, href: p.vehicle ? `/workshop/vehicles/${p.vehicle.id}/edit` : '#', when: r.at, text: [r.kind, r.status === 'Cancelled' ? 'cancelled' : null, r.mileage !== null ? `${r.mileage.toLocaleString('en-NG')} km` : null, r.summary, r.total !== null ? `₦${r.total.toLocaleString('en-NG')}` : null].filter(Boolean).join(' · ') })) ?? null },
+    // Read-only history from the old system (before EJO): the number is its job number; it opens the vehicle's workshop page where the whole history sits.
+    { title: featureOn('sap') ? 'Before EJO (SAP)' : 'Before EJO', icon: 'clipboard', rows: a.beforeEjo?.map((r) => ({ id: r.id, number: featureOn('sap') ? `${r.number} (SAP)` : r.number, href: p.vehicle ? `/workshop/vehicles/${p.vehicle.id}/edit` : '#', when: r.at, text: [r.kind, r.status === 'Cancelled' ? 'cancelled' : null, r.mileage !== null ? `${r.mileage.toLocaleString('en-NG')} km` : null, r.summary, r.total !== null ? `₦${r.total.toLocaleString('en-NG')}` : null].filter(Boolean).join(' · ') })) ?? null },
   ];
   const shown = lists.filter((l) => l.rows !== null);
   if (!shown.length) return null;

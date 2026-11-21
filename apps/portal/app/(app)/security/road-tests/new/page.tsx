@@ -60,7 +60,7 @@ export default async function NewRoadTestPage({ searchParams }: { searchParams: 
           <p id="companions-hint" className="mt-1 text-[11px] text-[var(--ejo-text-muted)]">Hold Ctrl (or ⌘) to choose more than one. The driver is already included.</p></div>
         <div><label className={label}>Other people going along (optional — one name per line)</label><textarea id="security-road-tests-new-text-1" name="otherCompanions" rows={2} placeholder="e.g. Customer's representative" className={input} />
         <RefineTextButton targetId="security-road-tests-new-text-1" /></div>
-        <div><label className={label}>Route (optional)</label><input name="route" placeholder="e.g. Isolo → Oshodi expressway and back" className={input} /></div>
+        <div><label className={label}>Route (optional)</label><input name="route" placeholder="e.g. Victoria Island → Lekki toll gate and back" className={input} /></div>
         <div>
           <label className={label}>Expected duration</label>
           <select name="expectedMinutes" required defaultValue="" className={input}>

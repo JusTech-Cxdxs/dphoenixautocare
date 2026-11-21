@@ -15,8 +15,7 @@
  * progress and a yard — every stage, with realistic takt, first-time-through
  * and defects per unit, and figures that look right on every page.
  *
- * Pure: no database here. `loadPlantDemo` (./load.ts) writes a plan, and
- * scripts/demo-files.ts writes the same plan as the plant's demo files.
+ * Pure: no database here. `loadPlantDemo` (./load.ts) writes a plan.
  */
 import { DEMO_DOMAIN } from '../../demo/people';
 import { DEFAULT_ROUTES, DEFECT_TYPES, type AuditFinding, type CheckResult, type RouteStation, type Severity, type StationCheck, type StationKind } from '../line';

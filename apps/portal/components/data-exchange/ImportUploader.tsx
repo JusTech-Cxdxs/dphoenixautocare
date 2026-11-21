@@ -8,11 +8,9 @@ import { Icon } from '@/components/ui';
 import { featureOn } from '@/lib/modules';
 import { BLOCK_BYTES, ROW_BYTES_MAX, rowBytes } from '@/lib/data-exchange/block-size';
 
-// Without the SAP link (lib/modules.ts) files come from Zoho, an old system or a spreadsheet.
+// Without the SAP link (lib/modules.ts) every file comes from Zoho, an old system or a spreadsheet: no source to choose.
 const SAP_ON = featureOn('sap');
-const SOURCES: readonly (readonly ['SAP' | 'LEGACY', string])[] = SAP_ON
-  ? [['SAP', 'SAP (an export or extract)'], ['LEGACY', 'An old system or our own spreadsheet']]
-  : [['LEGACY', 'Zoho, an old system or our own spreadsheet']];
+const SOURCES: readonly (readonly ['SAP' | 'LEGACY', string])[] = [['SAP', 'SAP (an export or extract)'], ['LEGACY', 'An old system or our own spreadsheet']];
 
 type Phase = 'idle' | 'reading' | 'sending' | 'finishing' | 'error';
 
@@ -134,6 +132,7 @@ export function ImportUploader({ entity, entityLabel, branches, needsBranch = fa
   }, []);
   return (
     <div className="space-y-5">
+      {SAP_ON ? (
       <fieldset disabled={busy} className="space-y-2">
         <legend className="text-sm font-medium text-[var(--ejo-text)]">Where is the file from?</legend>
         <div className="flex flex-wrap gap-3">
@@ -144,8 +143,11 @@ export function ImportUploader({ entity, entityLabel, branches, needsBranch = fa
             </label>
           ))}
         </div>
-        <p className="text-xs text-[var(--ejo-text-muted)]">The numbers in the file ({SAP_ON ? 'SAP customer numbers' : 'customer numbers'} and the like) are kept with each record under this source, so a later file is recognised.</p>
+        <p className="text-xs text-[var(--ejo-text-muted)]">The numbers in the file (SAP customer numbers and the like) are kept with each record under this source, so a later file is recognised.</p>
       </fieldset>
+      ) : (
+        <p className="text-sm text-[var(--ejo-text)]">Excel or CSV file — from Zoho, an old system or your own spreadsheet.</p>
+      )}
 
       {needsBranch || needsDate || needsKind ? (
         <div className="grid gap-3 sm:grid-cols-2">

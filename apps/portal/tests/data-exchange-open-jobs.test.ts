@@ -47,7 +47,7 @@ test('a row: the SAP order list maps itself; the estimate total is labour + part
   const m = autoMap('openJobs', h);
   assert.deepEqual(mappingProblems('openJobs', m), []);
   assert.deepEqual(mappingProblems('openJobs', { ...m, vin: null, plateNumber: null }), ['Choose the column for the vehicle’s chassis number (VIN) or plate: an open job card is on a vehicle.']);
-  const row = ['000483203', '0001000102', 'JAANLR85EL7100002', 'LND 102 CD', '30.10.2026', 'REL', '22,900', 'Brakes squeal; steering pulls left', 'Front pads worn', 'EMP-0042', 'EMP-0007', '45000', '112200', 'Yes', '8-98100000-0 x1 @45000; 8-98100012-2 x2 @33600', '60000', 'Bank transfer', 'RCPT-2026-1041', '30.10.2026', '', 'Isolo Branch'];
+  const row = ['000483203', '0001000102', 'JAANLR85EL7100002', 'LND 102 CD', '30.10.2026', 'REL', '22,900', 'Brakes squeal; steering pulls left', 'Front pads worn', 'EMP-0042', 'EMP-0007', '45000', '112200', 'Yes', '8-98100000-0 x1 @45000; 8-98100012-2 x2 @33600', '60000', 'Bank transfer', 'RCPT-2026-1041', '30.10.2026', '', 'Ajah Branch'];
   const c = checkOpenJobRow(row, m, '2026-11-02');
   assert.equal(c.status, 'GOOD', JSON.stringify(c.issues));
   const v = c.values!;
@@ -68,7 +68,7 @@ test('a row: the SAP order list maps itself; the estimate total is labour + part
   assert.match(err([...row.slice(0, 5), 'Somewhere', ...row.slice(6)])[0]!, /is not a stage EJO knows/);
   assert.match(err([row[0]!, row[1]!, '', '', ...row.slice(4)])[0]!, /Which vehicle is it\?/);
   assert.match(err([...row.slice(0, 4), '15.03.2027', ...row.slice(5)])[0]!, /is in the future/);
-  assert.deepEqual(err(['', ...row.slice(1)]), ['Job number is required (the SAP order number, AUFNR, or the old job card number).']);
+  assert.deepEqual(err(['', ...row.slice(1)]), ['Job number is required (the old job card number).']);
   // No complaint: kept with the standard words; cash; no estimate → not approved.
   const bare = checkOpenJobRow([row[0]!, row[1]!, row[2]!, '', row[4]!, '', '', '', '', '', '', '', '', '', '', '', 'Cash', '', '', '', ''], m, '2026-11-02');
   assert.equal(bare.status, 'WARNING');

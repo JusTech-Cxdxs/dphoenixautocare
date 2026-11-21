@@ -13,12 +13,12 @@ import { ROLE_GRANTS, PERMISSIONS } from '../lib/authz/catalogue';
 
 const ROOT = join(__dirname, '..', '..');
 const read = (rel: string) => readFileSync(join(ROOT, rel), 'utf8');
-const good = { title: 'SOUEAST assembly begins in Lagos', summary: 'The first locally assembled SUVs roll off the line at the Isolo hub this month.', body: 'In September 2026 the hub began assembling SOUEAST passenger vehicles — the first cars on a line that opened with trucks.' };
+const good = { title: 'Extended opening hours in December', summary: 'The Victoria Island workshop stays open until 8 pm on weekdays through December.', body: 'From 1 December the workshop takes vehicles until 8 pm on weekdays, so fleet drivers can drop off after their last trip of the day.' };
 
 test('a story needs a headline, a summary and a body; the address comes from the headline', () => {
   const r = checkNews(good);
   assert.ok(r.ok);
-  assert.equal(r.value.slug, 'soueast-assembly-begins-in-lagos');
+  assert.equal(r.value.slug, 'extended-opening-hours-in-december');
   assert.equal(r.value.category, 'NEWS');
   assert.equal(r.value.isFeatured, false);
   assert.equal(checkNews({ ...good, title: 'Hi' }).ok, false);

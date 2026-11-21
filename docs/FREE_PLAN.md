@@ -36,7 +36,7 @@ sign anything.
 | Database size | **500 MB**. Past it the database turns read-only and nothing can be saved. | Shown under **Data Exchange → Database space**. An import that would take the database past 95% is refused before it is sent for approval, approved or started. A load that reaches 97% **pauses**; press **Resume** once there is room. An upload is refused while the database is nearly full. Administrators get a dashboard notice at 80%. |
 | Inactivity | Paused after 1 week with no activity | The daily scheduled job reads and writes the database every day, which keeps it active. If Vercel's jobs are switched off, open the portal at least weekly. |
 | Backups | **None included** | Take your own weekly copy: `pg_dump "$DIRECT_URL" -Fc -f ejo-YYYY-MM-DD.dump`, stored off the server. |
-| Egress | 5 GB a month | Page loads read little. A full export of a large list is the biggest read: a 300,000-part export is about 60 MB. |
+| Egress | 5 GB a month | Page loads read little. A full export of a large list is the biggest read: a 300,000-row export is about 60 MB. |
 | Realtime | 200 connections, 2 million messages a month | One connection per open tab, plus one short message per change. |
 | Connections | Pooler on port 6543 | `DATABASE_URL` uses the pooler (`pgbouncer=true`). Each server instance keeps up to 10 connections (`PRISMA_CONNECTION_LIMIT`). |
 
@@ -44,17 +44,17 @@ sign anything.
 
 | Loaded | Space |
 |---|---|
-| One part (SAP material) | about **1.7 KB**: 0.7 KB the part, 1.0 KB its audit-trail entry |
-| 50,000 parts (the demo file) | about **85 MB**, plus about 20 MB of staged file until it is released |
-| 800,000 parts (Kewalram's material master) | about **1.3 GB**, which does **not** fit in 500 MB |
+| One customer or vehicle | about **2.5 KB** with its audit-trail entry |
+| 50,000 customers or vehicles | about **125 MB**, plus about 20 MB of staged file until it is released |
+| 400,000 customers or vehicles | about **1 GB**, which does **not** fit in 500 MB |
 
 The audit trail is append-only: it can never be deleted, by design. The
 space taken by loading records never comes back, even after an undo. Staged
 files do come back: they are released 30 days after an import finishes
 (Data Exchange → *Space used by staged files*).
 
-The Database space card shows roughly how many more parts, customers or
-opening-stock lines fit. The figures per record are in
+The Database space card shows roughly how many more customers or vehicles
+fit. The figures per record are in
 `apps/portal/lib/database-space-core.ts`.
 
 **Another plan or another database:** set `DATABASE_SPACE_LIMIT_MB` to the

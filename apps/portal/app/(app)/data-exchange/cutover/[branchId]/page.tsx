@@ -7,6 +7,7 @@ import { STEP_WORDS, type StepState } from '@/lib/data-exchange/cutover';
 import { importStatus } from '@/lib/data-exchange/status';
 import { formatDateTimeCompact } from '@/lib/utils/format-date';
 import { PageHeader, SectionCard, StatusChip } from '@/components/ui';
+import { moduleIsOn } from '@/lib/modules';
 import type { Tone } from '@/components/ui/tones';
 import { CutoverSignOff, CutoverStepMark } from '@/components/data-exchange/CutoverActions';
 
@@ -26,7 +27,7 @@ export default async function BranchCutoverPage({ params }: { params: Promise<{ 
   return (
     <div className="w-full space-y-6 p-4 sm:p-8">
       <PageHeader icon="check-circle" back={{ href: '/data-exchange/cutover', label: 'Back to the cut-over checklist' }} eyebrow={branch.typeWords} title={`Cut-over: ${branch.name}`}
-        description="Load the files in this order: each names what the one before brought in. Records of the whole organisation (staff, customers, vehicles, suppliers, warranties) are loaded once and count for every branch." />
+        description={`Load the files in this order: each names what the one before brought in. Records of the whole organisation (${['staff', 'customers', 'vehicles', ...(moduleIsOn('inventory') ? ['suppliers'] : []), ...(moduleIsOn('warranty') ? ['warranties'] : [])].join(', ')}) are loaded once and count for every branch.`} />
 
       <SectionCard icon="check-circle" title={view.signedOff ? 'Cut over' : `${view.settled} of ${view.total} steps settled`}
         description={view.signedOff ? `Signed off by ${view.signedOff.by}, ${formatDateTimeCompact(view.signedOff.at)}. The checklist as it stood is kept with the sign-off in the audit trail.` : view.next ? `Next: ${ENTITIES[view.next].label}.` : view.blockers.length ? 'Waiting on the steps under way.' : 'Every step is settled: the branch can be signed off.'}>

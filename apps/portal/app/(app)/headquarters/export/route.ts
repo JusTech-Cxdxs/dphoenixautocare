@@ -3,6 +3,7 @@ import { getHeadquarters } from '@/lib/actions/headquarters';
 import { getPrincipal } from '@/lib/authz/server';
 import { toCsv } from '@/lib/hq-core';
 import { writeAuditLog } from '@/lib/workshop-core';
+import { featureOn } from '@/lib/modules';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,7 @@ export async function GET(req: Request): Promise<Response> {
   } catch {
     return new NextResponse('Not available.', { status: 403, headers: { 'Cache-Control': 'no-store' } });
   }
-  const header = ['Branch', 'Health', 'Why', 'Staff', 'Jobs opened', 'Jobs finished', 'Collected (NGN, payments less refunds)', 'Invoiced in SAP before EJO (NGN)', 'In the workshop now', 'Ready to collect', 'Decisions waiting', 'Oldest decision (hours)', 'Support open', 'Support past target', 'Median turnaround (hours)'];
+  const header = ['Branch', 'Health', 'Why', 'Staff', 'Jobs opened', 'Jobs finished', 'Collected (NGN, payments less refunds)', `Invoiced ${featureOn('sap') ? 'in SAP ' : ''}before EJO (NGN)`, 'In the workshop now', 'Ready to collect', 'Decisions waiting', 'Oldest decision (hours)', 'Support open', 'Support past target', 'Median turnaround (hours)'];
   const rows = hq.branches.map((b) => [b.name, b.health.label, b.health.reasons.join('; '), b.staff, b.opened, b.finished, b.collected, b.fromSap, b.inWorkshop, b.ready, b.waiting, b.oldestWaitingHours ?? '', b.supportOpen, b.supportLate, b.turnaroundHours ?? '']);
   rows.push(['All branches', '', '', hq.totals.staff, hq.totals.opened, hq.totals.finished, hq.totals.collected, hq.totals.fromSap, hq.totals.inWorkshop, hq.totals.ready, hq.totals.waiting, '', hq.totals.supportOpen, hq.totals.supportLate, '']);
   const p = await getPrincipal();

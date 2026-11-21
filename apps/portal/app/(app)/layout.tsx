@@ -60,7 +60,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // The kind of branch in view: the menu offers only the areas that branch has (a plant has no Inventory; a workshop has no line).
   const view = await getBranchView().catch(() => ({}));
 
-  // The role a person is shown with, and where: "Manager · Isolo" (a manager of the Isolo branch), "Store Manager · Store".
+  // The role a person is shown with, and where: "Manager · Victoria Island" (a manager of the Victoria Island branch), "Store Manager · Store".
   const roleSlugs = (user.roles ?? []).map((r: { role: { slug: string } }) => r.role.slug);
   const isMaster = (user.roles ?? []).some((r: { role: { isSuperAdmin: boolean } }) => r.role.isSuperAdmin);
   const roleLabel = primaryRoleLabel(roleSlugs, isMaster) ?? user.roles[0]?.role.name ?? 'No role assigned';

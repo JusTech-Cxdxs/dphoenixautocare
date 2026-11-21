@@ -5,9 +5,9 @@
  * A **route** is the list of stations a model family passes through, kept in
  * versions: the plant manager edits the live route, and a vehicle keeps the
  * station list it started with. Two default routes, from how a CKD/SKD truck
- * line runs (docs/DEMO_WALKTHROUGH.md §12):
+ * line runs:
  *
- *  Isuzu N/Q-series (CKD): the simple line Kewalram runs. The kit's chassis
+ *  Isuzu N/Q-series (CKD): the simple line a CKD truck plant runs. The kit's chassis
  *  arrives as built — frame, axles, springs, wheels, engine and gearbox on it —
  *  so the line starts from the chassis: kit receiving (D2) → chassis on the
  *  line (checked, torques) → cab fitted → fluids, battery and first start →

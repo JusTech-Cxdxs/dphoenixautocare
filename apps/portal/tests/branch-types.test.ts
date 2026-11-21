@@ -20,9 +20,9 @@ test('five kinds of branch, each with words and a hint; plant records only on an
   assert.equal(branchTypeFits('workshop', 'ASSEMBLY_PLANT'), false);
   assert.equal(branchTypeFits('store', 'WAREHOUSE'), true);
   assert.equal(branchTypeFits('store', 'ASSEMBLY_PLANT'), false, 'the plant store is a department of the plant, not the Store module');
-  assert.equal(branchTypeMismatch('plant', 'Afprint Assembly Plant', 'ASSEMBLY_PLANT'), null);
-  assert.equal(branchTypeMismatch('plant', 'Isolo Branch', 'WORKSHOP'), 'Isolo Branch is a workshop, so it cannot hold plant records: they belong on an assembly plant branch.');
-  assert.equal(branchTypeMismatch('store', 'Afprint Assembly Plant', 'ASSEMBLY_PLANT'), 'Afprint Assembly Plant is an assembly plant, so it cannot hold store records: they belong on a workshop or warehouse branch.');
+  assert.equal(branchTypeMismatch('plant', 'Assembly Plant', 'ASSEMBLY_PLANT'), null);
+  assert.equal(branchTypeMismatch('plant', 'Ajah Branch', 'WORKSHOP'), 'Ajah Branch is a workshop, so it cannot hold plant records: they belong on an assembly plant branch.');
+  assert.equal(branchTypeMismatch('store', 'Assembly Plant', 'ASSEMBLY_PLANT'), 'Assembly Plant is an assembly plant, so it cannot hold store records: they belong on a workshop or warehouse branch.');
   assert.deepEqual(AREA_BRANCH_TYPES.workshop, ['WORKSHOP']);
 });
 

@@ -98,12 +98,12 @@ export function checkOpenJobRow(cells: unknown[], mapping: Mapping, today = lago
   const fail = (field: string, message: string) => issues.push({ field, message, level: 'error' });
 
   const jobNumber = get(cells, mapping, 'jobNumber').replace(/^0+(?=\d)/, '');
-  if (!jobNumber) fail('jobNumber', 'Job number is required (the SAP order number, AUFNR, or the old job card number).');
+  if (!jobNumber) fail('jobNumber', 'Job number is required (the old job card number).');
   else if (jobNumber.length > 40) fail('jobNumber', 'The job number is longer than 40 characters.');
 
   const openedRaw = get(cells, mapping, 'openedAt');
   const openedAt = parseDay(openedRaw);
-  if (!openedRaw) fail('openedAt', 'Opened on is required (SAP ERDAT).');
+  if (!openedRaw) fail('openedAt', 'Opened on is required.');
   else if (!openedAt) fail('openedAt', `“${openedRaw}” is not a date. Write it as 14.03.2019, 14/03/2019, 2019-03-14 or 20190314.`);
   else if (openedAt > today) fail('openedAt', `The opening date ${openedAt} is in the future.`);
   else if (Number(today.slice(0, 4)) - Number(openedAt.slice(0, 4)) > 1) warn('openedAt', `Opened ${openedAt}: more than a year in the workshop? Check the date.`);
@@ -111,7 +111,7 @@ export function checkOpenJobRow(cells: unknown[], mapping: Mapping, today = lago
   const stageRaw = get(cells, mapping, 'status');
   const stage = openJobStage(stageRaw);
   if (stage === 'CLOSED') fail('status', `Stage “${stageRaw}”: a closed, checked-out or cancelled job card belongs in the job card history file, not here.`);
-  else if (!stage) fail('status', `“${stageRaw}” is not a stage EJO knows: use Checked in, In progress, Awaiting parts, Quality check, Awaiting customer approval, Completed or Ready for collection (or SAP’s CRTD, REL, TECO).`);
+  else if (!stage) fail('status', `“${stageRaw}” is not a stage EJO knows: use Checked in, In progress, Awaiting parts, Quality check, Awaiting customer approval, Completed or Ready for collection.`);
 
   const custExt = get(cells, mapping, 'customerExternalId').replace(/^0+(?=\d)/, '') || null;
   const custPhone = phoneKey(get(cells, mapping, 'customerPhone'));

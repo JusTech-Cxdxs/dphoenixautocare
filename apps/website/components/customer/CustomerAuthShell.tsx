@@ -1,11 +1,10 @@
 import type { ReactNode } from 'react';
-import Link from 'next/link';
 import { siteConfig } from '@/lib/site-config';
 import { Wordmark } from './Wordmark';
 import { PoweredByEjo } from './PoweredByEjo';
 import { ThemeSwitch } from './ThemeSwitch';
 import { Icon, type IconName } from './Icon';
-import { moduleOn, PUBLIC_WEBSITE } from '@/lib/edition';
+import { moduleOn } from '@/lib/edition';
 import { DPHOENIX } from '@/lib/content/dphoenix';
 
 const HIGHLIGHTS: { title: string; text: string; icon: IconName }[] = [
@@ -97,16 +96,10 @@ export function CustomerAuthShell({ title, subtitle, children, footer }: { title
       {/* Form panel */}
       <section className="relative flex w-full flex-1 flex-col lg:w-[54%]">
         <div className="flex items-center justify-between px-5 pt-5 sm:px-10 sm:pt-6">
-          {/* Without the public website here (lib/edition.ts), "Back to website" goes to D'Phoenix Autocare's own website. */}
-          {PUBLIC_WEBSITE ? (
-            <Link href="/" className="inline-flex items-center gap-1.5 rounded-full px-1 py-1 text-sm text-[var(--ejo-text-muted)] transition-colors hover:text-[var(--ejo-primary)]">
-              <Icon name="arrowLeft" size={16} /> Back to website
-            </Link>
-          ) : (
-            <a href={DPHOENIX.website} className="inline-flex items-center gap-1.5 rounded-full px-1 py-1 text-sm text-[var(--ejo-text-muted)] transition-colors hover:text-[var(--ejo-primary)]">
-              <Icon name="arrowLeft" size={16} /> Back to website
-            </a>
-          )}
+          {/* "Back to website" goes to D'Phoenix Autocare's own website. */}
+          <a href={DPHOENIX.website} className="inline-flex items-center gap-1.5 rounded-full px-1 py-1 text-sm text-[var(--ejo-text-muted)] transition-colors hover:text-[var(--ejo-primary)]">
+            <Icon name="arrowLeft" size={16} /> Back to website
+          </a>
           <div className="hidden lg:block"><ThemeSwitch /></div>
         </div>
         <div className="flex flex-1 items-start justify-center px-5 py-8 sm:items-center sm:px-10 sm:py-10">

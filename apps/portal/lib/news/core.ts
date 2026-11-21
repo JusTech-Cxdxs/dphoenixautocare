@@ -26,7 +26,7 @@ export type NewsValue = {
 const line = (v: unknown, max: number) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '');
 const flag = (v: unknown) => v === true || v === 'on' || v === 'true';
 
-/** "SOUEAST assembly begins in Lagos!" → "soueast-assembly-begins-in-lagos". */
+/** "Extended opening hours in December!" → "extended-opening-hours-in-december". */
 export function slugify(title: string): string {
   return title
     .normalize('NFKD')

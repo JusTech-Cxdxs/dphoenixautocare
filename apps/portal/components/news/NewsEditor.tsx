@@ -37,7 +37,7 @@ export function NewsEditor({ row, areas, action, publishAction, websiteUrl }: { 
         {row ? <input type="hidden" name="id" value={row.id} /> : null}
         <div>
           <label htmlFor="title" className={label}>Headline</label>
-          <input id="title" name="title" required minLength={6} maxLength={140} value={title} onChange={(e) => setTitle(e.target.value)} className={`${input} text-base font-semibold`} autoComplete="off" placeholder="SOUEAST passenger-vehicle assembly begins in Lagos" />
+          <input id="title" name="title" required minLength={6} maxLength={140} value={title} onChange={(e) => setTitle(e.target.value)} className={`${input} text-base font-semibold`} autoComplete="off" placeholder="Extended opening hours in December" />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>

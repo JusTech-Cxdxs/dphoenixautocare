@@ -40,7 +40,7 @@ export const LOGO = {
   height: 500,
 } as const;
 
-/** "Kewalram Chanrai Group" → "KCG": the installed app's home-screen name. */
+/** "Lagos Fleet Services Limited" → "LFSL": the installed app's home-screen name. */
 export function appShortName(organisationName: string, override?: string | null): string {
   const o = (override ?? '').trim();
   if (o) return o.slice(0, 12);

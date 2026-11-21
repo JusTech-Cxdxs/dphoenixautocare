@@ -10,7 +10,7 @@ const card = 'rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] b
 const FEATURES: { key: 'staffAssistant' | 'customerAssistant' | 'publicAssistant' | 'mailAi'; label: string; help: string }[] = [
   { key: 'staffAssistant', label: 'Assistant for staff', help: 'The chat panel in this portal, and "Refine" on text boxes.' },
   { key: 'customerAssistant', label: 'Assistant for customers', help: 'Answers signed-in customers about their own vehicles and bookings in the customer portal.' },
-  { key: 'publicAssistant', label: 'Assistant on the website', help: 'Answers visitors to the public website and can pass them to a person.' },
+  { key: 'publicAssistant', label: 'Assistant on the website', help: 'Answers visitors on the customer site’s support page and can pass them to a person.' },
   { key: 'mailAi', label: 'Help with email', help: 'Short summaries and suggested replies in connected mailboxes.' },
 ];
 

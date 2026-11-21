@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { guardAnyPage } from '@/lib/authz/server';
 import { listCutoverBranches } from '@/lib/actions/data-exchange-cutover';
 import { formatDateTimeCompact } from '@/lib/utils/format-date';
-import { featureOn } from '@/lib/modules';
+import { featureOn, moduleIsOn } from '@/lib/modules';
 import { EmptyState, PageHeader, SectionCard, StatusChip } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
@@ -14,9 +14,9 @@ export default async function CutoverPage() {
   return (
     <div className="w-full space-y-6 p-4 sm:p-8">
       <PageHeader icon="check-circle" back={{ href: '/data-exchange', label: 'Back to Data Exchange' }} title="Cut-over checklist"
-        description={`For each branch, every file it needs from ${featureOn('sap') ? 'SAP or the old registers' : 'the old system or registers'}, in the order they load, and where each stands — worked out from the imports themselves. A step a branch has nothing for is marked not needed, with a reason. When every step is settled, the branch is signed off as cut over; the sign-off keeps the checklist as it stood.`} />
+        description={`For each branch, every file it needs from ${featureOn('sap') ? 'SAP or the old registers' : 'Zoho, the old system or your spreadsheets'}, in the order they load, and where each stands — worked out from the imports themselves. A step a branch has nothing for is marked not needed, with a reason. When every step is settled, the branch is signed off as cut over; the sign-off keeps the checklist as it stood.`} />
       <SectionCard icon="layers" title="Branches" flush>
-        {branches.length === 0 ? <div className="p-4"><EmptyState compact icon="inbox" title="No workshop, warehouse or assembly plant yet." /></div> : (
+        {branches.length === 0 ? <div className="p-4"><EmptyState compact icon="inbox" title={moduleIsOn('plant') || moduleIsOn('inventory') ? 'No workshop, warehouse or assembly plant yet.' : 'No workshop yet.'} /></div> : (
           <ul className="divide-y divide-[var(--ejo-border)]">
             {branches.map((b) => (
               <li key={b.id} data-testid="cutover-branch" className="flex flex-wrap items-center justify-between gap-3 p-4">

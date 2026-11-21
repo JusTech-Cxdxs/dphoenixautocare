@@ -156,15 +156,15 @@ test('profile gaps, open jobs and the hub filters, sort and pages', () => {
 test('welcome email: a set-password link and what the portal is for — never a password, names escaped', () => {
   const { subject, html } = renderCustomerWelcomeEmail({
     kind: 'welcome', customerName: 'Ada <b>Obi</b>', email: 'ada@example.com', setPasswordUrl: 'https://site.example/customer-portal/reset-password?token=tok_123', setPasswordHours: 72,
-    signInUrl: 'https://site.example/customer-portal', logoUrl: 'https://site.example/images/logo/logo.png', companyName: 'Kewalram Nigeria', branchName: 'Isolo Branch',
-    branchContact: { address: 'Plot 3, Isolo', phones: ['0800 000 0000'], email: 'isolo@example.com' },
+    signInUrl: 'https://site.example/customer-portal', logoUrl: 'https://site.example/images/logo/logo.png', companyName: 'Phoenix Nigeria', branchName: 'Ajah Branch',
+    branchContact: { address: 'Plot 3, Ajah', phones: ['0800 000 0000'], email: 'ajah@example.com' },
   });
   assert.match(subject, /Welcome/);
   assert.ok(html.includes('Set my password'));
   assert.ok(html.includes('https://site.example/customer-portal/reset-password?token=tok_123'));
   assert.ok(html.includes('72 hours'));
   assert.ok(html.includes('ada@example.com'));
-  assert.ok(html.includes('0800 000 0000') && html.includes('isolo@example.com'), 'branch contact');
+  assert.ok(html.includes('0800 000 0000') && html.includes('ajah@example.com'), 'branch contact');
   assert.doesNotMatch(html, /temporary password|Temporary password/i);
   assert.ok(!html.includes('<b>Obi</b>'), 'names are escaped');
   const again = renderCustomerWelcomeEmail({ kind: 'access', customerName: 'Ada', email: 'a@b.co', setPasswordUrl: 'https://x/y?token=t', setPasswordHours: 72, signInUrl: 'https://x/customer-portal', logoUrl: 'https://x/l.png', companyName: 'K', branchName: '' });

@@ -7,6 +7,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { OLD_ORGANISATION, PLANT_MAKE } from './leftovers';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { billingTotals, depositOf } from '@ejo/utils/billing';
@@ -194,7 +195,9 @@ test('nothing real: every phone on the 0800 000 range, every email on a reserved
   const keys = [...plan.jobCards.flatMap((j) => [j.technicianKey, j.supervisorKey, ...j.payments.map((p) => p.byKey), ...j.audit.map((a) => a.byKey).filter((k): k is string => Boolean(k))]), ...plan.visits.map((v) => v.hostKey), ...plan.exitPasses.map((e) => e.requestedByKey), ...plan.appointments.flatMap((a) => [a.ownerKey, ...a.participantKeys])];
   for (const k of keys) assert.ok(people.has(k), `${k} is a demo person`);
   const text = JSON.stringify(plan);
-  for (const gone of ['Isolo', 'Afprint', 'Kewalram', 'Isuzu', 'Soueast', 'warranty', 'Leadway']) assert.ok(!text.includes(gone), `nothing of ${gone}`);
+  assert.doesNotMatch(text, OLD_ORGANISATION);
+  assert.doesNotMatch(text, PLANT_MAKE);
+  for (const gone of ['Isuzu', 'warranty', 'Leadway']) assert.ok(!text.includes(gone), `nothing of ${gone}`);
 });
 
 test('the loader removes exactly what it made, in an order the foreign keys allow, and the trail under the recorded maintenance switch; only a demo organisation, never the real one; the reset loads people → workshop, never the plant; demo_records is declared', () => {

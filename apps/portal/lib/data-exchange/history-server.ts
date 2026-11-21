@@ -22,6 +22,7 @@
  * delete — and loading the same file again restores the voided rows.
  */
 import { prisma, type Prisma } from '@ejo/database';
+import { featureOn } from '@/lib/modules';
 import { checkInvoiceRow, checkJobRow, checkRegisterRow, invoiceRange, type JobValues, type RegisterKind } from './check-history';
 import type { Issue } from './check';
 import type { EntityKey, Mapping } from './fields';
@@ -117,7 +118,7 @@ function resolveJob(v: JobValues, L: JobLookups, job: HistoryJob): { owner: stri
   if (v.branch && L.branch) {
     const k = (x: string) => x.toLowerCase().replace(/[^a-z0-9]/g, '');
     const plantCode = /^\d{1,4}$/.test(v.branch.trim());
-    if (plantCode && !L.branch.sapPlant) branchNote = `SAP plant ${v.branch.trim()} could not be checked against ${L.branch.name}: the branch has no SAP plant code yet (set it under Branches).`;
+    if (plantCode && !L.branch.sapPlant) branchNote = (featureOn('sap') ? `SAP plant ${v.branch.trim()} could not be checked against ${L.branch.name}: the branch has no SAP plant code yet (set it under Branches).` : `Branch “${v.branch.trim()}” could not be checked against ${L.branch.name}: it is a number, not the branch’s name.`);
     else {
       const ok = k(v.branch) === k(L.branch.name) || (L.branch.sapPlant ? v.branch.trim().replace(/^0+/, '') === L.branch.sapPlant.replace(/^0+/, '') : false) || k(L.branch.name).includes(k(v.branch));
       if (!ok) branchProblem = `This row is for the branch “${v.branch}”, but this import loads into ${L.branch.name}. Import it into its own branch.`;

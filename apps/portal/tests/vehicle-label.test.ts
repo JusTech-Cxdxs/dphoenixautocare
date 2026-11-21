@@ -79,7 +79,7 @@ test('Code 128: the bars read back as the VIN, with quiet zones each side', () =
 });
 
 test('QR: an independent decoder reads the vehicle’s address back from the drawn code', () => {
-  const url = 'https://portal.kewalram.example/v/JALFRR90LM7000123';
+  const url = 'https://portal.workshop.example/v/JALFRR90LM7000123';
   const m = qrMatrix(url);
   const scale = 6;
   const side = (m.size + 2 * QR_QUIET) * scale;

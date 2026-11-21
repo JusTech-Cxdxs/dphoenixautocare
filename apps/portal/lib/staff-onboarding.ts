@@ -27,7 +27,7 @@ export async function nextEmployeeId(branchId: string): Promise<string> {
   const branch = await prisma.branch.findUnique({ where: { id: branchId }, select: { businessUnit: { select: { organisationId: true, organisation: { select: { name: true } } } } } });
   if (!branch) throw new Error('That branch no longer exists.');
   // Every branch of the organisation, oldest first: two branches whose names
-  // give the same code ("Isolo", "Isolo Workshop") are told apart — the newer
+  // give the same code ("Ikeja", "Ikeja Workshop") are told apart — the newer
   // one gets a digit (ISO, ISO2) — and an existing branch's code never changes.
   const siblings = await prisma.branch.findMany({ where: { businessUnit: { organisationId: branch.businessUnit.organisationId } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { id: true, name: true, code: true } });
   const prefix = uniqueBranchPrefixes(branch.businessUnit.organisation.name, siblings).get(branchId)!;

@@ -20,7 +20,7 @@ VEHICLES = [
     ("hyundai", "elantra", "car"), ("hyundai", "tucson", "suv"), ("kia", "sorento", "suv"), ("ford", "ranger", "pickup"),
     ("mitsubishi", "l200", "pickup"), ("nissan", "pathfinder", "suv"), ("mercedes benz", "c300", "car"),
 ]
-BRANCHES = ["isolo", "ikeja", "vi"]
+BRANCHES = ["lekki", "ikeja", "vi"]
 DEPARTMENTS = ["mechanical", "electrical", "body"]
 
 # case → complaint words, lines (type, key, label, base unit price, qty), base hours, spread

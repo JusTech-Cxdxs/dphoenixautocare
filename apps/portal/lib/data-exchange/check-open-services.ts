@@ -81,7 +81,7 @@ export function checkOpenServiceRow(cells: unknown[], mapping: Mapping, today = 
   const fail = (field: string, message: string) => issues.push({ field, message, level: 'error' });
 
   const serviceNumber = get(cells, mapping, 'serviceNumber').replace(/^0+(?=\d)/, '');
-  if (!serviceNumber) fail('serviceNumber', 'Booking or service number is required (SAP AUFNR or QMNUM, or the diary’s booking reference).');
+  if (!serviceNumber) fail('serviceNumber', 'Booking or service number is required (the old system’s or the diary’s booking reference).');
   else if (serviceNumber.length > 40) fail('serviceNumber', 'The booking or service number is longer than 40 characters.');
 
   const stageRaw = get(cells, mapping, 'status');
@@ -118,7 +118,7 @@ export function checkOpenServiceRow(cells: unknown[], mapping: Mapping, today = 
     if (checkedRaw) warn('checkedInOn', 'A booking has not been checked in yet: the check-in date was left out.');
   } else if (stage) {
     const day = parseDay(checkedRaw || bookedRaw);
-    if (!checkedRaw && !bookedRaw) fail('checkedInOn', 'A service in the workshop needs the day it came in (Checked in on, SAP ERDAT).');
+    if (!checkedRaw && !bookedRaw) fail('checkedInOn', 'A service in the workshop needs the day it came in (Checked in on).');
     else if (!day) fail('checkedInOn', `“${checkedRaw || bookedRaw}” is not a date. Write it as 30.10.2026, 30/10/2026, 2026-10-30 or 20261030.`);
     else if (day > today) fail('checkedInOn', `Checked in on ${day}, which is in the future: a vehicle in the workshop came in already.`);
     else checkedInOn = day;

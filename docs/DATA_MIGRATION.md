@@ -1,23 +1,25 @@
 # Data migration — bringing existing records into EJO 100
 
-How an organisation's existing data — years of customers and vehicles, the
-suppliers, the parts catalogue (SAP material master), the stock each branch
-holds, the invoices from SAP and the plant's production, QC and PDI
-registers — comes into EJO 100 from SAP and from spreadsheets, **without
-retyping and without risk to the live records**.
+How D'Phoenix Autocare's existing records — the customers and their
+vehicles, the staff, past invoices and job cards, and the work in the
+workshop on the day EJO takes over — come into EJO 100 from **Excel or CSV
+files** (exported from Zoho Books, Zoho Invoice, Zoho CRM, Zoho People, an
+old system, or kept as your own spreadsheets), **without retyping and without
+risk to the live records**. Every list in EJO also goes back out to Excel or
+CSV.
 
-> Status: imports (customers, vehicles, suppliers, parts, opening stock, SAP
-> history, job cards and services, warranties, staff, the plant's records),
-> the cut-over checklist, exports from every list, updates from an edited
-> export or SAP's own file, documents in bulk and scheduled exports are all
-> built. Each section below says what it covers.
+> In this edition: imports of staff, customers, vehicles, invoice history,
+> job card history, open job cards, and open services and bookings; the
+> cut-over checklist; exports from every list; updates from an edited
+> export; documents in bulk; and scheduled exports. The Store, Warranty, the
+> assembly plant and the SAP link are switched off
+> (`apps/portal/lib/modules.ts`): their sections below say so in one line.
 
 ## 1. The principle
 
-EJO 100 is the operations layer **beside** SAP; SAP stays the system of
-record for finance, procurement, the general ledger and the material master.
-An import copies records **into** EJO. It never writes to SAP, and it never
-overwrites a record that is already in EJO.
+An import copies records **into** EJO from a file. It never writes back to
+Zoho or any other system, and it never overwrites a record that is already in
+EJO.
 
 Every import goes through the same six steps, in the portal at
 **Data Exchange** (`/data-exchange`):
@@ -25,7 +27,7 @@ Every import goes through the same six steps, in the portal at
 | Step | What happens | Live records changed? |
 | --- | --- | --- |
 | 1. Upload | The file is read **in the browser** and sent in small blocks to a staging area. Any size up to a million rows; an interrupted upload is started again and nothing is counted twice. | No |
-| 2. Match columns | Each column is matched to a field by its name. **SAP field names match themselves** (KUNNR, NAME1, TELF1, SMTP_ADDR, STRAS…). The matching can be saved as a profile ("SAP customer master") for the next file. | No |
+| 2. Match columns | Each column is matched to a field by its name. **Zoho's own column headers match themselves** (*Display Name*, *EmailID*, *Billing City*, *Invoice Number*, *Account Name*…), and so do the plain names people type in Excel. The matching can be saved as a profile ("Zoho contacts") for the next file. | No |
 | 3. Check | Every row is checked with the **same rules as the front desk's own forms**, and matched against what is already in EJO. Result: ready, ready with a note, rejected, duplicate in the file, already in EJO. Rejected rows download as a file with a *Problem* column, to fix in Excel and upload again. | No |
 | 4. Approve | A **second person** approves. The person who prepared the import cannot approve it (the platform administrator may, while nobody else holds the role; this is recorded). | No |
 | 5. Load | Rows load in batches of 1,000. Each batch is all-or-nothing; the import is locked so two screens can never load it twice; it can be paused and resumed; a failed batch pauses the import with nothing saved from it. | Yes |
@@ -94,14 +96,14 @@ worked out from the imports themselves, never typed in:
 
 ## 2b. Staff (P7) — load first
 
-The organisation's people from SAP HR (or a staff list) come in before
+The organisation's people (a staff list, or Zoho People's export) come in before
 everything else, so the open job cards and services of the cut-over find
 their technicians and supervisors by employee ID. **Staff** turns each row
 into an EJO account:
 
 - **Name, the person's own work email** (they sign in with it and their
   invitation goes to it — a shared mailbox gets a note), phone.
-- **Branch** (its name, code or SAP plant) and **department** (as on the
+- **Branch** (its name or code) and **department** (as on the
   Structure page; must be in that branch).
 - **Roles** by name, separated by `;` — by the role's own name, its slug, or
   the name EJO shows it under (*Front Desk* for the receptionist, *Manager*
@@ -110,8 +112,8 @@ into an EJO account:
   Administrator or Branch Administrator role is refused, whatever it is
   called; they are added by hand on the Users page.
 - **Employee ID** from HR when given (it must be free); otherwise EJO issues
-  the branch's next (ORG-BRANCH-NNNN). The SAP personnel number (PERNR) is
-  kept and searchable.
+  the branch's next (ORG-BRANCH-NNNN). A personnel number from the HR or
+  payroll records is kept and searchable.
 
 **Switched off until invited.** Every account comes in switched off, with an
 unusable password, and **nobody is emailed**. After loading, an
@@ -137,11 +139,6 @@ signed in, with nothing done by or about them since; the bin keeps the person
 and their roles, never a password or a link. A restored account comes back
 switched off, with a new unusable password, ready for its invitation.
 
-Demo: `docs/demo/correct/19_SAP_staff_demo.csv` (twelve invented colleagues
-at Isolo and Afprint, on a domain nobody receives mail for);
-`with-mistakes/` adds no email, an administrator role, an unknown branch, the
-same email twice, a malformed employee ID and an unknown role.
-
 ## 3. Customers
 
 **Template:** Data Exchange → Customers → *Excel template* (with an
@@ -149,22 +146,23 @@ Instructions sheet and dropdowns) or *CSV template*.
 
 | Field | Required | Recognised column names (examples) |
 | --- | --- | --- |
-| Customer number (SAP or old system) | — | KUNNR, PARTNER, BU_PARTNER, customer number, account number |
-| Name | **Yes** | NAME1, NAME_ORG1, name, customer name |
-| Name, second line | — | NAME2, NAME_ORG2 |
+| Customer number | — | Contact ID, Customer ID, customer number, account number |
+| Name | **Yes** | Display Name, Contact Name, name, customer name (or First and Last Name) |
+| Name, second line | — | name 2, name line 2 |
 | Type | — | Individual / Organisation (empty: Organisation when a company name is given) |
-| Company name | — | company, organisation |
-| Email | — | SMTP_ADDR, email, e-mail |
-| Phone / Second phone | — | TELF1, TEL_NUMBER, mobile / TELF2, MOB_NUMBER |
-| Address, City, State | — | STRAS, STREET / ORT01, CITY1 / REGIO |
-| Tax ID | — | STCD1, STCEG, TIN |
-| Tags | — | tags, group, KDGRP |
-| Customer since | — | ERDAT, CRDAT, created on, customer since, first purchase |
+| Company name | — | Company Name, Account Name, organisation |
+| Email | — | EmailID, email, e-mail |
+| Phone / Second phone | — | Phone, Mobile, mobile number / second phone |
+| Address, City, State | — | Billing Address, Billing Street / Billing City / Billing State |
+| Tax ID | — | TIN, tax number, VAT number |
+| Payment terms | — | Payment Terms ("Net 30"), kept as a tag |
+| Tags | — | tags, group, segment |
+| Customer since | — | Created Time, created on, customer since, first purchase |
 
-**Customer since.** SAP's creation date of the business partner (ERDAT —
-written 20140602, 02.06.2014, 02/06/2014 or 2014-06-02) becomes the
+**Customer since.** The date the customer was created in Zoho or the old
+system (written 02/06/2014, 02.06.2014, 20140602 or 2014-06-02) becomes the
 customer's *customer since*. The CRM shows it ("Customer since 02/06/2014
-(from SAP, customer 1000123) · in EJO 100 since …"), the newest-first list
+(from the old system, customer 1000123) · in EJO 100 since …"), the newest-first list
 sorts by it, and **new customers** — the CRM's *New this month* and
 Headquarters' *New customers* — count people new to the business, not new
 to the system: a long-standing customer imported today is not "new". A date
@@ -200,13 +198,13 @@ the customer number, email or phone.
 
 | Field | Required | Recognised column names (examples) |
 | --- | --- | --- |
-| Customer number / email / phone | **one of them** | KUNNR, customer number / customer email / customer phone |
-| Vehicle number (SAP or old system) | — | EQUNR, equipment number, fleet number |
-| Chassis number (VIN) | **VIN or plate** | VIN, VHVIN, chassis number |
-| Plate number | **VIN or plate** | plate, registration, LICENSE_NUM |
+| Customer number / email / phone | **one of them** | customer number, Customer ID / customer email / customer phone |
+| Vehicle number | — | vehicle number, fleet number, asset number |
+| Chassis number (VIN) | **VIN or plate** | VIN, chassis number, frame number |
+| Plate number | **VIN or plate** | plate, registration, reg no |
 | Engine number, Engine type | — | engine number / engine type |
 | Make, Model, Year | — | make, brand / model / year, model year |
-| Passenger or Commercial | — | category (empty: worked out from the model — NQR, NPR, QLR, QMR are commercial; S07 is passenger) |
+| Passenger or Commercial | — | category (empty: worked out from the model where it is obvious — a Hiace or a truck is commercial, a Camry is passenger) |
 | Mileage (km) | — | mileage, odometer |
 
 **Matching:** vehicle number (within the organisation), then VIN, then plate.
@@ -216,114 +214,47 @@ kept as written, with a note.
 
 ## 5. Suppliers
 
-The organisation's supplier list (SAP vendors), shared by every branch, at
-**Store → Suppliers**. Goods receipts link to a supplier when the name
-typed matches one, and the receipt form suggests suppliers as you type.
+Switched off in this edition (the Store is off, `apps/portal/lib/modules.ts`).
 
-| Field | Required | Recognised column names (examples) |
-| --- | --- | --- |
-| Supplier number | — | LIFNR, vendor number, creditor |
-| Name (+ second line) | **Yes** | NAME1 (+ NAME2), supplier name |
-| Contact, phone, email | — | contact person / TELF1 / SMTP_ADDR |
-| Address, city, tax ID | — | STRAS / ORT01 / STCD1 |
+## 6. Parts
 
-Matched by supplier number, then by name. Undo moves imported suppliers to
-the Recycle bin (refused for any that goods receipts already name).
-
-## 6. Parts (the SAP material master)
-
-Into **one branch's** catalogue, chosen when the import starts.
-
-| Field | Required | Recognised column names (examples) |
-| --- | --- | --- |
-| Part number | **Yes** | MATNR, material number, part number, item code |
-| Description | **Yes** | MAKTX, material description |
-| Material group / category | — | MATKL, material group |
-| Base unit | — (Piece) | MEINS — SAP codes become words: ST/PC → Piece, EA → Each, L → Litre, KG → Kilogram, CAR → Carton, DR → Drum… |
-| Tracking | — (Quantity) | XCHPF = X → Batch; a serial profile (SERNP) → Serial |
-| Barcode, selling price | — | EAN11 / price |
-| Reorder point, safety stock | — | MINBE / EISBE |
-| Alternative unit + base units in it | — | MEINH + UMREZ (e.g. Drum = 208 Litre) |
-| Number in SAP, if different | — | BISMT (old material number). From SAP and empty: the part number. |
-
-Matched by SAP number, then part number (any case). New parts are added with
-their alternative unit; an existing part is left as it is, or gets only its
-empty fields filled — never its stock, unit or tracking. Undo moves imported
-parts to the Recycle bin (refused for any that have stock, receipts or
-issues — reverse an opening-stock import first).
-
-**Large catalogues stay fast:** the Parts list is paged (50 a page, with the
-total), the goods-receipt form searches parts as you type instead of loading
-the catalogue, and the stock tools ask the database for the low parts only.
+Switched off in this edition (the Store is off).
 
 ## 7. Opening stock
 
-What each part of one branch held **at the cut-over**, with its cost — from
-the SAP stock and valuation report (MB52 / MC.9 / the material valuation).
+Switched off in this edition (the Store is off).
 
-| Field | Required | Recognised column names (examples) |
-| --- | --- | --- |
-| Part number | **Yes** | MATNR — the part must already be in the branch's catalogue |
-| Quantity on hand | **Yes** | LABST (unrestricted stock) |
-| Unit | — (base unit) | MEINS — the base unit or the part's alternative unit |
-| Stock value | **This or the unit cost** | SALK3 |
-| Unit cost (+ price unit) | **This or the stock value** | VERPR / STPRS (+ PEINH: a price per 100 has 100) |
-| Batch | for batch parts | CHARG |
-| Serial numbers | for serial parts | SERNR, separated by commas or semicolons |
-| Storage location | — | LGORT (kept on the receipt's notes; the same batch in two locations is added together) |
+## 7a. Invoice history (before EJO)
 
-- **Before approval**, the check shows the lines, units and **total value**
-  that will load, to compare with the SAP report for the same plant and date.
-- Loaded as **opening-balance goods receipts** (one per batch of lines),
-  numbered like any receipt (GRN-…), dated at the **cut-over date** chosen at
-  upload, supplier *Opening balance — SAP (IMP-…)*. So **stock on hand, FIFO
-  cost layers, stock value and the inventory analytics** count it exactly
-  like a delivery; ageing starts from the cut-over date.
-- Only for parts with **no stock history** yet (no deliveries, stock on hand
-  or issues); otherwise the line is rejected — record a goods receipt instead.
-  Negative stock, a zero quantity, no cost, a batch part without its batch,
-  serial numbers that do not match the quantity or already exist: rejected.
-- After loading, the report shows the value now on the shelves and whether it
-  **matches the checked file exactly**; **Finance confirms** it.
-- **Reversal** takes the stock back off the shelves and removes the
-  opening-balance receipts — refused once anything has been issued or
-  reserved from them. The file stays in the import: **Reopen** checks it again
-  and it needs a fresh approval to load.
-
-## 7a. Invoice history from SAP (before EJO)
-
-The invoices each customer had in SAP before EJO 100 came in, so a
-long-standing customer does not look new: **read-only history** that counts
-in the customer's **lifetime spend, visits and last visit**, in the CRM list
-(spend, *spend this year*, top spenders, last visit) and in **Headquarters**
-and the analytics, always labelled **"From SAP, before EJO"**.
+The invoices each customer had before EJO 100 came in, so a long-standing
+customer does not look new: **read-only history** that counts in the
+customer's **lifetime spend, visits and last visit**, in the CRM list (spend,
+*spend this year*, top spenders, last visit) and in **Headquarters** and the
+analytics, always labelled **"Before EJO"**.
 
 Load the **customers file first** (and the vehicles, to link invoices to
 them). Choose the **branch** whose sales they were.
 
 | Field | Required | Recognised column names (examples) |
 | --- | --- | --- |
-| Invoice number | **Yes** | VBELN (billing document), BELNR (accounting document), invoice number |
-| Invoice date | **Yes** | FKDAT, BUDAT, BLDAT, invoice date |
-| Customer number (SAP) | **Yes**, or the phone | KUNAG (sold-to), KUNRG (payer), KUNNR |
-| Amount (₦) | **Yes** | NETWR (net value), DMBTR / WRBTR (line item), amount, total |
-| Tax (₦) | — | MWSBK — added to a net amount, so the history is gross |
-| Currency | — | WAERK, WAERS — naira only (give DMBTR, the company-currency amount, for others) |
-| Chassis number (VIN) | — | VHVIN, VIN, chassis — links the invoice to the vehicle |
-| Company code, Fiscal year | — | BUKRS, GJAHR — give them: SAP numbers documents per company code and fiscal year, so the same number can come back in another year |
-| Document type, Description | — | FKART / BLART (F2 invoice, G2 credit), ARKTX / SGTXT |
+| Invoice number | **Yes** | Invoice Number, invoice no, document number |
+| Invoice date | **Yes** | Invoice Date, date |
+| Customer number | **Yes**, or the phone or the name | Customer ID, customer number |
+| Amount (₦) | **Yes** | Total, amount, invoice total |
+| Tax (₦) | — | tax, VAT amount — added to a net amount, so the history is gross |
+| Currency | — | Currency Code — naira only |
+| Balance, Due date, Status | — | Zoho's Balance, Due Date and Invoice Status (a void invoice is reported, never loaded) |
+| Chassis number (VIN) | — | VIN, chassis — links the invoice to the vehicle |
+| Description, Quantity, Item price | — | Item Name, Item Desc, Quantity, Item Price — added to the description |
 
-From SAP: a billing-document list (VF05, or table VBRK with its customer and
-vehicle) or the customer line items (FBL5N), exported to Excel.
+From Zoho Books or Zoho Invoice: **Sales → Invoices → Export**. A file with
+one row per item is understood: the first row of each invoice is loaded with
+the invoice total, and its other rows are reported as the same invoice.
 
-- **Each invoice loads once** — within its numbering range: with company
-  code and fiscal year given, *125262 in 2025* and *125262 in 2026* are two
-  invoices; without them the number alone identifies it (and the fiscal
-  year is taken from the invoice date). Loading the same file again adds
-  nothing; an invoice already in the history is *Already in the history*.
-  Give the same columns each time (a file with GJAHR and one without are
-  different numbering ranges).
-- **Credit notes** (a negative amount — SAP's `20000-` is understood) reduce
+- **Each invoice loads once**: the number identifies it. Loading the same
+  file again adds nothing; an invoice already in the history is *Already in
+  the history*.
+- **Credit notes** (a negative amount — `20000-` is understood too) reduce
   the customer's total.
 - **Rejected:** no invoice number, no date or a date that is not a real day,
   a date in the future, no amount, a currency other than naira, a customer
@@ -334,42 +265,40 @@ vehicle) or the customer line items (FBL5N), exported to Excel.
   projections (those stay EJO's work); and it is **never shown to the
   customer** in the customer portal.
 - **The check shows the totals** — invoices, amount, first and last date — to
-  compare with SAP's report for the same period before approving; Finance
+  compare with the invoice list in Zoho for the same period before approving; Finance
   confirms them after the load.
 
-Where it shows: the customer's page (*Lifetime spend* "incl. ₦… from SAP,
-before EJO", *Visits*, the 12-month chart, and **Jobs → From SAP, before
-EJO** with every invoice); the CRM list and its KPIs; the vehicle's page
-(*Before EJO 100*); Headquarters (each branch's *Collected* shows "+ ₦… in
-SAP" for the period, and a line under the figures) and the analytics' top
-customers.
+Where it shows: the customer's page (*Lifetime spend* "incl. ₦… from the
+previous system", *Visits*, the 12-month chart, and **Jobs → From the
+previous system, before EJO** with every invoice); the CRM list and its KPIs;
+the vehicle's page (*Before EJO 100*); Headquarters (each branch's
+*Collected* shows "+ ₦… before EJO" for the period, and a line under the
+figures) and the analytics' top customers.
 
-## 7a2. Job card history from SAP (P4)
+## 7a2. Job card history (P4)
 
-The workshop's past is job cards: one SAP service order (a 6-digit number)
-per visit, with *Carry out service* or the repair written on it. **Job card
+The workshop's past is job cards: one per visit, with *Carry out service* or
+the repair written on it. **Job card
 history** loads them as **read-only history** into the **workshop branch**
 they were done at: shown on the customer (**Jobs → Job cards before EJO**)
 and on the vehicle (**Before EJO 100**), counted as a **visit** (once with
-the invoice it was billed on, matched by VBELN), searchable by number, and
-exported in job card format (**SAP job card history**).
+the invoice it was billed on, matched by its invoice number), searchable by
+number, and exported in job card format (**Job card history (before EJO)**).
 
 - **Every row is a job card.** There is no "job or service" column to fill:
   EJO reads the text — *carry out service*, *40,000 km service*, *periodic
-  maintenance*, or an SAP service order type (SM01) — and marks that job
+  maintenance* — and marks that job
   card a **service** inside EJO. A service job card **starts the vehicle's
   next-service clock** (the Service tracker, the reminders, the vehicle's
   *Service history*) with the same interval rules as EJO's own services,
   until EJO completes a service of its own. Nothing a repair does changes.
-- **Columns** (SAP names recognised; plain English too): AUFNR (job number,
-  required), AUART, QMNUM, KUNUM/KUNNR (customer — or the customer's phone
-  or email, or the vehicle by VHVIN/VIN or plate: the owner is used), EQUNR,
-  ERDAT/GSTRP (opened on, required), IDAT2/GLTRP (completed on), RECDV
-  (mileage), KTEXT (complaint / work requested), LTXA1 (work done), PERNR
-  (technician — staff only), ARBPL, labour, parts, NETWR (total), VBELN
-  (invoice), status (TECO/CLSD → Closed; CNCL/DLFL → Cancelled; an open
-  status such as REL is **refused**: open job cards have their own import),
-  **Branch**/WERKS (when given, must be the branch chosen for the import).
+- **Columns** (plain names, as on the template): job number (required);
+  the customer number — or the customer's phone or email, or the vehicle by
+  VIN or plate (the owner is used); opened on (required); completed on;
+  mileage; complaint / work requested; work done; technician (staff only);
+  bay; labour, parts, total; invoice number; status (Closed or Cancelled —
+  an open job card is **refused**: open job cards have their own import);
+  **Branch** (when given, must be the branch chosen for the import).
 - **Refused:** no job number, no opening date, a future date, completed
   before opened, a job card still open, a customer EJO cannot find, a row
   for another branch. **Noted, not refused:** no completion date (the clock
@@ -377,9 +306,7 @@ exported in job card format (**SAP job card history**).
   no clock), a vehicle not yet in EJO (links when the vehicles file is
   loaded and this file loaded again).
 - Each job number is loaded once; undo **voids** (nothing deleted),
-  reloading restores. The demo file is
-  `docs/demo/correct/14_SAP_job_card_history_demo.csv` (one job card per
-  invoice in 06); the copy in `with-mistakes/` has six bad rows.
+  reloading restores.
 
 ## 7a3. Open job cards at the cut-over (P5)
 
@@ -391,22 +318,22 @@ emailed — the customer and the staff were told at the time.
 
 What each job card carries:
 
-- **Its old number**, kept (`externalId`) and searchable (*SAP job card
-  483211 → JC-2026-000045*); EJO gives it its own JC number; its opening
-  date is the day the vehicle came in (ERDAT). A banner on the job card says
+- **Its old number**, kept (`externalId`) and searchable (*Old system job
+  card 483211 → JC-2026-000045*); EJO gives it its own JC number; its
+  opening date is the day the vehicle came in. A banner on the job card says
   where it came from and which import brought it.
-- **Its stage**, mapped from EJO's words or SAP's statuses:
+- **Its stage**, mapped from the words people use:
 
-  | In the file (EJO words / SAP) | EJO stage |
+  | In the file | EJO stage |
   | --- | --- |
-  | empty, Checked in, Received, CRTD | Checked in |
-  | In progress, Work in progress, WIP, REL | In progress |
-  | Awaiting parts, Parts, MATS, On hold | Awaiting parts |
+  | empty, Checked in, Received | Checked in |
+  | In progress, Work in progress, WIP | In progress |
+  | Awaiting parts, Parts, On hold | Awaiting parts |
   | QC, Quality check, Inspection, Road test | Quality check |
   | Awaiting customer approval, Estimate sent, Quotation | Awaiting customer approval |
-  | Completed, Done, TECO | Completed |
+  | Completed, Done | Completed |
   | Ready, Ready for collection, Invoiced | Ready for collection |
-  | Closed, Checked out, Collected, Cancelled, CLSD, CNCL, DLFL | **refused** — history (§7a2) |
+  | Closed, Checked out, Collected, Cancelled | **refused** — history (§7a2) |
 
 - **Its estimate as it stood**: labour, the parts already issued from the
   store (by part number when the catalogue has them; "x" quantity, "@" unit
@@ -434,11 +361,6 @@ Recycle bin — each with its complaints, estimate and opening payments, so it
 restores whole — and **keeps** (and reports) any job card that has had a
 payment, a parts request, a warranty or anything else recorded on it since.
 
-Demo: `docs/demo/correct/15_SAP_open_job_cards_demo.csv` (eight vehicles
-from 02 in the workshop at every stage); `with-mistakes/` adds a closed job
-card, an unknown stage, no vehicle, the same vehicle twice, a future date and
-a vehicle EJO does not have.
-
 ## 7a3b. Open services and bookings at the cut-over (P6b)
 
 The routine services still in the workshop on the day EJO takes over, and
@@ -464,12 +386,12 @@ administrator). Nobody is emailed — the customers were told at the time.
   checks it in as any booking. A booking for a day already passed is kept,
   with a note (the customer has not come). A technician is not given to a
   booking: the workshop assigns one when the vehicle arrives.
-- **A service in the workshop** needs the day it came in (*Checked in on*,
-  ERDAT; never in the future) and carries on from its stage, accepted
+- **A service in the workshop** needs the day it came in (*Checked in on*;
+  never in the future) and carries on from its stage, accepted
   before EJO (the supervisor's acceptance is not asked again); the
   technician and supervisor are matched by employee ID (a name is tried).
-- **Its old number** (the booking reference, AUFNR or QMNUM) is kept and
-  searchable (*SAP booking BK-2026-0600 → SV-2026-000123*); EJO gives it its
+- **Its old number** (the booking reference) is kept and searchable (*Old
+  system booking BK-2026-0600 → SV-2026-000123*); EJO gives it its
   own SV number. A banner on the service says where it came from.
 - **One open visit per vehicle** — a vehicle with an open job card or
   service in EJO is refused, and the second row for a vehicle in the file is
@@ -486,280 +408,17 @@ one that has had anything recorded since (a check-in, a technician, an
 inspection, a parts request, a payment — every step of a service is
 audited) is kept and reported.
 
-Demo: `docs/demo/correct/18_SAP_open_services_and_bookings_demo.csv`
-(eight bookings for the days after the cut-over, vehicles 13–20 of 02, with
-their times; three services already in the workshop); `with-mistakes/` adds
-no number, a collected service, a booking with no day, a vehicle EJO does
-not have, the same vehicle twice and a check-in day in the future.
+## 7a4. Warranties and open warranty claims
 
-## 7a4. Warranties and open warranty claims at the cut-over (P6)
-
-Two imports, loaded after the vehicles (and the parts, for part warranties),
-both organisation-wide (no branch to choose), both approved by **the
-Warranty HOD or a Branch Manager**. Nobody is emailed — the customers, the
-providers and the staff were told at the time.
-
-### Warranties (sold before EJO)
-
-Each row becomes an **EJO warranty** (WR number) on the customer and the
-vehicle already in EJO:
-
-- **Its old number**, kept (`externalId`) and searchable (*SAP warranty
-  W-2024-0425 → WR-2026-000031*). A banner on the warranty says where it came
-  from and which import brought it; its origin reads *Brought in at the
-  cut-over*.
-- **Its policy** — one of the organisation's own (Warranty → Policies), by
-  its **code or name**. With no policy named, the one policy of the same kind
-  with the same **months** (and **km**, and **provider** when given) is used;
-  none or several such policies are refused with their codes, so the
-  policies are made in EJO first. The policy's terms (coverage, exclusions,
-  conditions) are copied onto the warranty, as at the desk. An archived or
-  switched-off policy is accepted with a note: the warranty was sold under it.
-- **Its dates** — the start (GWLDT, the delivery or fitting day; never in
-  the future) and the end (GWLEN), or the end worked out from the policy. A
-  warranty that has already ended is kept for its history: EJO works expiry
-  out from the dates and the km, never stores it.
-- **Vehicle or part.** A part warranty names the part number (it must be in
-  the parts catalogue) and, when it has one, its serial (kept in words when
-  the serial is not in EJO's stock records — it was fitted before EJO).
-- **Its status** — Active (the default), Suspended, Void or Transferred, with
-  the reason from *Notes* (or *Suspended before EJO*).
-- **Registered and verified.** At the desk a warranty is registered by one
-  person and verified by another before it covers anything; here the person
-  who ran the import is its registration and the approver its verification
-  (both recorded on the warranty), so it is **active from the day it
-  started**.
-
-Refused: no warranty number, no start date, a future start, a policy EJO does
-not have, a policy of the other kind (a part policy on a vehicle), a
-provider that is not the policy's, a vehicle or a part EJO does not have, a
-vehicle that already holds a warranty under the same policy (one per vehicle
-and policy; the second row of a file for it is skipped), a status EJO does
-not know. The same warranty number twice in a file is a duplicate.
-
-### Open claims
-
-Each row becomes a **live EJO claim** (WC number), on its warranty — by the
-old warranty number (as in the warranties file) or the WR number, or, with
-neither, the vehicle's one warranty in force on the failure date:
-
-| In the file | EJO stage |
-| --- | --- |
-| empty, Draft, New, Open | Draft |
-| With the Warranty HOD, Review, Pending approval | With the Warranty HOD |
-| With the Manager | With the Branch Manager |
-| Approved to submit, Ready | Approved to submit |
-| Submitted, Sent, With provider | Submitted to the provider |
-| Accepted, Approved by provider, Credited | Accepted |
-| Partially accepted | Partially accepted (the accepted amount is required) |
-| Rejected, Declined | Rejected |
-| Settled, Paid, Closed, Cancelled | **refused** — history, stays in the old system |
-
-- **The steps taken before EJO** are dated (the failure, submission and
-  decision dates) and named *before EJO* on the claim's chain — never
-  attributed to anyone in EJO and never asked again. From its stage the
-  claim carries on in EJO like any other: the HOD approves the next one,
-  the provider's decision is recorded, the settlement received.
-- **The three Cs** (complaint required; cause and correction read *Not
-  recorded before EJO* past a draft until filled in), the causal part,
-  **amounts** (labour, parts, other, logistics; the claimed total is what
-  they add up to — a total alone is kept as *Other*), the accepted amount, the
-  provider's reference, the remedy (or the policy's usual one) and the
-  failed-part return (Yes, Sent, Received; or the provider's rule).
-- The provider's claim deadline is set from the failure date, as at the desk.
-
-The import's check shows the count, the amount claimed and what providers
-have accepted but not yet settled — compare them with the old system's open
-claims and the providers' portals before sending it for approval.
-
-**Undo** moves to the Recycle bin only what nobody has used since: a claim
-moved on, a warranty with a claim on it (undo the claims import first) or an
-estimate line it covers is kept and reported. Warranties and claims reach the
-bin only this way — at the desk an issued warranty is voided and a claim
-cancelled, with a reason. Each restores on its own, number kept (a claim
-after its warranty).
-
-Demo: `docs/demo/correct/16_SAP_warranties_demo.csv` and
-`17_SAP_open_claims_demo.csv` (load into the demo organisation, whose
-workshop demo has the Isuzu, Soueast, battery and brake-pad policies);
-`with-mistakes/` adds a warranty without a number, one starting in the
-future, an unknown policy, a vehicle EJO does not have, a number twice and an
-unknown status; and a settled claim, an unknown warranty, no complaint, a
-partial acceptance without its amount and a claim number twice.
+Switched off in this edition (Warranty is off).
 
 ## 7b. Production, QC and PDI registers
 
-The plant's existing Excel registers — the production line, quality checks
-and pre-delivery inspections — one row per vehicle per check. Read-only
-history, shown on each vehicle's page under **Before EJO 100**, by its VIN
-(the vehicle can be a customer's or still in stock).
+Switched off in this edition (the assembly plant is off).
 
-| Field | Required | Recognised column names (examples) |
-| --- | --- | --- |
-| Chassis number (VIN) | **Yes** | VIN, VHVIN, chassis, frame number |
-| Register | **Yes**, or chosen when importing | register, check type — Production, QC (quality), PDI (pre-delivery) |
-| Date | **Yes** | date, PDI date, inspection date, production date |
-| Model | — | model, variant |
-| Station / step | — | station, step, gate, checkpoint |
-| Result | — | result, status — OK / Pass, NG / Fail, Rework (kept as written otherwise) |
-| Inspector | — | inspected by, checked by — **staff only**, never shown to customers |
-| Reference, Notes | — | report no, sheet number / remarks, defects, findings |
+## 7b2. The plant's records at the cut-over
 
-A file that is one register only (a "PDI register" workbook) needs no
-*Register* column: choose **Which register is this file?** when importing.
-The same check (register, VIN, date and station) is loaded once.
-
-Each row also lands on the vehicle's own page (*/vehicles/VIN*, the page its
-label opens), in its life stage: a station or step naming the kit, a case or
-arrival goes to **Kit arrival and QC**; the yard to **Yard**; a sale or
-delivery to **Sale**; otherwise Production rows are **Assembly stations**, QC
-rows **Quality audit** and PDI rows **Pre-delivery inspection**. A failed or
-rework result shows as needing attention until a later pass of the same check.
-
-**Branches have a kind.** Parts, opening stock and invoice history load only
-into a branch that keeps a store (a workshop or warehouse, never the assembly
-plant); plant records belong on the assembly-plant branch. The branch picker
-on the import form offers only the fitting branches, and the check says why
-when a file names the wrong kind ([ROLES_AND_ACCESS.md](ROLES_AND_ACCESS.md)).
-
-**Kits from now on are recorded, not imported.** Past kit arrivals come in as
-register rows (above). New shipments are recorded as they land under
-**Assembly plant → Record a shipment**, with the kits pasted from the
-supplier's packing list (VIN, engine number, model, lot, cases; one kit per
-line, straight from Excel). Nothing is saved until every line is right, and a
-VIN already in a kit or in the plant is refused. Their arrival check then
-appears next to the register rows on the same vehicle page. The demo packing
-list is `docs/demo/correct/09_kit_packing_list_demo.csv`; the copy in
-`with-mistakes/` has four bad lines.
-
-**The line is recorded, not imported (D3).** Station visits, defects and QA
-audits are made on the tablet as the vehicle goes down the line; past
-production history comes in as register rows (above) and the plant records
-import (§7b2): the vehicles on the line at the cut-over, at their station. The three lists leave as exports — **Line stations**, **Line
-defects**, **QA audits** — with SAP names ([SAP_INTEGRATION.md](SAP_INTEGRATION.md)).
-
-## 7b2. The plant's records at the cut-over (P8)
-
-What is already at the assembly plant on the day it starts using EJO, from
-SAP or the plant's own registers, in four files loaded **in this order**
-(each names what the one before brought in), each into the chosen assembly
-plant. Prepared by whoever brings records in (the IT Administrator, a
-branch administrator); approved by the **Plant Manager** (or an
-administrator) — approving needs the right to release kits. Nobody is
-emailed, and nothing is written into the records' own history: any step
-recorded on them afterwards, on the desk or the line, counts as use.
-
-1. **Plant shipments** — each becomes an EJO shipment with its own SHP
-   number; its old reference is kept (the kits file names the shipment by
-   it, or by the SHP number). Supplier and arrival (*15.09.2026* or
-   *2026-09-15 08:30*, Lagos time, never in the future) are required; the
-   same bill of lading twice is the same shipment.
-2. **Plant vehicles** — the vehicles being built, audited, waiting for PDI
-   or in the yard:
-
-   | In the file | EJO |
-   | --- | --- |
-   | LINE, On the line, Assembly | **on the line**, at its *Current station* (empty: the first) |
-   | QA, Quality audit | in quality audit |
-   | PDI, Waiting for PDI | waiting for PDI |
-   | YARD, In the yard, Finished, PDI passed | in the yard |
-   | KIT | **refused** — a kit not released yet is in the kits file |
-   | SOLD, Delivered | **refused** — the customer's vehicle (§4, with its warranty) |
-
-   On the line, a vehicle takes the plant's **live route** for its family
-   (or the default route): the stations before its current one are done
-   *before EJO*, the current one is under way, the rest are to come — the
-   line board picks it up from there. Past the line, every station is done
-   and the gate is recorded as passed *before EJO* on its *Gate passed*
-   day (required), with nobody in EJO named as passing it. A station not on
-   the route is refused, with the route's stations listed.
-3. **Plant kits** — the packing lists: VIN, engine number, model (NQR, NPR,
-   QLR, QMR, S07), lot, kit type (empty: the model's usual, CKD or SKD),
-   cases, and where each stands — *Arrived* (the default), *Inspecting*,
-   *Submitted* (waiting for release), *On hold*, *Released*, *Rejected*;
-   *Cancelled* is refused (it never came). Each takes its model's arrival
-   checklist: a kit checked before EJO has every check recorded as *OK —
-   Checked before EJO* (nobody in EJO answered them), one still to check
-   has them open. A **released** kit is linked to its vehicle from file 2;
-   one with no vehicle yet waits for its slot on the line (a note). A kit
-   whose VIN is already a vehicle in the plant must be *Released*. The
-   inspector and the decider are matched by employee ID (a name is tried);
-   the same person as both is a note, since EJO never allows that from now on.
-4. **Plant kit issues** — the shortages, damage, wrong parts and excess
-   raised before EJO, on their kit by its VIN: *Open*, *Claimed* (from the
-   supplier, with its claim reference) or *Resolved*; *Stops the line*
-   marks the ones the vehicle cannot be built without. Raised by: by
-   employee ID or name (empty: the person who approves the import).
-
-Each file shows what will load before it is sent for approval (shipments
-and their arrival days; vehicles by stage; kits and issues by status, and
-the issues still stopping the line), to compare with SAP and the plant's
-registers.
-
-**Undo goes in reverse** (issues, kits, vehicles, shipments): each record
-nobody has used since goes to the Recycle bin as its own item — a vehicle
-with its station visits, a kit with its checklist — and restores whole,
-with its number. One that has been used since (any audited step, a change,
-a station recorded on the line, a PDI, a defect, an audit) is kept and
-reported; so is one something else now hangs on (a shipment with kits, a
-kit with issues, a vehicle a kit is linked to): undo the later file first.
-SHP and KIT numbers held in the bin are never given out again.
-
-Demo: `docs/demo/correct/10_plant_shipments_demo.csv`,
-`13_plant_vehicles_demo.csv`, `11_plant_kits_demo.csv`,
-`12_plant_kit_issues_demo.csv` — the plant demo's six weeks (§7b) as files,
-into Afprint Assembly Plant (use the files or the demo load, not both:
-they are the same VINs). `with-mistakes/` adds a shipment with no supplier,
-the same shipment twice, an arrival in the future, a sold vehicle, the same
-VIN twice, a vehicle waiting for PDI with no gate day, a model the plant
-does not build, a cancelled kit, a shipment not in the file, a kind EJO
-does not know, an issue with no description and an issue on a kit EJO does
-not have.
-
-## 7b. The plant demo: six weeks in one tap
-
-For showing the plant (and for testing every plant page on a full board),
-EJO can load six invented weeks into an organisation's assembly plant:
-shipments, kits with their checks and shortages, vehicles at every stage
-with their stations, defects, QA audits and PDIs, as of the moment of
-loading (`apps/portal/lib/plant/demo/plan.ts` — the same plan every time;
-no real person or vehicle in it).
-
-- **In EJO:** an administrator, on **Assembly plant → Demo records**, types
-  *load the demo* (or *remove the demo*). Audited as `demo.plant_loaded` /
-  `demo.plant_removed`.
-- **From a terminal:** `npm run demo:reset` — the demo people with their
-  sign-ins first (when `DEMO_STAFF_PASSWORD` is set), then the plant demo,
-  then the workshop demo (`-- --org <slug>` marks that organisation as the
-  demo; `-- --remove` takes the records out). `npm run demo:ensure` loads
-  both demos only when the demo organisation has none yet (the production
-  build runs it), and otherwise adds the day's working day; `npm run
-  demo:pulse` adds the day's working day by hand. The platform team does
-  the same from IT control room → Demo organisation. Against a
-  hosted database (Supabase, Render, Neon, RDS, or `NODE_ENV=production`)
-  it refuses unless `DEMO_RESET_CONFIRM="replace the demo records"` is set.
-- Every demo record carries `externalSource = EJO-DEMO`; a reload or a
-  removal deletes exactly those records (and what hangs off them: checks,
-  issues, station visits, defects, audits, PDI items) and never a record a
-  person made. The plant's demo people (`apps/portal/lib/plant/demo/plan.ts`:
-  role names only, employee numbers DEMO-AP-001…, addresses on the
-  reserved `demo.dphoenix.example` name) are kept by a removal. The plant
-  is off in the D'Phoenix edition, so its demo never loads there.
-- The workshop demo's records carry no `externalSource` of their own (job
-  cards, services, receipts, warranties, security, scheduling, support…):
-  each is listed in **`demo_records`** (model and id) when made, and a
-  reload or removal deletes exactly that list, children first, including
-  the demo's own audit entries under the trail's recorded maintenance
-  switch. Customers, vehicles, suppliers and parts also carry
-  `externalSource = EJO-DEMO`. Only an organisation marked as a demo
-  (`organisations.isDemo`) is ever loaded.
-- The same records are written as files by `npx tsx
-  apps/portal/scripts/demo-files.ts` into `docs/demo/correct/`:
-  `10_plant_shipments_demo.csv`, `11_plant_kits_demo.csv`,
-  `12_plant_kit_issues_demo.csv`, `13_plant_vehicles_demo.csv` (Lagos
-  times, a `Branch` column, SAP names where SAP has them: EBELN, VBELN,
-  PRUEFLOS, MBLNR, WERKS, MATNR, AUFNR, EQUNR). They are the layouts the
-  plant records import reads (§7b2) and the exports write.
+Switched off in this edition (the assembly plant is off).
 
 ## 7c. Undoing history
 
@@ -789,46 +448,6 @@ never a second copy.
 The staging area lives in the organisation's own Postgres database (no new
 services). Every figure below was **measured**, not estimated.
 
-### The 800,000-material speed run (A2)
-
-A full SAP material master — 800,000 materials, 69 MB of CSV with the SAP
-field names (MATNR, MAKTX, MATKL, MEINS, XCHPF, EAN11, VKP, MINBE, EISBE,
-MEINH, UMREZ) — taken through the real screens in a browser: upload, column
-matching, check, a second person's approval, load, then a catalogue search.
-Run with `e2e/perf-parts.spec.ts` (`PERF_FILE=…`; not part of CI) on
-31 October 2026, against Postgres 16 on a 2-processor, 8 GB machine with the
-browser on the same machine.
-
-| Step | Time | Rate |
-| --- | --- | --- |
-| Upload (read in the browser, sent in blocks) | 1 min 56 s | ≈ 6,900 rows a second |
-| Check (nothing live changes) | 1 min 6 s | ≈ 12,000 rows a second |
-| Load, after approval | 5 min 48 s | ≈ 2,300 rows a second |
-| **Total, file to catalogue** | **≈ 9 minutes** | |
-| Parts Catalog search ("Brake pad") among 800,000 parts | 3 s, page included | paged, 50 a page |
-
-All 800,000 materials were created: none rejected, none duplicated, and
-`created = rows − rejected − duplicates` was asserted at the end. The
-**Opening stock** and **Suppliers** files use the same engine; their size is
-far smaller (one line per part held, one per vendor).
-
-**Database space** after the run: the 800,000 parts take **475 MB** (with
-their indexes); the staged rows of that import take **513 MB**. Each loaded
-record also keeps its entry in the audit trail, which is append-only and
-never deleted: measured on 50,000 parts, that is about **1.0 KB a part** on
-top of the part's own 0.7 KB. So plan for about **1.7 KB per material** for
-good, plus the staged file until it is released. A full material master
-therefore needs about **1.3 GB**, and the free Supabase plan (500 MB) is too
-small for it. The demo keeps **50,000** parts
-(`docs/demo/correct/03_SAP_parts_50k.csv`, about 85 MB), which fits. On the
-organisation's paid plan this is routine.
-
-**Guarded:** the Data Exchange page shows the database's space against its
-plan (`DATABASE_SPACE_LIMIT_MB`, default 500). An import that would take it
-past 95% is refused before it is sent for approval, approved or started,
-with how many records still fit. A load that reaches 97% pauses until there
-is room. See [FREE_PLAN.md](FREE_PLAN.md).
-
 ### What keeps it fast at any size
 
 - **Steady, few requests.** Each check, load or undo request works in blocks
@@ -854,24 +473,21 @@ is room. See [FREE_PLAN.md](FREE_PLAN.md).
 
 ## 9b. Finding and tracing imported records
 
-- **Search by the other system's number.** The search box at the top finds a
-  record by the number SAP (or the old system) gave it: customer (KUNNR),
-  vehicle / equipment (EQUNR), supplier (LIFNR), material, and invoice
-  numbers from the history — with or without SAP's leading zeros. SAP numbers
-  have no prefix, so the same digits can be a customer and an invoice: every
-  match is listed, labelled — *SAP customer 125262 · Ada Okafor*, *SAP
-  invoice 125262 · 2026*. Type a year after the number (*125262 2026* or
-  *125262/2026*) to narrow invoices to one fiscal year. Each person finds only
-  what they may open (invoices are for people with the CRM).
+- **Search by the old system's number.** The search box at the top finds a
+  record by the number Zoho or the old system gave it: customer, vehicle,
+  past job card and invoice numbers from the history — with or without
+  leading zeros. Such numbers have no prefix, so the same digits can be a
+  customer and an invoice: every match is listed under *Old-system numbers*,
+  labelled — *Old system customer 125262 · Ada Okafor*, *Old system invoice
+  125262 · 2026*. Each person finds only what they may open (invoices are for
+  people with the CRM).
 - **Where it came from.** Customer, vehicle and part pages have a *Where this
-  came from* box: created in EJO by whom and when, or *Imported from SAP* /
-  *from a spreadsheet* by **IMP-…** (its file, who approved it; the number
-  opens the import for the people who may see imports), the SAP number, and
-  the original date (a customer's *customer since*). Exports and SAP postings
-  that included the record will be listed there when those arrive.
-- **Filter the lists** — Customers, Vehicles, Parts and Suppliers — under
-  *Where it came from, and when*: **Source** (created in EJO / imported from
-  SAP / from a spreadsheet), one **import number**, **Entered EJO** from–to
+  came from* box: created in EJO by whom and when, or *Imported from a
+  spreadsheet* by **IMP-…** (its file, who approved it; the number opens the
+  import for the people who may see imports), the old system's number, and
+  the original date (a customer's *customer since*).
+- **Filter the lists** — Customers and Vehicles — under *Where it came from,
+  and when*: **Source** (created in EJO / imported from a spreadsheet), one **import number**, **Entered EJO** from–to
   (created or imported) and, for customers, **Customer since** from–to (the
   original date) — so "customers since 2018 or before who were imported last
   week" is one filter. Job Cards, services and warranties are always made in
@@ -881,15 +497,15 @@ is room. See [FREE_PLAN.md](FREE_PLAN.md).
   of lists exported (§9c); a day lists them, each opening its import or
   export.
 - **With or without the history.** Headquarters, the business analytics and
-  the CRM list have a switch: *With SAP history* (the default) or *EJO only*
+  the CRM list have a switch: *With history before EJO* (the default) or *EJO only*
   (the invoices from before EJO left out of spend, visits, top customers and
   the per-branch figures). The Headquarters export follows the switch.
 
 ## 9a. Staged files: space and release
 
 Each import keeps a copy of its file — every row — while it is checked,
-approved and loaded (about 0.6 KB a row for a material master; the
-800,000-row run took 513 MB). Once it is no longer needed it is
+approved and loaded (about 0.6 KB a row; a run of 800,000 rows took
+513 MB). Once it is no longer needed it is
 **released**:
 
 - **When:** a set number of days after the import **finished** — counted
@@ -921,7 +537,7 @@ from it).
 
 Every list has an **Export** button — Customers, Vehicles, Parts, Stock and
 value, Suppliers, Goods receipt lines, Job Cards, Vehicle Services,
-Warranties, a customer's SAP invoices, Imports, Exports, People and roles,
+Warranties, a customer's invoice history, Imports, Exports, People and roles,
 the Audit trail, the Security register and Headquarters. Choose **Excel
 (.xlsx)** or **CSV**.
 
@@ -950,7 +566,7 @@ the Audit trail, the Security register and Headquarters. Choose **Excel
   organisation, the export number, the filters, who exported and who
   downloaded it, when, and what is in it. Then a bold, frozen header row;
   real dates (dd/mm/yyyy, Lagos time); money as numbers with a *Currency*
-  column (NGN); record numbers as text, so SAP's leading zeros stay; *Yes* /
+  column (NGN); record numbers as text, so leading zeros stay; *Yes* /
   *No*; and a link back to each record. CSV is UTF-8 with a byte-order mark,
   so Excel opens ₦ and Nigerian names correctly.
 - **Nothing runs as a formula.** Text that starts with `=`, `+`, `-` or `@`
@@ -959,7 +575,7 @@ the Audit trail, the Security register and Headquarters. Choose **Excel
   Administrator, Branch administrator, Workshop manager, Finance, Store
   manager, Customer care lead, Executive, Group IT, Warranty HOD and Chief
   security officer. Lists with **contact details or payments** — customers,
-  SAP invoices and the audit trail (sign-in addresses) — also need *Export
+  invoices, invoice history and the audit trail (sign-in addresses) — also need *Export
   contact details and payments* (`dataexchange.export.sensitive`): the
   Administrator, Workshop manager, Finance and Customer care lead. Technicians,
   officers and the front desk export nothing. Exporting is refused during an
@@ -974,13 +590,11 @@ the Audit trail, the Security register and Headquarters. Choose **Excel
 ### Exports come back in (round trip)
 
 An export of a list that Data Exchange also imports — customers, vehicles,
-parts, suppliers, a customer's SAP invoices — can be uploaded again as it
-is: the importer passes over the *About this file* sheet and the CSV's `#`
-lines, and every column name an export writes is one the importer
-recognises (*Customer number (SAP or old system)*, *Supplier number (SAP or
-old system)*, *Invoice number*, *Customer number (SAP)*…). Files exported
-before these names were settled (*SAP / old-system number*, *Supplier number
-(SAP)*, *Invoice number (SAP)*, *Customer SAP number*) are recognised too. A
+a customer's invoice history — can be uploaded again as it is: the importer
+passes over the *About this file* sheet and the CSV's `#` lines, and every
+column name an export writes is one the importer recognises (*Customer
+number*, *Vehicle number*, *Invoice number*…). Files exported under earlier
+column names are recognised too. A
 leading apostrophe (how a CSV keeps `+234…` from running as a formula) is
 not part of the value. Records already in EJO are recognised by their
 numbers and never added twice. *Stock and value* is a report, not an
@@ -993,26 +607,21 @@ in Excel, and upload the file as it is to the same import with **Update
 customers (vehicles, parts, suppliers) exported from EJO**:
 
 - **Found by the EJO record only.** Every export writes each record's EJO
-  number (*EJO record*; *ZZ_EJO_ID* in SAP's layout). A row is matched by it
+  number (*EJO record*). A row is matched by it
   and by nothing else — never by a name, a phone or a guess — within the
   organisation (a part within the branch the import loads into). A row
   without one, or with one that is not the organisation's, is refused.
   Nothing new is ever added in this mode.
-- **Or SAP's own file (C1b).** SAP's extract has no EJO record column: with
-  source **SAP** and the SAP number column matched (KUNNR, EQUNR, LIFNR,
-  MATNR), each row is found by its SAP number only, leading zeros or not. A
-  number EJO does not have, or has on two records, is refused — never
-  guessed (SAP_INTEGRATION.md §3a2).
 - **Only real changes.** Each row is compared with the record as it is now.
   The same value written another way is no change: a phone as *+234 803…*
-  or *0803…*, a plate with or without its space, a SAP number with its
+  or *0803…*, a plate with or without its space, a number with its
   leading zeros, an email in capitals. **An empty cell leaves a field as it
   is**: a file never blanks anything.
 - **What identifies a record stays.** A part's number, how it is tracked and
   its base unit, and a vehicle's chassis number (filled in if EJO has none)
   and owner are changed on their pages, never by a file; a mileage lower
   than EJO's is left out (an odometer only goes up). Values that must stay
-  unique — a customer's email, a plate, a chassis number, a SAP number — are
+  unique — a customer's email, a plate, a chassis number, a customer number — are
   refused when another record holds them.
 - **Previewed before approval.** The check lists every change, row by row,
   as *Address: 3 Old Road → 12 New Road*, with how many records and fields
@@ -1031,44 +640,9 @@ customers (vehicles, parts, suppliers) exported from EJO**:
 - The templates never carry the *EJO record* column: it comes only from an
   export. Invoice history and opening stock are never updated by a file.
 
-### SAP field names: a file for the SAP team
+### SAP field names
 
-On **Customers, Vehicles, Parts, Stock and value, Suppliers** and **a
-customer's SAP invoices**, the Export menu also offers **Excel, SAP field
-names** and **CSV, SAP field names**. Same records, same filters and
-permissions; the columns are SAP's:
-
-| List | Columns |
-| --- | --- |
-| Customers | KUNNR, NAME1, KTOKD, SMTP_ADDR, TELF1, TELF2, STRAS, STCD1, ERDAT, ZZ_EJO_ID |
-| Vehicles | KUNNR, LICENSE_NUM, VHVIN, EQUNR, ENGINE_NO, MAKE, MODEL, MODEL_YEAR, MILEAGE, ZZ_EJO_ID |
-| Parts | MATNR, MAKTX, MATKL, MEINS, XCHPF, EAN11, KBETR, WAERS, MINBE, EISBE, ZZ_EJO_ID |
-| Suppliers | LIFNR, NAME1, TELF1, SMTP_ADDR, STRAS, STCD1, ZZ_EJO_ID |
-| Stock and value | MATNR, MAKTX, MEINS, LABST, SALK3, VERPR, WAERS |
-| SAP invoices | VBELN, GJAHR, BUKRS, FKART, FKDAT, KUNAG, VHVIN, DMBTR, WAERS, ARKTX |
-
-- Only columns SAP has a field for: no links, no EJO-only figures.
-- Days as SAP flat files write them, **YYYYMMDD**; flags **X** or empty;
-  customer, supplier and billing numbers with SAP's leading zeros
-  (**0001000101**).
-- In CSV, **line 1 is the header** (no `#` lines), as SAP's load tools
-  expect; the Excel file keeps its *About this file* sheet. The file name
-  ends in **-SAP**.
-- **ZZ_EJO_ID** (SAP's customer namespace) is the EJO record, so a file SAP
-  sends back can be matched to it.
-- **A customer created in EJO that SAP does not have yet has an empty
-  KUNNR**: filter Customers by *Source: Created in EJO* and export with SAP
-  field names — that is the list for SAP's team to create. When they do, the
-  numbers come back in the next customers file from SAP.
-- **What this is not.** SAP's team loads such a file with their own tools
-  (Migration Cockpit, LSMW or a program of theirs), under their own checks.
-  EJO never writes into SAP's database. Daily postings from EJO to SAP —
-  parts received and issued, workshop billing, payments — are a different
-  file with a checksum and a status per line (SAP_INTEGRATION.md §3a).
-- **Not kept separately yet.** EJO keeps a customer's city in the address
-  line and the state only for long addresses, so SAP's ORT01 and REGIO are
-  not separate columns: STRAS carries "street, city". Keeping city and state
-  as their own fields is listed in section 11.
+Only with the SAP link, which is switched off in this edition: exports use EJO's plain column names, in Excel or CSV.
 
 ## 10. For the database administrator
 
@@ -1099,16 +673,10 @@ fresh schema. Run them in order (A0, A1, A2, A3, then the staged-files and searc
 
 ## 11. Open questions for the organisation (not guessed in code)
 
-1. Which SAP extracts will be supplied (customer master, material master,
-   stock), from which SAP release, and with which field names.
-2. Company codes, plants (WERKS) and storage locations for the automobile
-   division — needed for the parts and stock imports (A2).
-3. Volumes: customers, vehicles, part lines, and how many years of service
-   history to bring in.
-4. Who signs off the migration totals (Store, Finance, Workshop) and the
-   cut-over date for open jobs.
-5. How SAP's team wants EJO-created customers handed over: the file with
-   SAP field names (section 9c) as it is, or their Migration Cockpit
-   template filled from it; and whether city (ORT01) and region (REGIO)
-   should then be kept as separate fields in EJO (today: city in the
-   address line).
+1. Which Zoho exports will be supplied (Books or Invoice contacts and
+   invoices, CRM accounts, People), and which spreadsheets hold the vehicles
+   and the old job cards.
+2. Volumes: customers, vehicles, and how many years of invoices and job
+   cards to bring in.
+3. Who signs off the migration totals (Finance, the Workshop manager) and
+   the cut-over date for open jobs.

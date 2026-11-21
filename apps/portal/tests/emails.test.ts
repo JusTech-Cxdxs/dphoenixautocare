@@ -42,8 +42,8 @@ test('realistic data: complete, specific, readable in HTML and plain text', () =
     assert.doesNotMatch(out, /\bundefined\b|\bNaN\b|\[object Object\]/, `${where}: placeholder in markup`);
     // The organisation is real text in the header, laid out like the portal wordmark.
     const head = header(out);
-    assert.ok(head.includes('>Kewalram<') && head.includes('>Chanrai Group<'), `${where}: wordmark`);
-    assert.ok(head.includes('alt="Kewalram Chanrai Group logo"'), `${where}: logo alt text`);
+    assert.ok(head.includes('>Lagos<') && head.includes('>Fleet Services<'), `${where}: wordmark`);
+    assert.ok(head.includes('alt="Lagos Fleet Services logo"'), `${where}: logo alt text`);
     assert.ok(out.includes('Powered by EJO 100'), `${where}: footer`);
     // A proper plain-text part: the heading, the greeting, no markup.
     assert.ok(text.length > 120, `${where}: text part`);
@@ -100,7 +100,7 @@ test('layout: bulletproof button, dark mode, reduced-motion animation, preheader
   const text = htmlToText(out);
   assert.match(text, /Open Job Card:\nhttps:\/\/portal\.example\.com\/workshop\/job-cards\/clx123/);
   assert.match(text, /Job Card: JC-2026-000123/);
-  assert.doesNotMatch(text, /Kewalram\nChanrai Group/, 'visual header left out of the text part');
+  assert.doesNotMatch(text, /Lagos\nFleet Services/, 'visual header left out of the text part');
 });
 
 test('formatting helpers: naira, Lagos dates, plurals, escaping', () => {

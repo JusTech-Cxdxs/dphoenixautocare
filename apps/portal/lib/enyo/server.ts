@@ -8,7 +8,6 @@ import { prisma } from '@ejo/database';
 import { asData, buildSystemPrompt, encodeEvent, lagosNow, SSE_HEADERS, type EnyoEvent } from '@ejo/enyo';
 import { currentAssist, getPrincipal, myOrganisationId } from '@/lib/authz/server';
 import { ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/lib/authz/catalogue';
-import { featureOn } from '@/lib/modules';
 import { portalBaseUrl } from '@/lib/portal-url';
 import { offAreasHint, referenceHint } from './edition';
 import type { EnyoSettings } from './settings';
@@ -105,7 +104,6 @@ export async function staffSystemPrompt(o: { ctx: StaffCtx; settings: EnyoSettin
     ...(offAreasHint() ? [offAreasHint()] : []),
     'Brief me / what is waiting: use daily_brief and my_pending — first what waits for THEM (decisions, steps), then what they sent that waits on others (say who has it, "Name (Role)"). Link every record number to the page the tool gave, e.g. [JC-2026-000007](/workshop/job-cards/…).',
     '"Who is <name>" about a colleague: staff_directory (role, branch or headquarters); organisation_info for the published leadership.',
-    ...(featureOn('publicWebsite') ? [`The public website (store prices, offers, refer and earn${featureOn('news') ? ', published news' : ''}): website_content — answer exactly as the website does; prices are indicative and the sales team confirms them.`] : []),
     'How to do anything in the portal: guide_search, with the steps and the link.',
     ...(o.workProfile ? [`About this person's work (use it to tailor answers, suggestions and examples to their job; do not recite it): ${o.workProfile}`] : []),
     ...(o.ctx.page ? [`The person has this page open: ${o.ctx.page}. "This job", "this one" or "here" usually means the record on that page (its id is the last part of the path; the tools accept it).`] : []),

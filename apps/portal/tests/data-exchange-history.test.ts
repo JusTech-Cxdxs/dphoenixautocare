@@ -57,8 +57,8 @@ test('job card history (P4): an SAP order list maps itself; every row is a job c
   const m = autoMap('jobs', h);
   assert.deepEqual([m.jobNumber, m.orderType, m.notificationNumber, m.customerExternalId, m.vin, m.openedAt, m.completedAt, m.mileage, m.description, m.workDone, m.technician, m.workCentre, m.totalAmount, m.invoiceNumber, m.status, m.branch], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16], 'a Branch column wins over WERKS when both are there');
   assert.deepEqual(mappingProblems('jobs', m), []);
-  assert.deepEqual(mappingProblems('jobs', { ...m, customerExternalId: null, vin: null }), ['Choose how to find each job’s customer: their SAP customer number, phone or email — or the vehicle’s chassis number or plate.']);
-  const row = ['000000482913', 'SM01', '300045678', '0001000123', 'JAANLR85EL7100001', '20230312', '14.03.2023', '40.120', 'Carry out service 40,000 km', 'Oil and filters', 'E. Okoro', 'WS-BAY2', '430000.00', '0090001234', 'TECO', '1000', 'Isolo Branch'];
+  assert.deepEqual(mappingProblems('jobs', { ...m, customerExternalId: null, vin: null }), ['Choose how to find each job’s customer: their customer number, phone or email — or the vehicle’s chassis number or plate.']);
+  const row = ['000000482913', 'SM01', '300045678', '0001000123', 'JAANLR85EL7100001', '20230312', '14.03.2023', '40.120', 'Carry out service 40,000 km', 'Oil and filters', 'E. Okoro', 'WS-BAY2', '430000.00', '0090001234', 'TECO', '1000', 'Ajah Branch'];
   const c = checkJobRow(row, m, '2026-11-02');
   assert.equal(c.status, 'GOOD', JSON.stringify(c.issues));
   assert.equal(c.values?.jobNumber, '482913', 'SAP’s leading zeros come off the 6-digit number');
@@ -81,7 +81,7 @@ test('job card history (P4): an SAP order list maps itself; every row is a job c
   assert.equal(parseKm('41,200 km'), 41200); assert.equal(parseKm('41.200'), 41200); assert.equal(parseKm('abc'), null);
   // Refusals: no number, completed before opened, still open, nobody to hang it on, a future date.
   const bad = (cells: (string | null)[]) => checkJobRow(cells, m, '2026-11-02');
-  assert.deepEqual(bad(['', ...row.slice(1)]).issues.filter((i) => i.level === 'error').map((i) => i.message), ['Job number is required (the SAP order number, AUFNR, or the old job card number).']);
+  assert.deepEqual(bad(['', ...row.slice(1)]).issues.filter((i) => i.level === 'error').map((i) => i.message), ['Job number is required (the old job card number).']);
   assert.match(bad([row[0]!, row[1]!, '', row[3]!, row[4]!, '20.09.2024', '18.09.2024', '', 'x', '', '', '', '', '', 'TECO', '', '']).issues[0]!.message, /is before it was opened/);
   assert.match(bad([row[0]!, row[1]!, '', row[3]!, row[4]!, '20.09.2024', '', '', 'x', '', '', '', '', '', 'REL', '', '']).issues.find((i) => i.level === 'error')!.message, /still open belongs in the open job cards file/);
   assert.match(bad([row[0]!, row[1]!, '', '', '', '20.09.2024', '21.09.2024', '', 'x', '', '', '', '', '', 'TECO', '', '']).issues.find((i) => i.level === 'error')!.message, /Whose job is it\?/);

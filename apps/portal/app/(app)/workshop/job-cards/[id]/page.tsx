@@ -52,7 +52,7 @@ import { PageTitle, StatusChip } from '@/components/ui';
 import { CustomerLink } from '@/components/CustomerLink';
 import { RefineTextButton } from '@/components/enyo/RefineTextButton';
 import { SapTrail } from '@/components/data-exchange/SapTrail';
-import { featureOn, moduleIsOn } from '@/lib/modules';
+import { featureOn, moduleIsOn, oldSystemName } from '@/lib/modules';
 import { serviceJobCardCycle } from '@/lib/vehicle-service-cycle';
 import { ServiceJobCardBadge } from '@/components/ServiceJobCardBadge';
 import { WhatsAppLink } from '@/components/WhatsAppLink';
@@ -614,7 +614,7 @@ export default async function JobCardDetailPage({
 
       {jobCard.externalId ? (
         <div className="mt-4 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-info)]/40 bg-[var(--ejo-info)]/10 px-4 py-3 text-sm text-[var(--ejo-text)]" role="note" data-testid="job-card-origin">
-          <span className="font-semibold">Brought in from {jobCard.externalSource === 'LEGACY' ? 'the old system' : 'SAP'} as job card {jobCard.externalId}.</span>{' '}
+          <span className="font-semibold">Brought in from {oldSystemName(jobCard.externalSource)} as job card {jobCard.externalId}.</span>{' '}
           Opened there on {formatDateOnly(jobCard.createdAt)}{origin ? <>, brought into EJO by import {origin.mayOpen ? <LoadingLink href={`/data-exchange/imports/${jobCard.importJobId}`} className="font-medium text-[var(--ejo-primary)] hover:underline">{origin.number}</LoadingLink> : origin.number}{origin.loadedAt ? ` on ${formatDateOnly(origin.loadedAt)}` : ''}</> : null}.
           {jobCard.approvalStatus === 'APPROVED' && jobCard.approvalNotes?.includes('before EJO') ? ' The estimate was approved before EJO; EJO’s approval was not asked again.' : ''}
           {payments.some((p) => p.notes?.startsWith('Paid before EJO')) ? ' Payments marked “Paid before EJO” were taken in the old system and confirmed by Finance.' : ''}

@@ -27,10 +27,10 @@ const customer = (over: Partial<CustomerFacts> = {}): CustomerFacts => ({
   ...over,
 });
 const staff = (over: Partial<StaffFacts> = {}): StaffFacts => ({
-  id: 'u1', name: 'Bayo Ade', active: true, roles: ['Store Officer'], platformTeam: false, branch: 'Isolo', department: null, lastLoginAt: new Date('2026-10-15T08:00:00Z'),
+  id: 'u1', name: 'Bayo Ade', active: true, roles: ['Store Officer'], platformTeam: false, branch: 'Ajah', department: null, lastLoginAt: new Date('2026-10-15T08:00:00Z'),
   failedRecently: 0, lastFailedAt: null, deactivatedReason: null, deactivatedAt: null,
   errors: [{ ref: '3553129217', path: '/workshop/parts-requests', message: 'Prisma error: unique constraint', at: new Date('2026-10-16T08:00:00Z') }],
-  denied: [], work: 'Works in: branch Isolo.', guides: [{ title: 'Release parts', href: '/workshop/parts-requests', steps: ['Open the slip.', 'Press Release.'], youCanDoThis: true }],
+  denied: [], work: 'Works in: branch Ajah.', guides: [{ title: 'Release parts', href: '/workshop/parts-requests', steps: ['Open the slip.', 'Press Release.'], youCanDoThis: true }],
   ...over,
 });
 const ctx = (over: Partial<SenderContext>): SenderContext => ({

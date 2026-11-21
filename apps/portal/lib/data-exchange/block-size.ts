@@ -3,7 +3,7 @@
  *
  * A block is sent as one server-action request, which Next.js refuses past
  * 1 MB (and the hosting plan past 4.5 MB). Counting characters is not enough:
- * a Soueast parts list with Chinese descriptions takes 3 bytes a character,
+ * a parts list with Chinese descriptions takes 3 bytes a character,
  * and quotes in a cell are escaped. So a row is measured as the UTF-8 bytes
  * of its JSON, and a block stops well below the limit.
  */

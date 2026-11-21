@@ -28,22 +28,22 @@ test('roles: separated by ; , | or lines, each once, at most ten', () => {
 
 test('a row: the SAP HR columns map themselves; name, own work email and branch required; administrators never by a file', () => {
   assert.deepEqual(mappingProblems('staff', m), []);
-  const ok = checkStaffRow(row({ PERNR: '00010200', ENAME: 'Emeka  Okoro', 'Work email': 'Emeka.Okoro@staff.example.com', 'Employee ID': 'emp-0042', Branch: 'Isolo Branch', Department: 'Commercial Vehicle Workshop', Roles: 'Technician' }), m);
+  const ok = checkStaffRow(row({ PERNR: '00010200', ENAME: 'Emeka  Okoro', 'Work email': 'Emeka.Okoro@staff.example.com', 'Employee ID': 'emp-0042', Branch: 'Ajah Branch', Department: 'Commercial Vehicle Workshop', Roles: 'Technician' }), m);
   assert.equal(ok.status, 'GOOD', JSON.stringify(ok.issues));
-  assert.deepEqual(ok.values, { fullName: 'Emeka Okoro', email: 'emeka.okoro@staff.example.com', phone: null, employeeId: 'EMP-0042', personnelNumber: '10200', branch: 'Isolo Branch', department: 'Commercial Vehicle Workshop', roles: ['Technician'] });
+  assert.deepEqual(ok.values, { fullName: 'Emeka Okoro', email: 'emeka.okoro@staff.example.com', phone: null, employeeId: 'EMP-0042', personnelNumber: '10200', branch: 'Ajah Branch', department: 'Commercial Vehicle Workshop', roles: ['Technician'] });
   assert.deepEqual(ok.keys, ['email:emeka.okoro@staff.example.com', 'emp:EMP-0042']);
   const err = (o: Partial<Record<(typeof H)[number], string>>) => checkStaffRow(row(o), m).issues.filter((i) => i.level === 'error').map((i) => i.message);
-  assert.deepEqual(err({ 'Work email': 'a@b.ng', Branch: 'Isolo' }), ['Full name is required.']);
-  assert.deepEqual(err({ ENAME: 'A Person', Branch: 'Isolo' }), ['Work email is required: the person signs in with it and their invitation goes to it.']);
-  assert.match(err({ ENAME: 'A Person', 'Work email': 'not-an-email', Branch: 'Isolo' })[0]!, /is not an email address/);
+  assert.deepEqual(err({ 'Work email': 'a@b.ng', Branch: 'Ajah' }), ['Full name is required.']);
+  assert.deepEqual(err({ ENAME: 'A Person', Branch: 'Ajah' }), ['Work email is required: the person signs in with it and their invitation goes to it.']);
+  assert.match(err({ ENAME: 'A Person', 'Work email': 'not-an-email', Branch: 'Ajah' })[0]!, /is not an email address/);
   assert.match(err({ ENAME: 'A Person', 'Work email': 'a@b.ng' })[0]!, /Branch is required/);
-  for (const r of ['Administrator', 'Organisation Administrator', 'Branch Administrator', 'branch-administrator']) assert.match(err({ ENAME: 'A Person', 'Work email': 'a@b.ng', Branch: 'Isolo', Roles: `Technician; ${r}` })[0]!, /added by hand on the Users page, never by a file/, r);
-  assert.match(err({ ENAME: 'A Person', 'Work email': 'a@b.ng', Branch: 'Isolo', 'Employee ID': 'EMP 99!' })[0]!, /is not an employee ID/);
+  for (const r of ['Administrator', 'Organisation Administrator', 'Branch Administrator', 'branch-administrator']) assert.match(err({ ENAME: 'A Person', 'Work email': 'a@b.ng', Branch: 'Ajah', Roles: `Technician; ${r}` })[0]!, /added by hand on the Users page, never by a file/, r);
+  assert.match(err({ ENAME: 'A Person', 'Work email': 'a@b.ng', Branch: 'Ajah', 'Employee ID': 'EMP 99!' })[0]!, /is not an employee ID/);
   // Notes, not refusals: a shared mailbox, no role yet.
-  const shared = checkStaffRow(row({ ENAME: 'Front Office', 'Work email': 'info@kewalram.example.com', Branch: 'Isolo', Roles: 'Front Desk' }), m);
+  const shared = checkStaffRow(row({ ENAME: 'Front Office', 'Work email': 'info@workshop.example.com', Branch: 'Ajah', Roles: 'Front Desk' }), m);
   assert.equal(shared.status, 'WARNING');
   assert.match(shared.issues[0]!.message, /looks like a shared mailbox/);
-  assert.match(checkStaffRow(row({ ENAME: 'New Person', 'Work email': 'new.person@staff.example.com', Branch: 'Isolo' }), m).issues[0]!.message, /No role: the person will see only their own account/);
+  assert.match(checkStaffRow(row({ ENAME: 'New Person', 'Work email': 'new.person@staff.example.com', Branch: 'Ajah' }), m).issues[0]!.message, /No role: the person will see only their own account/);
 });
 
 test('wired in: switched off, unusable password, nobody emailed at load; invitations once each by an Organisation Administrator; undo never keeps a password', () => {

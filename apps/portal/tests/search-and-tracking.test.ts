@@ -63,13 +63,13 @@ test('source and date filters: created here or imported, which import, when ente
   assert.equal(normaliseImportNumber('JC-2026-1'), null);
   assert.equal(+lagosDayBound('2026-03-14')!, +new Date('2026-03-13T23:00:00Z'));
   assert.equal(+lagosDayBound('2026-03-14', true)!, +new Date('2026-03-14T23:00:00Z'));
-  const f = parseSourceFilter({ source: 'sap', enteredFrom: '2026-10-25', enteredTo: '2026-10-31', originalTo: '2018-12-31' });
+  const f = parseSourceFilter({ source: 'legacy', enteredFrom: '2026-10-25', enteredTo: '2026-10-31', originalTo: '2018-12-31' });
   assert.equal(isFiltered(f), true);
   assert.equal(isFiltered(parseSourceFilter({ source: 'nonsense' })), false);
   assert.deepEqual(sourceWhere(parseSourceFilter({ source: 'ejo' }), { bySource: null, byNumber: null }), { AND: [{ importJobId: null }] });
   const sets = { bySource: new Set(['imp1']), byNumber: null };
   const row = { importJobId: 'imp1', createdAt: new Date('2026-10-28T10:00:00Z'), original: new Date('2014-06-02T00:00:00Z') };
-  assert.equal(matchesSource(row, f, sets), true, '"customers since 2018 or before, imported from SAP last week"');
+  assert.equal(matchesSource(row, f, sets), true, '"customers since 2018 or before, imported from a spreadsheet last week"');
   assert.equal(matchesSource({ ...row, original: new Date('2020-01-01T00:00:00Z') }, f, sets), false);
   assert.equal(matchesSource({ ...row, importJobId: null }, f, sets), false);
   assert.equal(matchesSource({ ...row, createdAt: new Date('2026-11-01T10:00:00Z') }, f, sets), false);

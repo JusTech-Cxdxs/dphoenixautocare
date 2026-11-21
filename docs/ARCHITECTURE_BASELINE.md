@@ -52,7 +52,7 @@ staff browser ──► portal (Vercel) ──Prisma──► PostgreSQL (Supaba
 
 ## 2. Organisation model (tenancy)
 ```
-Platform (EJO 100 team) ─┬─ Organisation (e.g. Kewalram) ─┬─ Business unit ─ Branch ─ Department ─ Team
+Platform (EJO 100 team) ─┬─ Organisation (e.g. D'Phoenix Autocare) ─┬─ Business unit ─ Branch ─ Department ─ Team
                          └─ Organisation …               └─ People, roles, customers, providers, policies
 ```
 - **Platform team** = holders of the Master Administrator role. Invisible to organisations

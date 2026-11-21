@@ -145,7 +145,7 @@ test('Enyo offers only the tools a question needs, so "hi" fits the free model t
   assert.ok(hi.names.includes('daily_brief') && hi.names.includes('my_pending'));
   assert.equal(hi.web, false);
   assert.ok(selectToolNames('who is Bhushan Salgar').names.includes('staff_directory'));
-  assert.ok(selectToolNames('brief me on Isolo branch').names.includes('branch_briefing'));
+  assert.ok(selectToolNames('brief me on Ajah branch').names.includes('branch_briefing'));
   assert.ok(selectToolNames('explain error 1914370005').names.includes('explain_error'));
   assert.ok(selectToolNames('how many website visitors this week').names.includes('website_traffic'));
   assert.ok(selectToolNames('has my PRS been approved?').names.includes('my_pending'));

@@ -1,16 +1,16 @@
 /**
  * The D'Phoenix Autocare edition of the customer portal: the workshop is
  * on; inventory, warranty and the assembly plant are off
- * (apps/portal/lib/modules.ts), and there is no public marketing site.
+ * (apps/portal/lib/modules.ts), and the app is the customer portal only.
  * Checks: the website's copy of the module switches agrees with the
- * portal's, the root and the marketing pages open the customer portal
- * sign-in, and every warranty page, card and tool is gated.
+ * portal's, the root opens the customer portal sign-in and no marketing
+ * page is left, and every warranty page, card and tool is gated.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { EDITION_MODULES, moduleOn, PUBLIC_WEBSITE } from '../lib/edition';
+import { EDITION_MODULES, moduleOn } from '../lib/edition';
 
 const ROOT = join(__dirname, '..', '..');
 const read = (rel: string) => readFileSync(join(ROOT, rel), 'utf8');
@@ -30,25 +30,27 @@ test('EDITION_MODULES follows the portal module registry: both files say the sam
   assert.match(read('lib/edition.ts'), /apps\/portal\/lib\/modules\.ts/, 'the copy says where the rule lives');
   // The D'Phoenix Autocare edition.
   assert.deepEqual({ ...EDITION_MODULES }, { workshop: true, inventory: false, warranty: false, plant: false });
-  assert.equal(PUBLIC_WEBSITE, false);
 });
 
-// ------------------------------------------------------------------ no public marketing site
+// ------------------------------------------------------------------ customer portal only
 
-test('the root and the marketing pages open the customer portal sign-in while there is no public website', () => {
-  const home = read('app/page.tsx');
-  assert.match(home, /if \(!PUBLIC_WEBSITE\) redirect\('\/customer-portal'\);/);
+test('the root opens the customer portal sign-in; no marketing page, store, news or website search is left', () => {
+  assert.match(read('app/page.tsx'), /redirect\('\/customer-portal'\);/);
+  for (const p of ['about', 'businesses', 'careers', 'contact', 'investors', 'news', 'products', 'services', 'store', 'sustainability']) {
+    assert.equal(existsSync(join(ROOT, 'app', p)), false, `app/${p} is gone`);
+  }
+  for (const f of ['lib/content/group.ts', 'lib/news', 'lib/store', 'lib/search-index.ts', 'lib/enyo/site-knowledge.ts', 'components/store']) {
+    assert.equal(existsSync(join(ROOT, f)), false, `${f} is gone`);
+  }
   const mw = read('middleware.ts');
-  const pages = ['about', 'businesses', 'careers', 'contact', 'investors', 'news', 'products', 'services', 'store', 'sustainability'];
-  const list = pages.join('|');
-  assert.ok(mw.includes(`const MARKETING = /^\\/(${list})(\\/|$)/;`), 'MARKETING names every marketing page');
-  assert.ok(mw.includes(`'/(${list})/:path*'`), 'the matcher sends every marketing page through the middleware');
-  assert.match(mw, /if \(MARKETING\.test\(pathname\)\) \{\s*return PUBLIC_WEBSITE \? NextResponse\.next\(\) : NextResponse\.redirect\(new URL\('\/customer-portal', request\.url\)\);/);
-  // The pages stay in code (switched off, not deleted).
-  for (const p of pages) assert.ok(read(`app/${p}/page.tsx`).length > 0, `app/${p}/page.tsx is kept`);
-  assert.match(read('lib/site-config.ts'), /\}\[\] = !PUBLIC_WEBSITE \? \[\] : \[/, 'the header lists no marketing pages');
+  assert.doesNotMatch(mw, /MARKETING/);
+  assert.match(mw, /matcher: \['\/customer-portal', '\/customer-portal\/:path\*', '\/api\/customer\/:path\*'\]/);
+  // The header: the wordmark, the theme switch and the customer sign-in; no staff sign-in, language or page list.
+  const header = read('components/Header.tsx');
+  assert.match(header, /<ThemeToggle \/>/);
+  assert.doesNotMatch(header, /employeeLogin|getPortalLoginUrl|LanguageSelector|siteNav|SearchModal/);
   const tools = read('lib/enyo/public-tools.ts') + read('lib/enyo/customer-tools.ts');
-  assert.equal((tools.match(/\.\.\.\(PUBLIC_WEBSITE \? \[searchWebsiteTool\] : \[\]\)/g) ?? []).length, 2, 'Enyo searches the website only while there is one');
+  assert.doesNotMatch(tools, /searchWebsiteTool/, 'Enyo has no website search');
 });
 
 // ------------------------------------------------------------------ warranty off
@@ -71,12 +73,11 @@ test('warranties: the routes are "not found", and the menu, cards, notices and E
 
 // ------------------------------------------------------------------ D'Phoenix Autocare facts
 
-test('the pages and the assistant left on use D\'Phoenix Autocare\'s own facts, never the group\'s, while there is no public website', () => {
+test('the pages and the assistant use D\'Phoenix Autocare\'s own facts', () => {
   const facts = read('lib/content/dphoenix.ts');
   for (const fact of ['D\\\'PHOENIX AUTOCARE LIMITED', 'Restore Life To Your Vehicle', 'Plot 1 Muri Okunola Street', '+234 811 496 6212', '+234 807 654 4837', 'dphoenixautocare@gmail.com', 'https://www.dphoenixautocare.com']) {
     assert.ok(facts.includes(fact), fact);
   }
-  assert.doesNotMatch(facts.replace(/\/\*[\s\S]*?\*\//g, ''), /Kewalram|Chanrai|KCG|Isolo|Afprint/);
-  assert.match(read('lib/enyo/company.ts'), /about: !PUBLIC_WEBSITE \? \{\n\s*company: `\$\{DPHOENIX\.legalName\}/);
-  assert.match(read('app/privacy/page.tsx'), /const address = PUBLIC_WEBSITE \? HEAD_OFFICE\.address : DPHOENIX\.address;/);
+  assert.match(read('lib/enyo/company.ts'), /about: \{\n\s*company: `\$\{DPHOENIX\.legalName\}/);
+  assert.match(read('app/privacy/page.tsx'), /const address = DPHOENIX\.address;/);
 });

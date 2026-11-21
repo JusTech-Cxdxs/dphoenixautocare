@@ -14,6 +14,6 @@ export const portalConfig = {
   companyName: organisationName,
   organisationName,
   poweredBy: PLATFORM.poweredBy,
-  /** The installed app's home-screen name: NEXT_PUBLIC_APP_SHORT_NAME, or the organisation's initials (KCG). */
+  /** The installed app's home-screen name: NEXT_PUBLIC_APP_SHORT_NAME, or the organisation's initials. */
   appShortName: appShortName(organisationName, process.env.NEXT_PUBLIC_APP_SHORT_NAME),
 };

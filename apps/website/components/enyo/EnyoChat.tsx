@@ -13,7 +13,7 @@ import { moduleOn } from '@/lib/edition';
 /**
  * Enyo's chat on the website: a floating button that opens a chat panel.
  *  - variant "portal": the signed-in customer portal (the customer's own records);
- *  - variant "public": the public website (organisation information and hand-over).
+ *  - variant "public": the support and legal pages (organisation information and hand-over).
  * The server decides which assistant answers from the session, never this
  * component. The button only appears when the assistant is switched on.
  *

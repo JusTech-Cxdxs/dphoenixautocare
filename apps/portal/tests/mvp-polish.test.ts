@@ -22,35 +22,35 @@ const read = (p: string) => readFileSync(join(ROOT, p), 'utf8');
 const who = (roleSlugs: string[], extra: Partial<Principal> = {}): Principal => ({ userId: 'me', isSuperAdmin: false, roleSlugs, branchId: 'b1', departmentId: null, ...extra });
 
 test('employee IDs: organisation and branch codes', () => {
-  assert.equal(organisationCode('Kewalram Nigeria'), 'KN');
-  assert.equal(organisationCode('Kewalram Chanrai Group Limited'), 'KCG');
+  assert.equal(organisationCode('Phoenix Nigeria'), 'PN');
+  assert.equal(organisationCode('Lagos Fleet Services Limited'), 'LFS');
   assert.equal(organisationCode('Acme'), 'ACM');
   assert.equal(organisationCode('   '), 'EJO');
-  assert.equal(branchCode('Isolo Branch'), 'ISO');
+  assert.equal(branchCode('Ajah Branch'), 'AJA');
   assert.equal(branchCode('Victoria Island'), 'VI');
   assert.equal(branchCode('Ikeja Workshop'), 'IKE');
   assert.equal(branchCode('Anything', 'kwl-ws'), 'KWLW', 'the branch\'s own code wins (letters and digits only)');
   assert.equal(branchCode('Abuja', 'x'), 'ABU', 'a one-character own code is ignored');
   assert.equal(branchCode('Lekki <script>'), 'LS', 'only letters and digits survive');
-  assert.equal(employeeIdPrefix('Kewalram Nigeria', 'Isolo Branch'), 'KN-ISO');
+  assert.equal(employeeIdPrefix('Phoenix Nigeria', 'Ajah Branch'), 'PN-AJA');
 });
 
 test('employee IDs: format and running number', () => {
-  assert.equal(formatEmployeeId('KN-ISO', 7), 'KN-ISO-0007');
-  assert.equal(formatEmployeeId('KN-ISO', 12345), 'KN-ISO-12345');
-  assert.equal(sequenceOf('KN-ISO', 'KN-ISO-0042'), 42);
-  assert.equal(sequenceOf('KN-ISO', 'KN-ISOX-0042'), null);
-  assert.equal(sequenceOf('KN-ISO', 'KN-ISO-12a'), null);
-  assert.equal(sequenceOf('KN-ISO', 'EMP-001'), null);
+  assert.equal(formatEmployeeId('PN-AJA', 7), 'PN-AJA-0007');
+  assert.equal(formatEmployeeId('PN-AJA', 12345), 'PN-AJA-12345');
+  assert.equal(sequenceOf('PN-AJA', 'PN-AJA-0042'), 42);
+  assert.equal(sequenceOf('PN-AJA', 'PN-AJAX-0042'), null);
+  assert.equal(sequenceOf('PN-AJA', 'PN-AJA-12a'), null);
+  assert.equal(sequenceOf('PN-AJA', 'EMP-001'), null);
 });
 
 test('employee IDs: branches whose names give the same code are told apart, and existing ones never change', () => {
-  const first = uniqueBranchPrefixes('Kewalram Nigeria', [{ id: 'a', name: 'Isolo' }, { id: 'b', name: 'Isolo Workshop' }, { id: 'c', name: 'Victoria Island' }]);
-  assert.deepEqual([...first.values()], ['KN-ISO', 'KN-ISO2', 'KN-VI']);
-  const later = uniqueBranchPrefixes('Kewalram Nigeria', [{ id: 'a', name: 'Isolo' }, { id: 'b', name: 'Isolo Workshop' }, { id: 'c', name: 'Victoria Island' }, { id: 'd', name: 'Isolo Branch' }]);
-  assert.equal(later.get('a'), 'KN-ISO');
-  assert.equal(later.get('b'), 'KN-ISO2');
-  assert.equal(later.get('d'), 'KN-ISO3');
+  const first = uniqueBranchPrefixes('Phoenix Nigeria', [{ id: 'a', name: 'Ajah' }, { id: 'b', name: 'Ajah Workshop' }, { id: 'c', name: 'Victoria Island' }]);
+  assert.deepEqual([...first.values()], ['PN-AJA', 'PN-AJA2', 'PN-VI']);
+  const later = uniqueBranchPrefixes('Phoenix Nigeria', [{ id: 'a', name: 'Ajah' }, { id: 'b', name: 'Ajah Workshop' }, { id: 'c', name: 'Victoria Island' }, { id: 'd', name: 'Ajah Branch' }]);
+  assert.equal(later.get('a'), 'PN-AJA');
+  assert.equal(later.get('b'), 'PN-AJA2');
+  assert.equal(later.get('d'), 'PN-AJA3');
 });
 
 test('access description: exactly what the catalogue grants, with "added" grants marked', () => {
@@ -73,15 +73,15 @@ test('access description: exactly what the catalogue grants, with "added" grants
 
 test('welcome email: employee ID, roles, branch, access, sign-in steps, the rules — and nothing unescaped', () => {
   const { subject, html } = renderStaffAccessEmail({
-    kind: 'welcome', fullName: 'Ada <b>Obi</b>', email: 'ada@example.com', employeeId: 'KN-ISO-0007', companyName: 'Kewalram Nigeria',
-    branchName: 'Isolo Branch', departmentName: 'Workshop', roles: ['Technician'], isPlatformTeam: false,
+    kind: 'welcome', fullName: 'Ada <b>Obi</b>', email: 'ada@example.com', employeeId: 'PN-AJA-0007', companyName: 'Phoenix Nigeria',
+    branchName: 'Ajah Branch', departmentName: 'Workshop', roles: ['Technician'], isPlatformTeam: false,
     access: describeAccess(who(['technician'])), setPasswordUrl: 'https://portal.example/api/auth/reset-password/tok?callbackURL=%2Freset-password', setPasswordHours: 72,
     signInUrl: 'https://portal.example/login', logoUrl: 'https://portal.example/images/logo/logo.png',
   });
   assert.match(subject, /Welcome/);
-  assert.ok(html.includes('KN-ISO-0007'));
+  assert.ok(html.includes('PN-AJA-0007'));
   assert.ok(html.includes('Technician'));
-  assert.ok(html.includes('Isolo Branch'));
+  assert.ok(html.includes('Ajah Branch'));
   assert.ok(html.includes('Set my password'));
   assert.ok(html.includes('72 hours'));
   assert.ok(html.includes('https://portal.example/login'));

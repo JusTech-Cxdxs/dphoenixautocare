@@ -14,8 +14,7 @@ import { loadCompanyInfo } from './company';
 import { openHandover } from './handover';
 import { findOwnJob, nextStepFor, NOT_FOUND_MESSAGE, plural } from './rules';
 import type { WebCtx, WebTool } from './types';
-import { searchWebsiteTool } from './site-knowledge';
-import { moduleOn, PUBLIC_WEBSITE } from '@/lib/edition';
+import { moduleOn } from '@/lib/edition';
 
 const SIGNED_OUT = { ok: false as const, refused: true, message: 'The customer is not signed in. Ask them to sign in to the customer portal.' };
 
@@ -291,14 +290,10 @@ const requestHandover: WebTool = {
   },
 };
 
-/**
- * my_warranties only while the warranty module is on, and the website search
- * only while there is a public website to search (lib/edition.ts).
- */
+/** my_warranties only while the warranty module is on (lib/edition.ts). */
 export const customerTools: WebTool[] = [
   myVehicles, myJobs, jobStatus, myEstimate, myPayments,
   ...(moduleOn('warranty') ? [myWarranties] : []),
   howToPay,
-  ...(PUBLIC_WEBSITE ? [searchWebsiteTool] : []),
   companyInfo, requestHandover,
 ];

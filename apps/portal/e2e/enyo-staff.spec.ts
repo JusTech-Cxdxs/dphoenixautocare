@@ -12,7 +12,7 @@ import { expect, test, type APIResponse, type Page } from '@playwright/test';
 import { as } from './helpers';
 import { db } from './db';
 import { SEED_PARTS } from './people';
-import { INVENTORY_ENABLED, INVENTORY_OFF, NO_PUBLIC_WEBSITE, PUBLIC_WEBSITE } from './edition';
+import { INVENTORY_ENABLED, INVENTORY_OFF } from './edition';
 
 type Event = { type: string; [k: string]: unknown };
 
@@ -190,17 +190,6 @@ test.describe('Enyo staff assistant (API)', () => {
     expect(busy.text).toContain('brief me');
     expect(busy.text).toContain('[Business analytics](/analytics)');
     expect(busy.text).not.toMatch(/handling a lot of questions/);
-  });
-
-  test('staff read the website through Enyo: store prices, offers, refer and earn', async ({ page }) => {
-    test.skip(!PUBLIC_WEBSITE, NO_PUBLIC_WEBSITE);
-    await as(page, 'receptionist');
-    const r = await ask(page, '[[tool:website_content {"show":"all","query":"S07"}]]');
-    expect(tool(r.events, 'website_content')?.ok).toBe(true);
-    expect(r.text).toContain('SOUEAST S07');
-    expect(r.text).toContain('₦45,900,000');
-    expect(r.text).toContain('Keystone Bank');
-    expect(r.text).toContain('₦150,000');
   });
 
   test('"brief me": the figures are gathered as the person in one go, and written up even when the model is busy', async ({ page }) => {

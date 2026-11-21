@@ -1,6 +1,6 @@
 """Command line.
 
-  python -m ejo_ml train --portal https://portal.example.com --organisation kewalram-nigeria
+  python -m ejo_ml train --portal https://portal.example.com --organisation dphoenix-autocare
         Fetches the organisation's de-identified history from the portal, trains
         every task, and uploads each model that was trained (as CANDIDATE, or
         REJECTED with its reasons). Needs ML_SERVICE_TOKEN in the environment.

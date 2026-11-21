@@ -136,7 +136,7 @@ test('uploads: the trainer\'s payload is checked field by field', () => {
   assert.equal(up.task, 'COMPLAINT_THEMES');
   assert.ok(up.artifactBytes > 0);
   const bad = (patch: Record<string, unknown>, msg: RegExp) => assert.throws(() => parseUpload({ ...good, ...patch }, 1000, now), (e: unknown) => e instanceof UploadError && msg.test(e.message));
-  bad({ organisation: 'Kewalram Nigeria' }, /slug/);
+  bad({ organisation: 'Phoenix Nigeria' }, /slug/);
   bad({ task: 'EVERYTHING' }, /task must be/);
   bad({ version: 'x' }, /version/);
   bad({ trainedAt: '2027-01-01T00:00:00Z' }, /future/);

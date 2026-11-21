@@ -19,11 +19,8 @@ export const TOOL_MODULE: Readonly<Record<string, string>> = {
   warranty_watch: 'warranty',
 };
 
-/** Tools that belong to a switched-off feature rather than a module. */
-export const TOOL_FEATURE: Readonly<Record<string, EditionFeature>> = {
-  // What the public website shows (store, offers, refer and earn, news).
-  website_content: 'publicWebsite',
-};
+/** Tools that belong to a switched-off feature rather than a module (none in this edition). */
+export const TOOL_FEATURE: Readonly<Record<string, EditionFeature>> = {};
 
 /** Whether a tool is offered in this edition. */
 export function toolOn(name: string, isOn: (key: string) => boolean = moduleIsOn, has: (f: EditionFeature) => boolean = featureOn): boolean {

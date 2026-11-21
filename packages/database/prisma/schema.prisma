@@ -162,7 +162,7 @@ model Organisation {
 model BusinessUnit {
   id        String   @id @default(cuid())
   organisationId String
-  name      String   // e.g. "Automobile Division", "Afprint", "Sunola Foods"
+  name      String   // e.g. "Autocare", "Fleet Services"
   slug      String
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -214,7 +214,7 @@ model State {
 model City {
   id      String @id @default(cuid())
   stateId String
-  name    String // e.g. "Isolo"
+  name    String // e.g. "Victoria Island"
 
   state    State    @relation(fields: [stateId], references: [id], onDelete: Cascade)
   branches Branch[]
@@ -238,7 +238,7 @@ model Branch {
   id             String   @id @default(cuid())
   businessUnitId String
   cityId         String
-  name           String   // e.g. "Isolo Branch"
+  name           String   // e.g. "Victoria Island Workshop"
   code           String?  // short code used in document numbering, e.g. "KWL-WS"
   type           BranchType @default(WORKSHOP)
   /// SAP plant code (WERKS) when the branch is a plant or stock point in SAP.
@@ -5084,7 +5084,7 @@ model PlantRoute {
   id             String   @id @default(cuid())
   organisationId String
   branchId       String
-  /// isuzu-n | soueast-s07 (lib/plant/pdi.ts families).
+  /// One of the PDI families in lib/plant/pdi.ts.
   familyKey      String
   version        Int      @default(1)
   name           String

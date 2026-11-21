@@ -10,6 +10,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { OLD_ORGANISATION } from './leftovers';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DEMO_CUSTOMERS, DEMO_DOMAIN, DEMO_PASSWORD_MIN, DEMO_STAFF, demoPerson, isDemoEmail } from '../lib/demo/people';
@@ -95,7 +96,7 @@ test('the demo has its own organisation: dphoenix-demo by default (DEMO_ORG_SLUG
   assert.match(org, /name: 'Victoria Island Workshop \(Demo\)'/);
   const people = read('apps/portal/scripts/demo-people.ts');
   assert.match(people, /ensureDemoOrganisation\(prisma, demoOrgSlug\(env\)\)/);
-  assert.ok(!/kewalram/i.test(people + org + read('apps/portal/lib/demo/people-load.ts')));
+  assert.ok(!OLD_ORGANISATION.test(people + org + read('apps/portal/lib/demo/people-load.ts')));
 });
 
 test('passwords come only from the environment: none → skipped; shorter than 8 → skipped with the reason; the customers fall back to the staff password; never printed', () => {
@@ -155,5 +156,5 @@ test('docs/DPHOENIX_DEMO.md lists every demo sign-in (staff and customers) with 
   assert.ok(!/password\s*(is|:)\s*`[^`]+`/i.test(doc), 'no password written in the tour');
   assert.match(doc, /DEMO_STAFF_PASSWORD/);
   assert.match(doc, /## Switching the demo on/);
-  assert.ok(!/kewalram|afprint|isolo/i.test(doc));
+  assert.ok(!OLD_ORGANISATION.test(doc));
 });

@@ -6,8 +6,8 @@ import { themeInitScript } from './theme-init-script';
  * Two Content-Security-Policies:
  *  - the customer portal (signed-in, personal data) gets a strict policy with
  *    a fresh nonce per response, set by middleware.ts;
- *  - the marketing pages are built ahead of time and hold no personal data or
- *    user input, so they keep a fixed policy that still needs 'unsafe-inline'
+ *  - the other pages (support, privacy, terms) are built ahead of time and
+ *    hold no personal data or user input, so they keep a fixed policy that still needs 'unsafe-inline'
  *    for Next.js's inline scripts (a fixed page cannot carry a per-request nonce).
  */
 

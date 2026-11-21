@@ -36,7 +36,7 @@ test('the EJO record: the export’s column is matched by its name and SAP’s; 
 });
 
 test('customers: only real changes; a phone written another way, an email in capitals are the same; an empty cell leaves the field', () => {
-  const H = ['Name', 'Phone', 'Second phone', 'Email', 'Address', 'Customer since', 'Customer number (SAP or old system)', 'EJO record'];
+  const H = ['Name', 'Phone', 'Second phone', 'Email', 'Address', 'Customer since', 'Customer number', 'EJO record'];
   const m = autoMap('customers', H);
   const cur = { fullName: 'Ada Okafor', phone: '08031234567', altPhone: '08099998888', email: 'ada@example.ng', address: '3 Old Road', customerSince: null, externalId: '1000101', externalSource: 'SAP' };
   const cells = ['Ada Okafor', "'+234 803 123 4567", '', 'ADA@example.ng', '12 New Road', '14.03.2019', '0001000101', ID];

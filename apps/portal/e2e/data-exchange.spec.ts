@@ -45,7 +45,7 @@ function vehiclesXlsx(): Buffer {
     rows: [
       ['Customer number', 'VIN', 'Plate', 'Make', 'Model', 'Year', 'Mileage'],
       [kunnr(1), vin(1), `IMP ${T.slice(0, 3)} 1A`, 'Isuzu', 'NQR 71', 2024, 45200],
-      [kunnr(2), vin(2), '', 'Soueast', 'S07', 2025, 1200],
+      [kunnr(2), vin(2), '', 'Toyota', 'Camry', 2025, 1200],
       ['99999999', vin(3), '', 'Isuzu', 'NPR', 2023, ''],
     ],
   }]));

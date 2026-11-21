@@ -6,7 +6,7 @@
  * known filter names are kept, each short, so an export cannot be used to
  * smuggle anything into the record or the file.
  */
-import { SOURCE_OPTIONS } from '../source-filter';
+import { SOURCE_WORDS } from '../source-filter';
 
 export const EXPORT_FORMATS = ['xlsx', 'csv'] as const;
 export type ExportFormat = (typeof EXPORT_FORMATS)[number];
@@ -44,7 +44,7 @@ export function cleanParams(raw: unknown): Record<string, string> {
 const VALUE_WORDS: Record<string, Record<string, string>> = {
   type: { PASSENGER: 'Passenger', COMMERCIAL: 'Commercial' },
   history: { exclude: 'Left out (EJO only)', include: 'Included' },
-  source: Object.fromEntries(SOURCE_OPTIONS.map((o) => [o.key, o.label])),
+  source: Object.fromEntries(SOURCE_WORDS.map((o) => [o.key, o.label])),
   service: { '0.9': '90%', '0.95': '95%', '0.975': '97.5%', '0.99': '99%' },
   layout: { sap: 'SAP field names', ejo: 'EJO (plain English)' },
   stage: { KIT: 'Kit arrival', LINE: 'On the line', QA: 'Quality audit', PDI: 'Pre-delivery inspection', YARD: 'In the yard', SOLD: 'Sold' },
