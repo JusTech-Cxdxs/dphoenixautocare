@@ -8,7 +8,7 @@ import { RoadTestsPanel } from '@/components/RoadTestsPanel';
 import { listRoadTestsFor } from '@/lib/actions/security';
 import { securityActionDetail } from '@/lib/security-labels';
 import { LoadingLink } from '@/components/LoadingLink';
-import { depositOf, discountNeedsManager, discountPercent, isCustomerLine, jobCardTotals, paidInFull } from '@/lib/estimate-billing';
+import { depositOf, vatIsFixed, discountNeedsManager, discountPercent, isCustomerLine, jobCardTotals, paidInFull } from '@/lib/estimate-billing';
 import { canIssueInvoices, getJobCardInvoice } from '@/lib/actions/invoices';
 import { emailInvoiceFormAction, issueInvoiceFormAction } from '@/lib/actions/invoices-form-handlers';
 import { getJobCardBilling } from '@/lib/actions/estimate-billing';
@@ -472,7 +472,7 @@ export default async function JobCardDetailPage({
   const estimateTotal = jobCardTotals(estimate, billingSettings).total;
   const minimumDeposit = depositOf(estimateTotal, MINIMUM_DEPOSIT_FRACTION);
   // The same figures on the lines as shown (a draft Store Part line follows its part's price).
-  const liveTotals = jobCardTotals(estimate ? { discountAmount: estimate.discountAmount, lineItems: estimateLineItems.map((li: (typeof estimateLineItems)[number]) => ({ amount: getLiveLineAmount(li), billTo: li.billTo, discountAmount: li.discountAmount })) } : null, billingSettings);
+  const liveTotals = jobCardTotals(estimate ? { discountAmount: estimate.discountAmount, vatRate: estimate.vatRate, lineItems: estimateLineItems.map((li: (typeof estimateLineItems)[number]) => ({ amount: getLiveLineAmount(li), billTo: li.billTo, discountAmount: li.discountAmount })) } : null, billingSettings);
   const discountForManager = Boolean(estimate && !estimate.discountApprovedAt && discountNeedsManager(liveTotals, billingSettings?.discountApprovalPercent ?? null));
   const canDiscount = Boolean(estimate && isEstimateContributor && (estimate.status === 'DRAFT' || estimate.status === 'SUBMITTED') && estimateLineItems.length > 0);
   const invoiceable = ['COMPLETED', 'READY_FOR_COLLECTION', 'CHECKED_OUT', 'CLOSED'].includes(jobCard.status) && estimate?.status === 'MANAGER_APPROVED';
@@ -989,7 +989,7 @@ export default async function JobCardDetailPage({
                   ) : null}
                   {liveTotals.vatRate > 0 ? (
                     <div className="flex justify-between text-sm text-[var(--ejo-text-muted)]">
-                      <span>VAT ({liveTotals.vatRate}%)</span>
+                      <span>{vatIsFixed(estimate) ? `VAT at ${liveTotals.vatRate}% (fixed when the Manager approved)` : `VAT (${liveTotals.vatRate}%)`}</span>
                       <span>{formatNaira(liveTotals.vatAmount)}</span>
                     </div>
                   ) : null}

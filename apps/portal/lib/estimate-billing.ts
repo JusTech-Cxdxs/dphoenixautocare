@@ -4,9 +4,9 @@
  * close requests, reminders, emails, the Job Card page and print). A line
  * with no bill-to (older data) is the customer's.
  */
-import { billingTotals, type BillingLine, type BillingTotals, type VatSetting } from '@ejo/utils/billing';
+import { billingTotals, vatSettingFor, type BillingLine, type BillingTotals, type VatSetting } from '@ejo/utils/billing';
 
-export { billingTotals, balanceDue, depositOf, discountNeedsManager, discountPercent, paidInFull, toKobo, type BillingTotals, type VatSetting } from '@ejo/utils/billing';
+export { vatIsFixed, vatSettingFor, billingTotals, balanceDue, depositOf, discountNeedsManager, discountPercent, paidInFull, toKobo, type BillingTotals, type VatSetting } from '@ejo/utils/billing';
 
 export type BillTo = 'CUSTOMER' | 'WARRANTY' | 'GOODWILL' | 'INTERNAL';
 
@@ -33,10 +33,10 @@ export const BILLING_SETTINGS_SELECT = { vatEnabled: true, vatRate: true, vatNum
 /** The same, reached from a Job Card (its branch's organisation). */
 export const JOB_CARD_BILLING_SELECT = { branch: { select: { businessUnit: { select: { organisation: { select: BILLING_SETTINGS_SELECT } } } } } } as const;
 /** The estimate fields every total needs. */
-export const ESTIMATE_TOTALS_SELECT = { discountAmount: true, lineItems: { select: { amount: true, billTo: true, discountAmount: true } } } as const;
+export const ESTIMATE_TOTALS_SELECT = { discountAmount: true, vatRate: true, lineItems: { select: { amount: true, billTo: true, discountAmount: true } } } as const;
 
 export type BillingSettings = VatSetting & { vatNumber?: string | null; discountApprovalPercent?: number | null };
-type EstimateForTotals = { discountAmount?: unknown; lineItems: readonly BillingLine[] } | null | undefined;
+type EstimateForTotals = { discountAmount?: unknown; vatRate?: unknown; lineItems: readonly BillingLine[] } | null | undefined;
 
 /** The organisation's settings from a Job Card selected with JOB_CARD_BILLING_SELECT. */
 export function billingOf(jc: { branch: { businessUnit: { organisation: BillingSettings } } }): BillingSettings {
@@ -45,10 +45,12 @@ export function billingOf(jc: { branch: { businessUnit: { organisation: BillingS
 
 /**
  * What the customer owes on a Job Card: its estimate through the one shared
- * calculation (@ejo/utils/billing). No estimate yet: nothing.
+ * calculation (@ejo/utils/billing), with the VAT rate fixed on it at the
+ * Manager's approval, else the organisation's current setting. No estimate
+ * yet: nothing.
  */
 export function jobCardTotals(estimate: EstimateForTotals, settings: VatSetting | null | undefined): BillingTotals {
-  return billingTotals({ lines: estimate?.lineItems ?? [], discountAmount: estimate?.discountAmount, vat: settings });
+  return billingTotals({ lines: estimate?.lineItems ?? [], discountAmount: estimate?.discountAmount, vat: vatSettingFor(estimate, settings) });
 }
 
 /** The whole estimate split by who pays. */

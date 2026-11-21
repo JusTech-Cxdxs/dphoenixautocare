@@ -1091,7 +1091,7 @@ permissions; the columns are SAP's:
 | A4c3 — scheduled exports | `scripts/predeploy/0026-export-schedules.sql` (deploy) · `scripts/v-a4c3-export-schedules.sql` (manual) |
 | B — portal invitations for imported customers (one column on customers) | `scripts/predeploy/0027-customer-portal-invited.sql` (deploy) · `scripts/v-b-customer-portal-invited.sql` (manual) |
 | D'Phoenix phase 2 — one Job Card for repairs and services (two columns on job cards) | `scripts/predeploy/0028-job-card-service.sql` (deploy) · `scripts/v-dp2-job-card-service.sql` (manual) |
-| D'Phoenix phase 3 — billing & tax settings, estimate discounts, receipt numbers on payments, invoices | `scripts/predeploy/0029-billing.sql` (deploy) · `scripts/v-dp3-billing.sql` (manual) |
+| D'Phoenix phase 3 — billing & tax settings, estimate discounts and the VAT rate fixed at approval, receipt numbers on payments, invoices | `scripts/predeploy/0029-billing.sql` (deploy) · `scripts/v-dp3-billing.sql` (manual) |
 
 All are additive (new tables, columns and indexes), re-runnable, and tested
 twice on Postgres 16 against the previous structure and compared with a

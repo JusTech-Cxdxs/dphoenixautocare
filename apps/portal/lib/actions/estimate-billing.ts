@@ -46,6 +46,7 @@ export async function getJobCardBilling(jobCardId: string) {
       estimate: {
         select: {
           discountAmount: true,
+          vatRate: true,
           lineItems: {
             orderBy: { createdAt: 'asc' },
             select: { id: true, type: true, description: true, amount: true, discountAmount: true, billTo: true, billToNote: true, coveringWarranty: { select: { id: true, warrantyNumber: true } } },

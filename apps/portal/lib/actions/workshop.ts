@@ -31,7 +31,7 @@ import { unstable_cache } from 'next/cache';
  */
 
 import { notifyGateOfRelease } from '@/lib/security-notify';
-import { isCustomerLine, coveredLabel, BILLING_SETTINGS_SELECT, jobCardTotals, billingOf, paidInFull, balanceDue, depositOf, discountNeedsManager, discountPercent, ESTIMATE_TOTALS_SELECT, JOB_CARD_BILLING_SELECT, type BillingTotals } from '@/lib/estimate-billing';
+import { isCustomerLine, coveredLabel, vatSettingFor, BILLING_SETTINGS_SELECT, jobCardTotals, billingOf, paidInFull, balanceDue, depositOf, discountNeedsManager, discountPercent, ESTIMATE_TOTALS_SELECT, JOB_CARD_BILLING_SELECT, type BillingTotals } from '@/lib/estimate-billing';
 import { ensureInvoice, sendInvoiceEmail } from '@/lib/invoices';
 import { moduleIsOn } from '@/lib/modules';
 import { prisma, JobCardStatus, setAuditActor, setAuditActorResolver, type Prisma } from '@ejo/database';
@@ -2746,6 +2746,8 @@ export async function approveEstimateAsManager(jobCardId: string, approveDiscoun
     where: { id: estimate.id, status: 'APPROVED', discountAmount: estimate.discountAmount },
     data: {
       status: 'MANAGER_APPROVED', managerApprovedAt: approvedAt, managerApprovedById: user.id,
+      // The VAT is fixed now: the price the customer is sent never changes with the settings.
+      vatRate: settings.vatEnabled ? Number(settings.vatRate) : 0,
       ...(discountToApprove ? { discountApprovedById: user.id, discountApprovedAt: approvedAt } : {}),
     },
   }), 'This estimate was just approved or changed by someone else — refresh the page.');
@@ -2813,7 +2815,8 @@ export async function returnEstimateForChanges(jobCardId: string, reason: string
   await authorize('workshop.estimate.final_approve', { branchId: estimate.jobCard.branchId }, 'returnEstimateForChanges');
   claimed(await prisma.estimate.updateMany({
     where: { id: estimate.id, status: 'APPROVED' },
-    data: { status: 'SUBMITTED', approvedAt: null, approvedById: null },
+    // Open for editing again: the VAT follows the settings until the Manager approves it once more.
+    data: { status: 'SUBMITTED', approvedAt: null, approvedById: null, vatRate: null },
   }), 'This estimate was just approved or changed by someone else — refresh the page.');
   await writeAuditLog({ userId: user.id, action: 'estimate.returned_for_changes', entityType: 'JobCard', entityId: jobCardId, metadata: { reason: why } });
   // The supervisor (who approves it again) and the technician (who edits it) hear at once.
@@ -2846,6 +2849,7 @@ export async function notifyCustomerOfApprovedEstimate(jobCardId: string): Promi
       status: true,
       customerNotifiedAt: true,
       discountAmount: true,
+      vatRate: true,
       jobCard: {
         select: {
           createdById: true,
@@ -2899,7 +2903,7 @@ export async function notifyCustomerOfApprovedEstimate(jobCardId: string): Promi
     // The customer sees three figures: Parts & Services (all parts and work
     // types combined), Labour and Sundry, then any discount and VAT. Never
     // the internal line types. The same figures as the attached PDF.
-    const billing = { discountAmount: estimate.discountAmount, vat: estimate.jobCard.branch.businessUnit.organisation };
+    const billing = { discountAmount: estimate.discountAmount, vat: vatSettingFor(estimate, estimate.jobCard.branch.businessUnit.organisation) };
     const t = jobEstimateTotals(estimate.lineItems, billing);
     const formatNaira = nairaForPdf;
 

@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { prisma, type Prisma } from '@ejo/database';
 import { serviceCycleFrom } from '@ejo/utils';
+import { vatSettingFor } from '@ejo/utils';
 import {
   jobCardPhase, jobCardStatus, jobCardStep, servicePhase, serviceStatus, serviceStep,
   JOB_CARD_STEPS, SERVICE_STEPS, warrantyState, type Phase, type StatusInfo, type WarrantyState,
@@ -88,7 +89,7 @@ export const jobCardItemSelect = {
   vehicle: { select: { ...vehicleSelect, serviceIntervalKm: true, serviceIntervalDays: true } },
   // …and the organisation's VAT switch and rate, for the total.
   branch: { select: { name: true, businessUnit: { select: { organisation: { select: { primaryServiceIntervalKm: true, primaryServiceIntervalDays: true, vatEnabled: true, vatRate: true } } } } } },
-  estimate: { select: { customerNotifiedAt: true, discountAmount: true, lineItems: { where: { billTo: 'CUSTOMER' as const }, select: { amount: true, discountAmount: true } } } },
+  estimate: { select: { customerNotifiedAt: true, discountAmount: true, vatRate: true, lineItems: { where: { billTo: 'CUSTOMER' as const }, select: { amount: true, discountAmount: true } } } },
   invoice: { select: { id: true, invoiceNumber: true, issuedAt: true, total: true } },
   payments: { select: paySelect, orderBy: { recordedAt: 'asc' as const } },
   refunds: { select: refundSelect, orderBy: { recordedAt: 'asc' as const } },
@@ -131,7 +132,7 @@ export function jobCardItem(jc: JobCardRow, now = new Date()): ServiceItem {
   const status = String(jc.status);
   const due = serviceJobCardDue(jc);
   const notifiedAt = jc.estimate?.customerNotifiedAt ?? null;
-  const money = moneyFor({ notified: Boolean(notifiedAt), lines: jc.estimate?.lineItems ?? [], discountAmount: jc.estimate?.discountAmount, vat: jc.branch?.businessUnit.organisation, payments: jc.payments, refunds: jc.refunds });
+  const money = moneyFor({ notified: Boolean(notifiedAt), lines: jc.estimate?.lineItems ?? [], discountAmount: jc.estimate?.discountAmount, vat: vatSettingFor(jc.estimate, jc.branch?.businessUnit.organisation), payments: jc.payments, refunds: jc.refunds });
   const cancelledAt = status === 'CANCELLED' ? (jc.cancellationRequests[0]?.decidedAt ?? jc.updatedAt) : null;
   const awaitingApproval = status === 'AWAITING_CUSTOMER_APPROVAL' && Boolean(notifiedAt);
   const waitingForCollection = (status === 'READY_FOR_COLLECTION' || status === 'CLOSED') && !jc.checkedOutAt;
@@ -357,6 +358,7 @@ const estimateLineFields = { id: true, type: true, description: true, quantity: 
 export const jobCardEstimateSelect = {
   customerNotifiedAt: true,
   discountAmount: true,
+  vatRate: true,
   lineItems: { where: { billTo: 'CUSTOMER' as const }, orderBy: { createdAt: 'asc' as const }, select: { ...estimateLineFields, discountAmount: true } },
 } satisfies Prisma.EstimateSelect;
 export const serviceEstimateSelect = {

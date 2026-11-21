@@ -977,6 +977,11 @@ model Estimate {
   discountReason       String?
   discountApprovedById String?
   discountApprovedAt   DateTime?
+  // The VAT rate fixed when the Manager gave final approval (0 = no VAT), so
+  // the price the customer approves never changes if VAT is switched on or
+  // off or its rate changes. Null while the estimate is being written: the
+  // organisation's current setting applies.
+  vatRate              Decimal?  @db.Decimal(5, 2)
   createdById String
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt

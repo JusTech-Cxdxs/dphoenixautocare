@@ -90,6 +90,23 @@ export function billingTotals(input: { lines: readonly BillingLine[]; discountAm
   };
 }
 
+/**
+ * The VAT an estimate is priced with: the rate fixed on it when the Manager
+ * approved it (0 = no VAT), so what the customer agreed to never changes if
+ * VAT is switched on or off or the rate changes later; until then (an
+ * estimate still being written), the organisation's current setting.
+ */
+export function vatSettingFor(estimate: { vatRate?: unknown } | null | undefined, live: VatSetting | null | undefined): VatSetting | null {
+  const frozen = estimate?.vatRate;
+  if (frozen !== null && frozen !== undefined) return { vatEnabled: Number(frozen) > 0, vatRate: frozen };
+  return live ?? null;
+}
+
+/** Has this estimate's VAT rate been fixed (at the Manager's approval)? */
+export function vatIsFixed(estimate: { vatRate?: unknown } | null | undefined): boolean {
+  return estimate?.vatRate !== null && estimate?.vatRate !== undefined;
+}
+
 /** The whole-estimate discount as a percentage of the customer subtotal (two decimals). */
 export function discountPercent(t: Pick<BillingTotals, 'subtotal' | 'discountAmount'>): number {
   const sub = toKobo(t.subtotal);

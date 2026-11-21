@@ -17,7 +17,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { inflateSync } from 'node:zlib';
 import { renderToBuffer } from '@react-pdf/renderer';
-import { balanceDue, billingTotals, depositOf, discountNeedsManager, discountPercent, paidInFull, toKobo } from '@ejo/utils/billing';
+import { balanceDue, billingTotals, depositOf, discountNeedsManager, discountPercent, paidInFull, toKobo, vatIsFixed, vatSettingFor } from '@ejo/utils/billing';
+import { jobCardTotals } from '../lib/estimate-billing';
 import { invoiceLinesFrom, invoicePdfProps, letterhead, nairaForPdf } from '../lib/pdf/document-props';
 import { InvoicePdf } from '../lib/pdf/invoice-pdf';
 import { EstimatePdf } from '../lib/pdf/estimate-pdf';
@@ -120,12 +121,46 @@ test('deposit, paid in full and balance compare in kobo', () => {
   assert.equal(balanceDue(100, 250), 0);
 });
 
+test('the VAT fixed at the Manager\'s approval is used whatever the settings say later', () => {
+  const lines = [{ amount: 10000 }];
+  // Still being written: the live setting.
+  assert.equal(jobCardTotals({ lineItems: lines, vatRate: null }, VAT_ON).total, 10750);
+  assert.equal(jobCardTotals({ lineItems: lines }, VAT_OFF).total, 10000);
+  // Approved at 7.5%: VAT switched off, or the rate changed, afterwards changes nothing.
+  const approvedWithVat = { lineItems: lines, vatRate: '7.50' };
+  assert.equal(jobCardTotals(approvedWithVat, VAT_OFF).total, 10750);
+  assert.equal(jobCardTotals(approvedWithVat, { vatEnabled: true, vatRate: '10' }).total, 10750);
+  // Approved with VAT off (rate 0): switching VAT on later adds none.
+  const approvedWithoutVat = { lineItems: lines, vatRate: 0 };
+  assert.equal(jobCardTotals(approvedWithoutVat, VAT_ON).total, 10000);
+  assert.equal(jobCardTotals(approvedWithoutVat, VAT_ON).vatRate, 0);
+  assert.deepEqual([vatIsFixed(approvedWithVat), vatIsFixed(approvedWithoutVat), vatIsFixed({ vatRate: null }), vatIsFixed(null)], [true, true, false, false]);
+  assert.deepEqual(vatSettingFor({ vatRate: null }, VAT_ON), VAT_ON);
+});
+
+test('the rate is fixed in the approving update and cleared when the estimate is sent back', () => {
+  const ws = read('lib/actions/workshop.ts');
+  const manager = body(ws, 'approveEstimateAsManager');
+  assert.match(manager, /status: 'MANAGER_APPROVED', managerApprovedAt: approvedAt, managerApprovedById: user\.id,[\s\S]{0,200}vatRate: settings\.vatEnabled \? Number\(settings\.vatRate\) : 0,/);
+  assert.match(body(ws, 'returnEstimateForChanges'), /data: \{ status: 'SUBMITTED', approvedAt: null, approvedById: null, vatRate: null \}/);
+  // Nothing else moves an approved estimate back to be edited.
+  assert.equal([...ws.matchAll(/status: '(APPROVED|MANAGER_APPROVED)' \},\s*(?:\/\/[^\n]*\n\s*)?data: \{ status: '(DRAFT|SUBMITTED)'/g)].length, 1);
+  assert.match(read('lib/estimate-billing.ts'), /vat: vatSettingFor\(estimate, settings\)/);
+  assert.match(read('lib/estimate-billing.ts'), /ESTIMATE_TOTALS_SELECT = \{ discountAmount: true, vatRate: true,/);
+  assert.match(read('lib/invoices.ts'), /discountReason: true, vatRate: true,/, 'the invoice takes the fixed rate');
+  assert.match(body(ws, 'notifyCustomerOfApprovedEstimate'), /vat: vatSettingFor\(estimate,/, 'the email and its PDF too');
+  assert.match(readRepo('apps/website/lib/customer-portal/data.ts'), /vat: vatSettingFor\(jc\.estimate,/, 'and the customer portal');
+  assert.match(read('app/(app)/workshop/job-cards/[id]/page.tsx'), /\(fixed when the Manager approved\)/);
+  assert.match(readRepo('packages/database/prisma/schema.prisma'), /model Estimate \{[\s\S]*?vatRate\s+Decimal\?\s+@db\.Decimal\(5, 2\)/);
+  for (const f of ['scripts/predeploy/0029-billing.sql', 'scripts/v-dp3-billing.sql']) assert.match(readRepo(f), /ALTER TABLE "estimates" ADD COLUMN IF NOT EXISTS "vatRate" DECIMAL\(5,2\);/, f);
+});
+
 // ── 2. One calculation everywhere ────────────────────────────────────
 
 test('the calculation lives in @ejo/utils, has no imports, and both apps use it', () => {
   const billing = readRepo('packages/utils/src/billing.ts');
   assert.doesNotMatch(billing, /^import /m, 'pure: no imports');
-  assert.match(readRepo('packages/utils/src/index.ts'), /export \{ billingTotals[^}]*\} from '\.\/billing'/);
+  assert.match(readRepo('packages/utils/src/index.ts'), /export \{[^}]*billingTotals[^}]*\} from '\.\/billing'/);
   assert.match(readRepo('packages/utils/package.json'), /"\.\/billing": "\.\/src\/billing\.ts"/);
   assert.match(read('lib/estimate-billing.ts'), /from '@ejo\/utils\/billing'/);
   assert.match(read('lib/estimate-billing.ts'), /export function jobCardTotals\([\s\S]{0,200}billingTotals\(/);

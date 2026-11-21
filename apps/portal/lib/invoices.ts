@@ -61,7 +61,7 @@ export async function ensureInvoice(jobCardId: string, issuedById: string): Prom
           refunds: { select: { amount: true } },
           estimate: {
             select: {
-              status: true, discountAmount: true, discountReason: true,
+              status: true, discountAmount: true, discountReason: true, vatRate: true,
               lineItems: { orderBy: { createdAt: 'asc' }, select: { type: true, description: true, quantity: true, unitPrice: true, amount: true, unitOfMeasure: true, billTo: true, discountAmount: true } },
             },
           },

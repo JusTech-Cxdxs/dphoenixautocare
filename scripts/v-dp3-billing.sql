@@ -19,6 +19,8 @@ BEGIN
   ALTER TABLE "estimates" ADD COLUMN IF NOT EXISTS "discountReason" TEXT;
   ALTER TABLE "estimates" ADD COLUMN IF NOT EXISTS "discountApprovedById" TEXT;
   ALTER TABLE "estimates" ADD COLUMN IF NOT EXISTS "discountApprovedAt" TIMESTAMP(3);
+  -- The VAT rate fixed at the Manager's final approval (null until then).
+  ALTER TABLE "estimates" ADD COLUMN IF NOT EXISTS "vatRate" DECIMAL(5,2);
   ALTER TABLE "estimate_line_items" ADD COLUMN IF NOT EXISTS "discountAmount" DECIMAL(12,2);
 
   -- RCT-2026-000001; payments recorded before receipts existed keep none.
