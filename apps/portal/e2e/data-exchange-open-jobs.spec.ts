@@ -3,6 +3,7 @@ import { as, uniq, open } from './helpers';
 import { db } from './db';
 import { WORKSHOP_BRANCH, who } from './people';
 import { SAP_ENABLED } from './edition';
+import { IMPORT_SOURCE, IMPORT_SOURCE_WORDS } from './edition';
 
 /**
  * P5 — the job cards still open on the cut-over day become live EJO job
@@ -83,7 +84,7 @@ test('the file: refusals, the totals, approval and load — live job cards at th
   const jobs = await db().jobCard.findMany({ where: { customerId }, orderBy: { externalId: 'asc' }, include: { complaints: true, estimate: { include: { lineItems: true } }, payments: true, assignedTechnician: { select: { id: true } } } });
   expect(jobs.map((j) => j.externalId)).toEqual([jobNo(1), jobNo(2), jobNo(3)]);
   expect(jobs.map((j) => j.status)).toEqual(['CHECKED_IN', 'IN_PROGRESS', 'COMPLETED']);
-  expect(jobs.every((j) => j.jobNumber.startsWith('JC-') && j.externalSource === 'SAP' && j.importJobId)).toBe(true);
+  expect(jobs.every((j) => j.jobNumber.startsWith('JC-') && j.externalSource === IMPORT_SOURCE && j.importJobId)).toBe(true);
   expect(jobs[0]!.createdAt.toISOString().slice(0, 10)).toBe('2026-10-30');
   expect(jobs[0]!.approvalStatus).toBe('PENDING');
   expect(jobs[0]!.estimate).toBeNull();
@@ -108,7 +109,7 @@ test('the job card page carries its origin; search finds it by the SAP number; F
   const second = await db().jobCard.findFirstOrThrow({ where: { customerId, externalId: jobNo(2) } });
   await as(page, 'workshop-manager');
   await open(page, `/workshop/job-cards/${second.id}`);
-  await expect(page.getByTestId('job-card-origin')).toContainText(`Brought in from SAP as job card ${jobNo(2)}.`);
+  await expect(page.getByTestId('job-card-origin')).toContainText(`Brought in from ${IMPORT_SOURCE_WORDS} as job card ${jobNo(2)}.`);
   await expect(page.getByTestId('job-card-origin')).toContainText('The estimate was approved before EJO');
   await expect(page.getByTestId('job-card-origin')).toContainText('Paid before EJO');
   await expect(page.getByRole('heading', { name: second.jobNumber })).toBeVisible();

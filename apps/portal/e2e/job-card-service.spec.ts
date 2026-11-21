@@ -51,8 +51,9 @@ test.describe('Job Card — opened as a service', () => {
     test.skip(SEPARATE_VEHICLE_SERVICE, 'this edition still books Vehicle Services');
     await as(page, 'receptionist');
     const v = await freshVehicle('JCB');
-    const res = await page.goto(`/workshop/vehicle-service/book?vehicleId=${v.id}`);
-    expect(res?.status()).toBe(404);
+    // The staff area streams behind a loading screen, so "not found" shows as the page, not as the HTTP status.
+    await page.goto(`/workshop/vehicle-service/book?vehicleId=${v.id}`);
+    await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
     await open(page, '/workshop');
     await expect(page.getByRole('link', { name: /^Vehicle Service/ })).toHaveCount(0);
     await expect(page.getByRole('link', { name: /Service Tracker/ })).toBeVisible();

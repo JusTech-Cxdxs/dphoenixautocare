@@ -82,3 +82,8 @@ export const OFF_URL_PREFIXES: string[] = [
 ];
 /** Whether an address is in this edition (not under OFF_URL_PREFIXES). */
 export const inEdition = (url: string): boolean => !OFF_URL_PREFIXES.some((p) => url === p || url.startsWith(`${p}/`) || url.startsWith(`${p}?`));
+
+/** Where an imported file is recorded as coming from: "SAP" only while the SAP link is on (lib/modules.ts); otherwise an old system or a spreadsheet. */
+export const IMPORT_SOURCE = SAP_ENABLED ? 'SAP' : 'LEGACY';
+/** How the origin of an imported record is worded on screen ("SAP" only while the SAP link is on). */
+export const IMPORT_SOURCE_WORDS = SAP_ENABLED ? 'SAP' : 'the old system';

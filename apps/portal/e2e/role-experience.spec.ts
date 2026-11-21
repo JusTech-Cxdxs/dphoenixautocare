@@ -111,7 +111,9 @@ const DASHBOARDS: { role: string; tiles: string[]; jobs?: boolean; approvals?: b
   { role: 'receptionist', tiles: ['Ready for collection', 'Opened by me this month'] },
   { role: 'workshop-manager', tiles: ['Jobs in the workshop', 'Closed this month'], approvals: true },
   ...(INVENTORY_ENABLED ? [{ role: 'store-officer', tiles: ['Parts requests for the Store', 'Parts at or below reorder point'], approvals: true }] : []),
-  { role: 'finance-officer', tiles: ['Payments I recorded this month', ...(EXTERNAL_PROCUREMENT_ENABLED ? ['Outside purchases with Finance'] : [])], approvals: true },
+  // Finance's only decisions are outside purchases (review and pay-out); payments and refunds are recorded, not approved.
+  // With outside purchases off, Finance has no approval step, so no Approvals card.
+  { role: 'finance-officer', tiles: ['Payments I recorded this month', ...(EXTERNAL_PROCUREMENT_ENABLED ? ['Outside purchases with Finance'] : [])], approvals: EXTERNAL_PROCUREMENT_ENABLED },
   ...(WARRANTY_ENABLED ? [{ role: 'warranty-officer', tiles: ['Warranties awaiting verification', 'Warranty claims open'] }] : []),
   { role: 'security-officer', tiles: ['Visitors on site', 'Staff out on passes', 'Vehicles on road test'] },
   { role: 'calendar-user', tiles: ['My exit passes this month'] },
