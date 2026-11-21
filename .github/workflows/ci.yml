@@ -1,0 +1,72 @@
+name: CI
+
+# Lint, types, database-change rules, unit and database tests, production build
+# and a dependency audit, on every pull request and on main.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: '1'
+  # A throwaway CI database with trust authentication: no password anywhere.
+  DATABASE_URL: postgresql://postgres@localhost:5432/dpa_ci
+  DIRECT_URL: postgresql://postgres@localhost:5432/dpa_ci
+  TEST_DATABASE_URL: postgresql://postgres@localhost:5432/dpa_test
+  SHADOW_DATABASE_URL: postgresql://postgres@localhost:5432/dpa_shadow
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: dpa_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Per-run secret for the build (random, never stored)
+        run: echo "BETTER_AUTH_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Databases (test, shadow) and Supabase's public roles
+        run: |
+          psql postgresql://postgres@localhost:5432/postgres -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE dpa_test' -c 'CREATE DATABASE dpa_shadow' \
+            -c 'CREATE ROLE anon NOLOGIN' -c 'CREATE ROLE authenticated NOLOGIN'
+      - run: npm run lint
+      - run: npm run typecheck
+      - name: Database changes are additive and match the schema
+        run: node scripts/check-migrations.mjs
+        env:
+          # Pull requests: everything since the base branch. Pushes: everything since the previous tip
+          # (a first push has no previous tip, so the check is skipped).
+          BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || (github.event.before != '0000000000000000000000000000000000000000' && github.event.before || '') }}
+      - name: Unit and database tests
+        run: npm test
+      - name: Migrations and post-deploy SQL apply cleanly from empty
+        run: node scripts/db-deploy.mjs --force
+      - name: Production build
+        run: npx next build
+        env:
+          BETTER_AUTH_URL: http://localhost:3000
+      - name: Dependency audit (production dependencies, high and critical fail)
+        run: npm audit --omit=dev --audit-level=high

@@ -1,0 +1,25 @@
+# Weekly update pull requests for npm packages and GitHub Actions.
+# Minor and patch npm updates are grouped into one pull request to keep review light.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:00'
+      timezone: Africa/Lagos
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Major versions are planned upgrades (Next.js, Prisma, React…), not weekly ones.
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Africa/Lagos

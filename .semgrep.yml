@@ -1,0 +1,52 @@
+# Project Semgrep rules (CI: .github/workflows/security.yml). Every rule here fails the build.
+rules:
+  - id: dpa-prisma-raw-unsafe
+    languages: [typescript]
+    severity: ERROR
+    message: $queryRawUnsafe / $executeRawUnsafe take a SQL string, so any value in it is SQL injection. Use the tagged template $queryRaw`...${value}`.
+    pattern-either:
+      - pattern: $DB.$queryRawUnsafe(...)
+      - pattern: $DB.$executeRawUnsafe(...)
+
+  - id: dpa-prisma-raw-built-string
+    languages: [typescript]
+    severity: ERROR
+    message: Prisma raw SQL built from a string is not parameterised. Use the tagged template form.
+    pattern-either:
+      - patterns:
+          - pattern: Prisma.raw($X)
+          - pattern-not: Prisma.raw("...")
+      - pattern: $DB.$queryRaw($A + $B)
+      - pattern: $DB.$executeRaw($A + $B)
+
+  - id: dpa-dangerously-set-inner-html
+    languages: [typescript]
+    severity: ERROR
+    message: dangerouslySetInnerHTML renders raw HTML. Not used in this app; render text instead.
+    pattern: <$EL dangerouslySetInnerHTML={...} />
+
+  - id: dpa-redirect-from-input
+    languages: [typescript]
+    severity: ERROR
+    message: redirect() to a destination taken from a form or query string is an open redirect. Redirect only to a fixed path, or validate that it starts with a single "/".
+    patterns:
+      - pattern-either:
+          - pattern: redirect($FD.get(...))
+          - pattern: redirect(String($FD.get(...)))
+          - pattern: redirect($SP.$KEY)
+
+  - id: dpa-console-log
+    languages: [typescript]
+    severity: ERROR
+    message: Use lib/log.ts (structured, no personal data) instead of console.log.
+    paths:
+      exclude: ['scripts/*', 'prisma/*', 'e2e/*', 'tests/*']
+    pattern: console.log(...)
+
+  - id: dpa-fetch-user-url
+    languages: [typescript]
+    severity: ERROR
+    message: Server-side fetch of an address taken from a form or query string (server-side request forgery).
+    pattern-either:
+      - pattern: fetch($FD.get(...), ...)
+      - pattern: fetch(String($FD.get(...)), ...)

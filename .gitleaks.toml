@@ -1,0 +1,41 @@
+# Gitleaks configuration (CI: .github/workflows/security.yml).
+# Default rules plus project rules. The allowlist covers ONLY test-only values
+# (throwaway CI and test databases, test placeholders). Never add a real
+# credential here: rotate it instead.
+title = "D'Phoenix Autocare gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "dpa-postgres-url-with-password"
+description = "PostgreSQL connection string with an inline password"
+regex = '''postgres(?:ql)?://[^:@/\s'"]+:([^@/\s'"]{6,})@[^/\s'"]+'''
+secretGroup = 1
+keywords = ["postgres://", "postgresql://"]
+
+[[rules]]
+id = "dpa-app-secret-assignment"
+description = "Literal value assigned to a secret variable"
+regex = '''(?i)\b(BETTER_AUTH_SECRET|CRON_SECRET|SMTP_PASSWORD|SUPABASE_SERVICE_ROLE_KEY|OWNER_PASSWORD|E2E_PASSWORD|ENYO_LLM_API_KEY|R2_SECRET_ACCESS_KEY|RATE_LIMIT_SALT)\b[ \t]*[:=][ \t]*['"]?([^\s'"$<{]{8,})'''
+secretGroup = 2
+keywords = ["better_auth_secret", "cron_secret", "smtp_password", "supabase_service_role_key", "owner_password", "e2e_password", "enyo_llm_api_key", "r2_secret_access_key", "rate_limit_salt"]
+
+[[rules]]
+id = "dpa-supabase-jwt"
+description = "Supabase JWT (anon or service_role) committed to source"
+regex = '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}'''
+keywords = ["eyjhbgcioijiuzi1niisinr5cci6ikpxvcj9"]
+
+[allowlist]
+description = "Test-only values"
+regexTarget = "match"
+regexes = [
+  # tests/support/env.ts: a closed port and a placeholder secret, never real
+  '''postgresql://nobody:nothing@127\.0\.0\.1:1''',
+  # a variable passed through from the environment, not a literal
+  '''(?i)[A-Z_]+\s*:\s*['"]?process\.env\.''',
+  '''test-secret-not-used-anywhere-real-0+''',
+  # scripts/security fallback salt used only in development
+  '''dpa-dev-rate-limit-salt''',
+]

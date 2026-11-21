@@ -1,0 +1,100 @@
+name: Security
+
+# Secrets in the whole history, static analysis, dependency audit and an OWASP
+# ZAP baseline scan of the running app. Throwaway CI services only.
+on:
+  pull_request:
+  schedule:
+    - cron: '17 3 * * 1' # Mondays, 04:17 Lagos: catches new advisories in unchanged code
+  workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks (pinned release, checksum verified)
+        run: |
+          curl -sSL -o /tmp/gl.tgz https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz
+          echo "$(curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_checksums.txt | grep linux_x64.tar.gz | cut -d' ' -f1)  /tmp/gl.tgz" | sha256sum -c -
+          tar -xzf /tmp/gl.tgz -C /tmp gitleaks && /tmp/gitleaks version
+      - name: Every commit on every branch, and the working tree
+        run: |
+          /tmp/gitleaks git . --config .gitleaks.toml --log-opts="--all" --redact --exit-code 1
+          /tmp/gitleaks dir . --config .gitleaks.toml --redact --exit-code 1
+
+  static-analysis:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install --quiet semgrep==1.180.0
+      - name: Project rules (fail the build)
+        run: semgrep scan --config .semgrep.yml --metrics=off --error app lib components scripts prisma
+      - name: Registry rulesets (report only)
+        run: semgrep scan --config p/typescript --config p/react --config p/nextjs --config p/secrets --config p/owasp-top-ten --metrics=off app lib components scripts || true
+
+  dependencies:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - name: Production dependencies (high and critical fail)
+        run: npm audit --package-lock-only --omit=dev --audit-level=high
+      - name: All dependencies (report only)
+        run: npm audit --package-lock-only || true
+
+  zap-baseline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: dpa_zap
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://postgres@localhost:5432/dpa_zap
+      DIRECT_URL: postgresql://postgres@localhost:5432/dpa_zap
+      BETTER_AUTH_URL: http://localhost:3100
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: echo "BETTER_AUTH_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - run: node scripts/db-deploy.mjs --force
+      - run: npm run build
+      - name: Start the app
+        run: |
+          MAIL_OUTBOX=1 npx next start -p 3100 > app.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf localhost:3100/api/health && break; sleep 1; done
+      - name: OWASP ZAP baseline (passive scan; FAIL-level rules in .zap/rules.tsv fail the job, warnings are reported)
+        run: |
+          docker run --rm --user root --network host -v "$PWD:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t http://localhost:3100/login -c .zap/rules.tsv -r zap-report.html -I
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-report
+          path: zap-report.html
+          retention-days: 14

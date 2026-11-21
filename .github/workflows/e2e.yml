@@ -1,0 +1,92 @@
+name: End-to-end, load and failover
+
+# Browser tests for every workflow and role (desktop and phone), accessibility
+# checks, then a load test and a failover test against the production build.
+# Everything runs on throwaway CI services, never a deployed environment.
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: '1'
+  E2E_DATABASE_URL: postgresql://postgres@localhost:5432/dpa_e2e
+  DATABASE_URL: postgresql://postgres@localhost:5432/dpa_e2e
+  DIRECT_URL: postgresql://postgres@localhost:5432/dpa_e2e
+
+jobs:
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: dpa_e2e
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - name: Per-run secrets (random, never stored)
+        run: |
+          echo "BETTER_AUTH_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "E2E_PASSWORD=e2e-$(openssl rand -hex 12)" >> "$GITHUB_ENV"
+      - name: Supabase's public roles
+        run: psql postgresql://postgres@localhost:5432/postgres -c 'CREATE ROLE anon NOLOGIN' -c 'CREATE ROLE authenticated NOLOGIN'
+      - run: npm run build
+        env:
+          BETTER_AUTH_URL: http://localhost:3100
+      - run: npx playwright install --with-deps chromium
+      - name: Browser tests
+        run: npx playwright test --trace off
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+      - name: Load test (one instance)
+        run: |
+          npx next start -p 3100 > app.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf localhost:3100/api/health && break; sleep 1; done
+          BASE_URL=http://localhost:3100 LOAD_EMAIL=owner@example.com LOAD_PASSWORD="$E2E_PASSWORD" LOAD_REPORT=load-report.json npm run load
+        env:
+          BETTER_AUTH_URL: http://localhost:3100
+          MAIL_OUTBOX: '1'
+          AUTH_ATTEMPT_LIMIT_SCALE: '50'
+      - name: Failover test (two instances behind a load balancer, one killed mid-run)
+        run: |
+          pkill -f "next start -p 3100" || true
+          node node_modules/next/dist/bin/next start -p 3201 > a.log 2>&1 & echo $! > a.pid
+          node node_modules/next/dist/bin/next start -p 3202 > b.log 2>&1 &
+          node scripts/load/lb.mjs 3200 http://127.0.0.1:3201 http://127.0.0.1:3202 > lb.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf localhost:3200/api/health && break; sleep 1; done
+          BASE_URL=http://localhost:3200 LOAD_EMAIL=owner@example.com LOAD_PASSWORD="$E2E_PASSWORD" \
+            FAILOVER_KILL_PID=$(cat a.pid) FAILOVER_AT_MS=15000 LOAD_REPORT=failover-report.json npm run load
+          curl -s localhost:3200/__lb
+        env:
+          BETTER_AUTH_URL: http://localhost:3200
+          MAIL_OUTBOX: '1'
+          AUTH_ATTEMPT_LIMIT_SCALE: '50'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-reports
+          path: '*-report.json'
+          retention-days: 14
