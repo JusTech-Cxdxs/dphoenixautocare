@@ -32,7 +32,7 @@ function WeeklySales({ weeks }: { weeks: { label: string; sales: number }[] }) {
   const W = 560, H = 160, gap = 8, bw = (W - gap * (weeks.length - 1)) / weeks.length;
   return (
     <figure>
-      <svg viewBox={`0 0 ${W} ${H + 22}`} className="h-auto w-full" role="img" aria-label="Sales per week, last twelve weeks">
+      <svg viewBox={`0 0 ${W} ${H + 22}`} className="h-auto w-full" role="img" aria-label="Revenue per week, last twelve weeks">
         <line x1="0" x2={W} y1={H} y2={H} stroke="var(--ejo-border)" />
         {weeks.map((w, i) => {
           const h = Math.max(w.sales > 0 ? 3 : 0, (w.sales / max) * (H - 14));
@@ -150,7 +150,7 @@ export default async function HeadquartersPage({ searchParams }: { searchParams:
 
       {a ? (
         <div className="ejo-stagger grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-          <StatTile icon="money" label="Sales" value={naira(a.current.sales)} delta={a.changes.sales} hint="Work finished, at selling price" href="/analytics" />
+          <StatTile icon="money" label="Revenue" value={naira(a.current.sales)} delta={a.changes.sales} hint="Work finished, at selling price" href="/analytics" />
           <StatTile icon="trend-up" label="Gross profit" value={naira(a.current.grossProfit)} delta={a.changes.grossProfit} hint={a.current.grossMargin !== null ? `${a.current.grossMargin}% margin` : undefined} href="/analytics" />
           <StatTile icon="receipt" label="Money collected" value={naira(a.current.collections)} delta={a.changes.collections} hint="Payments less refunds" href="/analytics" />
           <StatTile icon="clipboard" label="Jobs finished" value={a.current.jobsCompleted} delta={a.changes.jobsCompleted} hint={a.current.averageJob !== null ? `Average ${naira(a.current.averageJob)}` : undefined} href="/analytics" />
@@ -171,7 +171,7 @@ export default async function HeadquartersPage({ searchParams }: { searchParams:
       </SectionCard>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-        <SectionCard icon="chart" title="Sales, week by week" description="Last twelve weeks, Monday to Sunday, work finished at selling price" actions={<LoadingLink href="/analytics" className="text-xs font-medium text-[var(--ejo-primary)] hover:underline">Full analytics →</LoadingLink>}>
+        <SectionCard icon="chart" title="Revenue, week by week" description="Last twelve weeks, Monday to Sunday, work finished at selling price" actions={<LoadingLink href="/analytics" className="text-xs font-medium text-[var(--ejo-primary)] hover:underline">Full analytics →</LoadingLink>}>
           {a ? <WeeklySales weeks={a.weeks} /> : <p className="text-sm text-[var(--ejo-text-muted)]">No figures yet.</p>}
           {a?.actions.length ? (
             <div className="mt-4 border-t border-[var(--ejo-border)] pt-3">
@@ -235,7 +235,7 @@ export default async function HeadquartersPage({ searchParams }: { searchParams:
         <summary className="cursor-pointer font-medium text-[var(--ejo-text)]">How these figures are worked out</summary>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-[var(--ejo-text-muted)]">
           <li><b>Opened</b> and <b>finished</b>: Job Cards and Vehicle Services created, and completed (not cancelled), in the period.</li>
-          <li><b>Collected</b>: payments recorded in the period less refunds recorded in the period. <b>Sales</b> (top) is work finished at its selling price, from Business analytics.</li>
+          <li><b>Collected</b>: payments recorded in the period less refunds recorded in the period. <b>Revenue</b> (top) is work finished at its selling price (labour, parts and charges), from Business analytics.</li>
           <li><b>In now</b> and <b>ready</b>: as of now, whatever the period. <b>Waiting</b>: estimates, parts requests, outside purchases, warranty claims and exit passes waiting for someone to decide.</li>
           <li><b>Health</b>: <i>needs action</i> when a decision has waited two days or more or a customer request is past its target; <i>watch</i> when five or more vehicles wait to be collected or the median job takes more than three days.</li>
           <li>{hq.scope === 'branch' ? 'You see your own branch.' : 'You see every branch of the organisation.'} Counts and totals only; no customer details. Exports are recorded in the audit trail.</li>
