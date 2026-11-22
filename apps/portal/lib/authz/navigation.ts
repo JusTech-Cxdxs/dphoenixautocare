@@ -1,6 +1,7 @@
 import { featureOn, moduleIsOn, platformModules } from '../modules';
 import { branchHostsModule, moduleOfPath } from '../branch-types';
 import { APPROVAL_PERMISSIONS, decide, PAGE_PERMISSIONS, scopeFor, type PermissionKey, type Principal } from './catalogue';
+import { isOffPermission } from '../edition';
 
 export type NavItem = { key: string; name: string; href: string; status: string };
 
@@ -62,7 +63,7 @@ export function navigationFor(p: Principal, view: BranchView = {}): NavItem[] {
       // Leadership with the whole organisation in view: every branch side by side.
       if (p.isSuperAdmin || scopeFor(p, 'analytics.business.view') === 'ALL') out.push({ key: 'headquarters', name: 'Headquarters', href: '/headquarters', status: m.status });
       // People who decide things get one list of everything waiting for them.
-      if (p.isSuperAdmin || APPROVAL_PERMISSIONS.some(can)) out.push({ key: 'approvals', name: 'Approvals', href: '/approvals', status: m.status });
+      if (p.isSuperAdmin || APPROVAL_PERMISSIONS.some((k) => !isOffPermission(k) && can(k))) out.push({ key: 'approvals', name: 'Approvals', href: '/approvals', status: m.status });
       continue;
     }
     if (m.key === 'security') {

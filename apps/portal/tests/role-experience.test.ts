@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { decide, ROLE_GRANTS, ROLE_DESCRIPTIONS, ROLE_LABELS, APPROVAL_PERMISSIONS, STORE_COST_PERMISSIONS, PERMISSIONS, type Principal } from '../lib/authz/catalogue';
 import { navigationFor } from '../lib/authz/navigation';
+import { isOffPermission } from '../lib/edition';
 import { approvalArea, isApproval } from '../lib/approvals';
 
 const who = (roleSlugs: string[], extra: Partial<Principal> = {}): Principal => ({ userId: 'me', isSuperAdmin: false, roleSlugs, branchId: 'a', departmentId: null, ...extra });
@@ -42,8 +43,14 @@ test('the Workshop Manager approves passes but does not run the gate', () => {
 });
 
 test('Approvals is in the menu for people who decide things, not for the workshop floor', () => {
-  for (const role of ['workshop-manager', 'workshop-supervisor', 'store-officer', 'store-manager', 'finance-officer', 'warranty-hod', 'department-head', 'chief-security-officer']) {
+  for (const role of ['workshop-manager', 'workshop-supervisor', 'department-head', 'chief-security-officer']) {
     assert.ok(keys([role]).includes('approvals'), `${role}: Approvals`);
+  }
+  // Roles whose approval steps belong to areas an edition may switch off
+  // (Store, Warranty, outside purchases): Approvals only while one is on.
+  for (const role of ['store-officer', 'store-manager', 'finance-officer', 'warranty-hod']) {
+    const decides = Object.keys(ROLE_GRANTS[role] ?? {}).some((k) => (APPROVAL_PERMISSIONS as readonly string[]).includes(k) && !isOffPermission(k));
+    assert.equal(keys([role]).includes('approvals'), decides, `${role}: Approvals only for approval steps this edition has`);
   }
   for (const role of ['technician', 'receptionist', 'security-officer', 'calendar-user', 'broadcaster', 'warranty-officer']) {
     assert.ok(!keys([role]).includes('approvals'), `${role}: no Approvals`);
