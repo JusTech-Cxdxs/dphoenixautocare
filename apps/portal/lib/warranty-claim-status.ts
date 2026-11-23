@@ -14,7 +14,7 @@ export const CLAIM_STATUS_LABEL: Record<string, string> = {
 };
 
 export const CLAIM_STATUS_CLASS: Record<string, string> = {
-  DRAFT: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]',
+  DRAFT: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]',
   PENDING_HOD: 'bg-[var(--ejo-info)]/15 text-[var(--ejo-info)]',
   PENDING_MANAGER: 'bg-[var(--ejo-info)]/15 text-[var(--ejo-info)]',
   APPROVED_TO_SUBMIT: 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning)]',
@@ -23,7 +23,7 @@ export const CLAIM_STATUS_CLASS: Record<string, string> = {
   PARTIALLY_ACCEPTED: 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning)]',
   REJECTED: 'bg-[var(--ejo-error)]/15 text-[var(--ejo-error)]',
   SETTLED: 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]',
-  CANCELLED: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]',
+  CANCELLED: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]',
 };
 
 /** Status groups used for filters and KPIs. */

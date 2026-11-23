@@ -61,12 +61,12 @@ export const EXIT_PASS_STATUS_LABEL: Record<string, string> = {
 export const STATUS_CHIP: Record<string, string> = {
   EXPECTED: 'bg-[var(--ejo-info)]/15 text-[var(--ejo-info)]',
   CHECKED_IN: 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]',
-  CHECKED_OUT: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]',
+  CHECKED_OUT: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]',
   DECLINED: 'bg-[var(--ejo-error)]/15 text-[var(--ejo-error)]',
-  CANCELLED: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]',
+  CANCELLED: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]',
   PENDING_HEAD: 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning)]',
   PENDING_MANAGER: 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning)]',
-  LEFT: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]',
+  LEFT: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]',
   OPEN: 'bg-[var(--ejo-error)]/15 text-[var(--ejo-error)]',
   UNDER_REVIEW: 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning)]',
   AT_GATE: 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning)]',
@@ -74,12 +74,12 @@ export const STATUS_CHIP: Record<string, string> = {
   ACTIVE: 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]',
   ON_SITE: 'bg-[var(--ejo-info)]/15 text-[var(--ejo-info)]',
   UPCOMING: 'bg-[var(--ejo-info)]/15 text-[var(--ejo-info)]',
-  ENDED: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]',
+  ENDED: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]',
   REVOKED: 'bg-[var(--ejo-error)]/15 text-[var(--ejo-error)]',
   APPROVED: 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]',
   OUT: 'bg-[var(--ejo-info)]/15 text-[var(--ejo-info)]',
-  RETURNED: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]',
-  CLOSED: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]',
+  RETURNED: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]',
+  CLOSED: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]',
 };
 
 export function roadTestOverdueMinutes(r: { status: string; gateOutAt: Date | null; expectedDurationMinutes: number }, now: Date = new Date()): number {
@@ -113,7 +113,7 @@ export const INCIDENT_TYPES = [
 
 export const SEVERITY_LABEL: Record<string, string> = { LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High', CRITICAL: 'Critical' };
 export const SEVERITY_CHIP: Record<string, string> = {
-  LOW: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]',
+  LOW: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]',
   MEDIUM: 'bg-[var(--ejo-info)]/15 text-[var(--ejo-info)]',
   HIGH: 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning)]',
   CRITICAL: 'bg-[var(--ejo-error)]/15 text-[var(--ejo-error)]',

@@ -104,7 +104,7 @@ export function NotificationBell({ initialUnread, onUnreadChange }: { initialUnr
         ref={button}
         type="button"
         onClick={() => { setOpen((o) => !o); if (!items) void poll(); }}
-        aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
+        aria-label={unread ? `Notifications, ${unread > 99 ? '99+' : unread} unread` : 'Notifications'}
         aria-haspopup="true"
         aria-expanded={open}
         data-testid="notification-bell"

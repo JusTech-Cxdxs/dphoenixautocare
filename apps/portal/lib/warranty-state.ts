@@ -66,11 +66,11 @@ export const WARRANTY_STATE_LABEL: Record<WarrantyCoverageState, string> = {
 export const WARRANTY_STATE_CLASS: Record<WarrantyCoverageState, string> = {
   COVERED: 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]',
   EXPIRING_SOON: 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning)]',
-  EXPIRED: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]',
+  EXPIRED: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]',
   PENDING_VERIFICATION: 'bg-[var(--ejo-info)]/15 text-[var(--ejo-info)]',
   SUSPENDED: 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning)]',
   VOID: 'bg-[var(--ejo-error)]/15 text-[var(--ejo-error)]',
-  TRANSFERRED: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]',
+  TRANSFERRED: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]',
 };
 
 /** Policy lists (covered / not covered / conditions) are stored one item

@@ -14,7 +14,8 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-prac
 
 async function noViolations(page: Page, where: string) {
   for (const scheme of ['light', 'dark'] as const) {
-    await page.emulateMedia({ colorScheme: scheme });
+    // Reduced motion: cards appear at once (they fade in otherwise), so axe sees the settled page.
+    await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
     // Both apps choose the theme before the first paint, so load the page again in it.
     await page.reload({ waitUntil: 'networkidle' });
     const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
