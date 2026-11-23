@@ -34,6 +34,10 @@
   --ejo-radius-xl: 24px;
 }
 
+
+/* "only light": a phone browser's forced dark mode must not recolour the light
+   theme (it washes out links); .dark below is the site's own dark theme. */
+:root { color-scheme: only light; }
 .dark {
   --ejo-bg: #0a1628;
   --ejo-surface: #111f36;
@@ -222,8 +226,9 @@ html, body { overscroll-behavior-x: none; }
    One layer here instead of edits across the shared components, so updates
    to EJO 100 still apply cleanly. */
 :root { --ejo-on-primary: #0a1628; --ejo-primary-text: #a8620c; }
-:root[data-theme='dark'] { --ejo-primary-text: #f09e2c; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { --ejo-primary-text: #f09e2c; } }
+/* The customer site's dark theme is the .dark class (it follows the device
+   unless the customer chose); orange text is the light orange only there. */
+.dark { --ejo-primary-text: #f09e2c; }
 [class~="bg-[var(--ejo-primary)]"][class~="text-white"],
 [class~="bg-[var(--ejo-primary-dark)]"][class~="text-white"],
 [class~="bg-[var(--ejo-accent)]"][class~="text-white"] { color: var(--ejo-on-primary); }
