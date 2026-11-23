@@ -332,12 +332,12 @@ const PAYMENT_STATUS_LABEL: Record<string, string> = {
 };
 
 const PAYMENT_STATUS_COLOR: Record<string, string> = {
-  AWAITING_PAYMENT: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]',
+  AWAITING_PAYMENT: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]',
   PARTIAL: 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning)]',
   DEPOSIT_MET: 'bg-[var(--ejo-info)]/15 text-[var(--ejo-info)]',
   PAID_IN_FULL: 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]',
   REFUND_DUE: 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning)]',
-  REFUNDED: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]',
+  REFUNDED: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]',
 };
 
 const ESTIMATE_STATUS_LABEL: Record<string, string> = {
@@ -677,7 +677,7 @@ export default async function JobCardDetailPage({
             const inServiceDuration = durations.inService.days;
             badges.push(
               durations.inService.final ? (
-                <span key="in-service-duration" className="rounded-full bg-[var(--ejo-text-muted)]/15 px-2.5 py-0.5 text-xs font-medium text-[var(--ejo-text-muted)]">
+                <span key="in-service-duration" className="rounded-full bg-[var(--ejo-text-muted)]/10 px-2.5 py-0.5 text-xs font-medium text-[var(--ejo-text-muted)]">
                   {durations.inService.endedBy === 'CANCELLED' ? 'In Service before cancellation' : 'In Service duration'}: {pluralize(inServiceDuration, 'working day')}
                 </span>
               ) : (
@@ -719,7 +719,7 @@ export default async function JobCardDetailPage({
                       Organization
                     </span>
                   ) : (
-                    <span className="ml-2 rounded-full bg-[var(--ejo-text-muted)]/15 px-2 py-0.5 text-[10px] font-medium text-[var(--ejo-text-muted)]">
+                    <span className="ml-2 rounded-full bg-[var(--ejo-text-muted)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--ejo-text-muted)]">
                       Individual
                     </span>
                   )}
@@ -884,7 +884,7 @@ export default async function JobCardDetailPage({
                         ? 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]'
                         : estimate.status === 'SUBMITTED' || estimate.status === 'APPROVED'
                           ? 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning)]'
-                          : 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'
+                          : 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'
                     }`}
                   >
                     {estimate.status === 'APPROVED' && isEligibleManager && estimate.approvedById !== viewerId && estimate.createdById !== viewerId ? 'Waiting for you (Manager)' : ESTIMATE_STATUS_LABEL[estimate.status]}
@@ -1501,7 +1501,7 @@ export default async function JobCardDetailPage({
                             className="flex items-center justify-between rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-xs hover:opacity-80"
                           >
                             <span className="font-medium text-[var(--ejo-text)]">{slip.referenceNumber}</span>
-                            <span className={`rounded-full px-2 py-0.5 font-medium ${PART_REQUEST_STATUS_BADGE_CLASS[slip.status] ?? 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'}`}>
+                            <span className={`rounded-full px-2 py-0.5 font-medium ${PART_REQUEST_STATUS_BADGE_CLASS[slip.status] ?? 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'}`}>
                               {PART_REQUEST_STATUS_LABEL[slip.status] ?? slip.status}
                             </span>
                           </LoadingLink>
@@ -1546,7 +1546,7 @@ export default async function JobCardDetailPage({
                             className="flex items-center justify-between rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-xs hover:opacity-80"
                           >
                             <span className="font-medium text-[var(--ejo-text)]">{req.referenceNumber}</span>
-                            <span className={`rounded-full px-2 py-0.5 font-medium ${EXTERNAL_PROCUREMENT_STATUS_BADGE_CLASS[req.status] ?? 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'}`}>
+                            <span className={`rounded-full px-2 py-0.5 font-medium ${EXTERNAL_PROCUREMENT_STATUS_BADGE_CLASS[req.status] ?? 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'}`}>
                               {EXTERNAL_PROCUREMENT_STATUS_LABEL[req.status] ?? req.status}
                             </span>
                           </LoadingLink>
@@ -1570,7 +1570,7 @@ export default async function JobCardDetailPage({
                           r.status === 'APPROVED'
                             ? 'bg-[var(--ejo-error)]/15 text-[var(--ejo-error)]'
                             : r.status === 'DECLINED'
-                              ? 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'
+                              ? 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'
                               : 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning)]'
                         }`}
                       >
@@ -2069,7 +2069,7 @@ export default async function JobCardDetailPage({
                       className="flex items-center justify-between rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-xs hover:opacity-80"
                     >
                       <span className="font-medium text-[var(--ejo-text)]">{slip.referenceNumber}</span>
-                      <span className={`rounded-full px-2 py-0.5 font-medium ${PART_REQUEST_STATUS_BADGE_CLASS[slip.status] ?? 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'}`}>
+                      <span className={`rounded-full px-2 py-0.5 font-medium ${PART_REQUEST_STATUS_BADGE_CLASS[slip.status] ?? 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'}`}>
                         {PART_REQUEST_STATUS_LABEL[slip.status] ?? slip.status}
                       </span>
                     </LoadingLink>
@@ -2085,7 +2085,7 @@ export default async function JobCardDetailPage({
                       className="flex items-center justify-between rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-xs hover:opacity-80"
                     >
                       <span className="font-medium text-[var(--ejo-text)]">{request.referenceNumber}</span>
-                      <span className={`rounded-full px-2 py-0.5 font-medium ${EXTERNAL_PROCUREMENT_STATUS_BADGE_CLASS[request.status] ?? 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'}`}>
+                      <span className={`rounded-full px-2 py-0.5 font-medium ${EXTERNAL_PROCUREMENT_STATUS_BADGE_CLASS[request.status] ?? 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'}`}>
                         {EXTERNAL_PROCUREMENT_STATUS_LABEL[request.status] ?? request.status}
                       </span>
                     </LoadingLink>

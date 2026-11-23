@@ -70,7 +70,7 @@ export default async function WarrantyProviderPage({ params, searchParams }: { p
           <p className="mt-1 text-sm text-[var(--ejo-text-muted)]">{PROVIDER_TYPE_LABEL[p.type] ?? p.type}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${archived ? 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]' : p.isActive ? 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]' : 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'}`}>
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${archived ? 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]' : p.isActive ? 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]' : 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'}`}>
             {archived ? 'Archived' : p.isActive ? 'Active' : 'Inactive'}
           </span>
           {roles.canApprove && !archived && !editing ? (

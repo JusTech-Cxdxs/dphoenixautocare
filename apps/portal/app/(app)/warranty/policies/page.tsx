@@ -118,7 +118,7 @@ export default async function WarrantyPoliciesPage({
                   </div>
                   <div className="flex items-center gap-2">
                     {p.isSample ? <span className="rounded-full bg-[var(--ejo-warning)]/15 px-2.5 py-0.5 text-xs font-medium text-[var(--ejo-warning)]">Sample terms</span> : null}
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${p.archivedAt ? 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]' : p.isActive ? 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]' : 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'}`}>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${p.archivedAt ? 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]' : p.isActive ? 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]' : 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'}`}>
                       {p.archivedAt ? 'Archived' : p.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </div>

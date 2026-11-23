@@ -222,9 +222,9 @@ export default async function ServiceTrackerPage({
                 const badge = v.inWorkshop
                   ? { text: 'In Workshop', cls: 'bg-[var(--ejo-info)]/15 text-[var(--ejo-info)]' }
                   : v.attendedAt
-                    ? { text: 'Attended To', cls: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]' }
+                    ? { text: 'Attended To', cls: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]' }
                     : v.lapsed
-                      ? { text: 'Lapsed', cls: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]' }
+                      ? { text: 'Lapsed', cls: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]' }
                     : v.status === 'OVERDUE'
                       ? { text: 'Overdue', cls: 'bg-[var(--ejo-error)]/15 text-[var(--ejo-error)]' }
                       : v.status === 'DUE_SOON'

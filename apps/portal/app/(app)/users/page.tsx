@@ -142,7 +142,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
                   <p className="truncate text-xs text-[var(--ejo-text-muted)]">{u.email}</p>
                   <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                     {u.employeeId ? <span className={`${chip} bg-[var(--ejo-bg)] font-mono text-[var(--ejo-text)]`} title="Employee ID">{u.employeeId}</span> : <span className={`${chip} bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning)]`}>No employee ID</span>}
-                    <span className={`${chip} ${u.isActive ? 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]' : 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'}`}>{u.isActive ? 'Active' : 'Switched off'}</span>
+                    <span className={`${chip} ${u.isActive ? 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]' : 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'}`}>{u.isActive ? 'Active' : 'Switched off'}</span>
                   </div>
                   <p className="mt-1.5 truncate text-xs text-[var(--ejo-text-muted)]">{[u.branch, u.department].filter(Boolean).join(' · ') || 'No branch or department set'}</p>
                 </div>

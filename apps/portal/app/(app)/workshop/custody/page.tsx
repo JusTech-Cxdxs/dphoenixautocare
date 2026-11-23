@@ -449,7 +449,7 @@ export default async function WorkshopCustodyPage({
                       className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
                         entry.isOverdue
                           ? 'bg-[var(--ejo-error)]/15 text-[var(--ejo-error)]'
-                          : 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'
+                          : 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'
                       }`}
                     >
                       {entry.isOverdue ? 'Overdue for review' : `${pluralize(entry.daysElapsed, 'working day')} since cancellation`}

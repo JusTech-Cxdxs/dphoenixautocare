@@ -18,7 +18,7 @@ const ago = (iso: string) => timeAgo(new Date(iso));
 const TONE_DOT: Record<string, string> = {
   info: 'bg-[var(--ejo-info)]/10 text-[var(--ejo-info)]',
   progress: 'bg-[var(--ejo-primary)]/10 text-[var(--ejo-primary)]',
-  attention: 'bg-[var(--ejo-warning)]/15 text-[#b45309] dark:text-[var(--ejo-warning)]',
+  attention: 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning-text)]',
   success: 'bg-[var(--ejo-success)]/12 text-[var(--ejo-success)]',
   neutral: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]',
   danger: 'bg-[var(--ejo-error)]/10 text-[var(--ejo-error)]',

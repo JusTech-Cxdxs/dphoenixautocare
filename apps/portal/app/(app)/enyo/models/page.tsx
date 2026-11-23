@@ -19,7 +19,7 @@ const LEVEL_TEXT: Record<Level, string> = { OFF: 'Off', SHADOW: 'Shadow — meas
 const STATUS_TONE: Record<ModelRow['status'], string> = {
   ACTIVE: 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]',
   CANDIDATE: 'bg-[var(--ejo-info)]/15 text-[var(--ejo-info)]',
-  RETIRED: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]',
+  RETIRED: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]',
   REJECTED: 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning-text)]',
 };
 const STATUS_LABEL: Record<ModelRow['status'], string> = { ACTIVE: 'In use', CANDIDATE: 'Ready to use', RETIRED: 'Retired', REJECTED: 'Did not pass' };

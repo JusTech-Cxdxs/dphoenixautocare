@@ -11,7 +11,7 @@ const TABS: [string, string][] = [['upcoming', 'Upcoming'], ['today', 'Today'], 
 const STATUS: Record<string, [string, string]> = {
   SCHEDULED: ['Scheduled', 'bg-[var(--ejo-info)]/15 text-[var(--ejo-info)]'],
   COMPLETED: ['Completed', 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]'],
-  CANCELLED: ['Cancelled', 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'],
+  CANCELLED: ['Cancelled', 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'],
   NO_SHOW: ['No-show', 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning)]'],
 };
 const when = (a: Date, b: Date) => `${new Date(a).toLocaleDateString('en-NG', { timeZone: 'Africa/Lagos', weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}, ${new Date(a).toLocaleTimeString('en-NG', { timeZone: 'Africa/Lagos', hour: 'numeric', hourCycle: 'h12', minute: '2-digit' })} – ${new Date(b).toLocaleTimeString('en-NG', { timeZone: 'Africa/Lagos', hour: 'numeric', hourCycle: 'h12', minute: '2-digit' })}`;

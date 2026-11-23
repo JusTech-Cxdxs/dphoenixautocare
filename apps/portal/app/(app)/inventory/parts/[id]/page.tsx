@@ -344,7 +344,7 @@ export default async function PartDetailPage({
                             <td data-label="Status" className="px-3 py-2">
                               <span
                                 className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                                  isIssued ? 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]' : 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]'
+                                  isIssued ? 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]' : 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]'
                                 }`}
                               >
                                 {isIssued ? 'Issued' : 'In Stock'}

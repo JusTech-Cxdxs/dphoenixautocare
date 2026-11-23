@@ -375,7 +375,7 @@ function Reading({ d, consent, aiAvailable, back }: { d: MailDetail; consent: bo
             <div className="flex flex-wrap gap-1.5">
               {d.brief.category ? <span className="rounded-full bg-[var(--ejo-info)]/15 px-2 py-0.5 text-[11px] font-semibold text-[var(--ejo-info)]">{CATEGORY_LABEL[d.brief.category]}</span> : null}
               {d.brief.priority === 1 || d.brief.priority === 2 || d.brief.priority === 3 ? (
-                <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${d.brief.priority === 1 ? 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning-text)]' : 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'}`}>{PRIORITY_LABEL[d.brief.priority as 1 | 2 | 3]}</span>
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${d.brief.priority === 1 ? 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning-text)]' : 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'}`}>{PRIORITY_LABEL[d.brief.priority as 1 | 2 | 3]}</span>
               ) : null}
             </div>
             {d.brief.refs.length ? (

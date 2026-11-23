@@ -97,7 +97,7 @@ export default async function VehicleServiceMatchingPage({
                 {WRENCH_ICON}
                 <span className="text-sm font-medium text-[var(--ejo-text)]">{line.partType?.name ?? line.description}</span>
                 {line.partType ? (
-                  <span className="rounded-full bg-[var(--ejo-text-muted)]/15 px-2 py-0.5 text-[10px] font-medium text-[var(--ejo-text-muted)]">
+                  <span className="rounded-full bg-[var(--ejo-text-muted)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--ejo-text-muted)]">
                     {line.partType.category.name}
                   </span>
                 ) : null}

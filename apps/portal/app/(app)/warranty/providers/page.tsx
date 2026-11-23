@@ -75,7 +75,7 @@ export default async function WarrantyProvidersPage({ searchParams }: { searchPa
                     <LoadingLink href={`/warranty/providers/${p.id}`} className="text-sm font-semibold text-[var(--ejo-primary)] hover:underline">{p.name}</LoadingLink>
                     <p className="text-xs text-[var(--ejo-text-muted)]">{PROVIDER_TYPE_LABEL[p.type] ?? p.type}</p>
                   </div>
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${p.archivedAt ? 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]' : p.isActive ? 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]' : 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'}`}>
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${p.archivedAt ? 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]' : p.isActive ? 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]' : 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'}`}>
                     {p.archivedAt ? 'Archived' : p.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </div>

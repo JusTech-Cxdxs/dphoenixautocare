@@ -21,7 +21,7 @@ const pct = (n: number | null | undefined) => (n === null || n === undefined ? '
 const MODE_TEXT: Record<'SHADOW' | 'SUGGEST' | 'OFF', { label: string; tone: string; text: string }> = {
   SHADOW: { label: 'Shadow', tone: 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning-text)]', text: 'Enyo predicts the lines of every new Job Card and Vehicle Service and checks itself against the approved estimate. Nobody sees the predictions yet.' },
   SUGGEST: { label: 'Suggest', tone: 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]', text: 'Supervisors and technicians see "Likely lines from similar jobs" on the estimate. Pressing Add only fills in the form; people still check and save every line.' },
-  OFF: { label: 'Off', tone: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]', text: 'Enyo makes no predictions. Nothing is measured and nothing is shown.' },
+  OFF: { label: 'Off', tone: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]', text: 'Enyo makes no predictions. Nothing is measured and nothing is shown.' },
 };
 
 const STATUS_LABEL: [keyof Awaited<ReturnType<typeof learningData>>['counts'], string, string][] = [

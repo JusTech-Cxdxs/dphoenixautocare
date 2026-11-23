@@ -99,7 +99,7 @@ export default async function WarrantyPolicyPage({ params, searchParams }: { par
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {policy.isSample ? <span className="rounded-full bg-[var(--ejo-warning)]/15 px-2.5 py-0.5 text-xs font-medium text-[var(--ejo-warning)]">Sample terms</span> : null}
-          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${archived ? 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]' : policy.isActive ? 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]' : 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'}`}>
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${archived ? 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]' : policy.isActive ? 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]' : 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'}`}>
             {archived ? 'Archived' : policy.isActive ? 'Active' : 'Inactive'}
           </span>
           {roles.canApprove && !archived && !editing ? (

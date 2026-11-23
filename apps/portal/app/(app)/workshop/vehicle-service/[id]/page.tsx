@@ -106,12 +106,12 @@ const PAYMENT_STATUS_LABEL: Record<string, string> = {
 };
 
 const PAYMENT_STATUS_COLOR: Record<string, string> = {
-  AWAITING_PAYMENT: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]',
+  AWAITING_PAYMENT: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]',
   PARTIAL: 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning)]',
   DEPOSIT_MET: 'bg-[var(--ejo-info)]/15 text-[var(--ejo-info)]',
   PAID_IN_FULL: 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]',
   REFUND_DUE: 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning)]',
-  REFUNDED: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]',
+  REFUNDED: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]',
 };
 
 const PART_REQUEST_STATUS_LABEL: Record<string, string> = {
@@ -628,7 +628,7 @@ export default async function VehicleServiceDetailPage({
                       Organization
                     </span>
                   ) : (
-                    <span className="ml-2 rounded-full bg-[var(--ejo-text-muted)]/15 px-2 py-0.5 text-[10px] font-medium text-[var(--ejo-text-muted)]">
+                    <span className="ml-2 rounded-full bg-[var(--ejo-text-muted)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--ejo-text-muted)]">
                       Individual
                     </span>
                   )}
@@ -756,7 +756,7 @@ export default async function VehicleServiceDetailPage({
                   {inspection.status === 'COMPLETED' ? 'Completed' : 'In Progress'}
                 </span>
               ) : inspection?.status === 'SKIPPED' ? (
-                <span className="rounded-full bg-[var(--ejo-text-muted)]/15 px-2.5 py-0.5 text-xs font-medium text-[var(--ejo-text-muted)]">Skipped</span>
+                <span className="rounded-full bg-[var(--ejo-text-muted)]/10 px-2.5 py-0.5 text-xs font-medium text-[var(--ejo-text-muted)]">Skipped</span>
               ) : null}
             </div>
             <p className="mt-1 text-xs text-[var(--ejo-text-muted)]">
@@ -850,7 +850,7 @@ export default async function VehicleServiceDetailPage({
                           ? 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]'
                           : serviceEstimate.status === 'SUBMITTED' || serviceEstimate.status === 'APPROVED'
                             ? 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning)]'
-                            : 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'
+                            : 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'
                       }`}
                     >
                       {serviceEstimate.status === 'APPROVED' && isEligibleManager && serviceEstimate.approvedById !== viewerId && serviceEstimate.createdById !== viewerId ? 'Waiting for you (Manager)' : SERVICE_ESTIMATE_STATUS_LABEL[serviceEstimate.status] ?? serviceEstimate.status}
@@ -1349,7 +1349,7 @@ export default async function VehicleServiceDetailPage({
                         className="flex items-center justify-between rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-xs hover:opacity-80"
                       >
                         <span className="font-medium text-[var(--ejo-text)]">{slip.referenceNumber}</span>
-                        <span className={`rounded-full px-2 py-0.5 font-medium ${PART_REQUEST_STATUS_BADGE_CLASS[slip.status] ?? 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'}`}>
+                        <span className={`rounded-full px-2 py-0.5 font-medium ${PART_REQUEST_STATUS_BADGE_CLASS[slip.status] ?? 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'}`}>
                           {PART_REQUEST_STATUS_LABEL[slip.status] ?? slip.status}
                         </span>
                       </LoadingLink>

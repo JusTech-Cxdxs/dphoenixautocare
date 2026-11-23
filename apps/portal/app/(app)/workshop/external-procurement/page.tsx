@@ -95,7 +95,7 @@ export default async function ExternalProcurementPage({
                   <td data-label="Requested By" className="px-4 py-2 text-[var(--ejo-text-muted)]">{request.requestedBy.fullName}</td>
                   <td data-label="Estimated Amount" className="px-4 py-2 text-[var(--ejo-text)]">₦{Number(request.estimatedAmount).toLocaleString('en-NG')}</td>
                   <td data-label="Status" className="px-4 py-2">
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE_CLASS[request.status] ?? 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'}`}>
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE_CLASS[request.status] ?? 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'}`}>
                       {STATUS_LABEL[request.status] ?? request.status}
                     </span>
                   </td>

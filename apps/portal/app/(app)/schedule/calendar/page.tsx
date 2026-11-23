@@ -9,7 +9,7 @@ import { PageHeader, PageTitle } from '@/components/ui';
 const STATUS: Record<string, [string, string]> = {
   SCHEDULED: ['Scheduled', 'bg-[var(--ejo-info)]/15 text-[var(--ejo-info)]'],
   COMPLETED: ['Completed', 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]'],
-  CANCELLED: ['Cancelled', 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'],
+  CANCELLED: ['Cancelled', 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'],
   NO_SHOW: ['No-show', 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning)]'],
 };
 const lagosToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Lagos' });
@@ -86,7 +86,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
             <div key={ymd} className={`rounded-[var(--ejo-radius-lg)] border bg-[var(--ejo-surface)] ${k.working ? 'border-[var(--ejo-border)]' : 'border-dashed border-[var(--ejo-border)] opacity-90'}`}>
               <div className={`flex flex-wrap items-center gap-2 border-b border-[var(--ejo-border)] px-4 py-2 text-sm font-semibold ${!k.working ? 'bg-[var(--ejo-bg)]' : ''} ${ymd === lagosToday() ? 'text-[var(--ejo-primary)]' : 'text-[var(--ejo-text)]'}`}>
                 {d.toLocaleDateString('en-NG', { timeZone: 'Africa/Lagos', weekday: 'long', day: 'numeric', month: 'long' })}{ymd === lagosToday() ? ' — today' : ''}
-                {k.holiday ? <span className="rounded-full bg-[var(--ejo-warning)]/15 px-2 py-0.5 text-[11px] font-medium text-[var(--ejo-warning)]">Public holiday: {k.holiday.name}{k.holiday.provisional ? ' (subject to FG declaration)' : ''}</span> : k.weekend ? <span className="rounded-full bg-[var(--ejo-text-muted)]/15 px-2 py-0.5 text-[11px] font-medium text-[var(--ejo-text-muted)]">Weekend</span> : <span className="rounded-full bg-[var(--ejo-success)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--ejo-success)]">Working day</span>}
+                {k.holiday ? <span className="rounded-full bg-[var(--ejo-warning)]/15 px-2 py-0.5 text-[11px] font-medium text-[var(--ejo-warning)]">Public holiday: {k.holiday.name}{k.holiday.provisional ? ' (subject to FG declaration)' : ''}</span> : k.weekend ? <span className="rounded-full bg-[var(--ejo-text-muted)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--ejo-text-muted)]">Weekend</span> : <span className="rounded-full bg-[var(--ejo-success)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--ejo-success)]">Working day</span>}
                 <span className="text-xs font-normal text-[var(--ejo-text-muted)]">{items.length ? pluralize(items.length, 'appointment') : 'free'}</span>
               </div>
               {items.length ? (

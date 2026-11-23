@@ -23,7 +23,7 @@ const STATUS: Record<StockStatus, { label: string; colour: string; chip: string 
   BELOW_REORDER: { label: 'At / below reorder point', colour: '#F59E0B', chip: 'bg-[var(--ejo-warning)]/15 text-[var(--ejo-warning-text)]' },
   HEALTHY: { label: 'Healthy', colour: '#16A34A', chip: 'bg-[var(--ejo-success)]/15 text-[var(--ejo-success)]' },
   OVERSTOCK: { label: 'Overstocked', colour: '#86EFAC', chip: 'bg-[var(--ejo-primary)]/10 text-[var(--ejo-primary)]' },
-  DEAD: { label: 'Dead stock', colour: '#6B7280', chip: 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]' },
+  DEAD: { label: 'Dead stock', colour: '#6B7280', chip: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]' },
   NO_DEMAND: { label: 'No recent demand', colour: '#CBD5E1', chip: 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]' },
 };
 const ATTENTION: StockStatus[] = ['OUT_OF_STOCK', 'BELOW_SAFETY', 'BELOW_REORDER'];

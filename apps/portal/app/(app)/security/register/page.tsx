@@ -45,7 +45,7 @@ export default async function SecurityRegisterPage({ searchParams }: { searchPar
             <td>{r.title}</td>
             <td className="text-xs text-[var(--ejo-text-muted)]">{r.detail}</td>
             <td className="text-xs">{r.at.getTime() > 0 ? formatDateTimeCompact(r.at) : '—'}</td>
-            <td><span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_CHIP[r.status] ?? 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'}`}>{statusLabel(r)}</span></td>
+            <td><span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_CHIP[r.status] ?? 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'}`}>{statusLabel(r)}</span></td>
             <td><LoadingLink href={r.href} className="text-xs text-[var(--ejo-primary)] hover:underline">Open</LoadingLink></td>
           </tr>
         ))}

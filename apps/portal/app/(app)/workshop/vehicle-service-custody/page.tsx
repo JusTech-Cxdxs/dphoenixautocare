@@ -425,7 +425,7 @@ export default async function VehicleServiceCustodyPage({
                       {entry.plateNumber ? ` — ${entry.plateNumber}` : ''}
                     </p>
                   </div>
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${entry.isOverdue ? 'bg-[var(--ejo-error)]/15 text-[var(--ejo-error)]' : 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'}`}>
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${entry.isOverdue ? 'bg-[var(--ejo-error)]/15 text-[var(--ejo-error)]' : 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'}`}>
                     {entry.isOverdue ? 'Collection overdue' : 'Cancelled'} · {formatDateOnly(entry.cancelledAt)}
                   </span>
                 </div>

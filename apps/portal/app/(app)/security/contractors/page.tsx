@@ -43,7 +43,7 @@ export default async function ContractorsPage({ searchParams }: { searchParams: 
             <td className="text-xs">{lagosDay(c.validFrom)}{lagosDay(c.validFrom) !== lagosDay(c.validUntil) ? ` → ${lagosDay(c.validUntil)}` : ''}{c.onSite ? <span className="block">In since {formatDateTimeCompact(c.onSite.signedInAt)}</span> : null}</td>
             <td className="text-xs">{c.host.fullName}</td>
             <td>
-              <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_CHIP[c.state] ?? 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'}`}>{CONTRACTOR_STATUS_LABEL[c.state]}</span>
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_CHIP[c.state] ?? 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'}`}>{CONTRACTOR_STATUS_LABEL[c.state]}</span>
               {c.afterHours > 0 ? <span className="mt-1 block text-[11px] font-semibold text-[var(--ejo-error)]">{durationText(c.afterHours)} past 5 pm</span> : null}
             </td>
           </tr>

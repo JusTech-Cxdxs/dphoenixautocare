@@ -38,7 +38,7 @@ export default async function ContractorPassPage({ params, searchParams }: { par
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {p.status === 'APPROVED' ? <PrintMenu orgHref={`/print/contractor-pass/${p.id}`} clientHref={`/print/contractor-pass/${p.id}?variant=client`} clientLabel="Contractor Copy" align="right" /> : null}
-          <span className={`rounded-full px-3 py-1 text-sm font-medium ${STATUS_CHIP[p.state] ?? 'bg-[var(--ejo-text-muted)]/15 text-[var(--ejo-text-muted)]'}`}>{CONTRACTOR_STATUS_LABEL[p.state]}</span>
+          <span className={`rounded-full px-3 py-1 text-sm font-medium ${STATUS_CHIP[p.state] ?? 'bg-[var(--ejo-text-muted)]/10 text-[var(--ejo-text-muted)]'}`}>{CONTRACTOR_STATUS_LABEL[p.state]}</span>
         </div>
       </div>
       <SecurityNav active="/security/contractors" />

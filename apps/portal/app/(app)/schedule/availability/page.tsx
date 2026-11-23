@@ -33,7 +33,7 @@ export default async function AvailabilityPage({ searchParams }: { searchParams:
       <div className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-4 sm:p-5">
         <p className="mb-3 text-sm font-semibold text-[var(--ejo-text)]">
           {new Date(`${day}T12:00:00+01:00`).toLocaleDateString('en-NG', { timeZone: 'Africa/Lagos', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-          {k.holiday ? <span className="ml-2 rounded-full bg-[var(--ejo-warning)]/15 px-2 py-0.5 text-[11px] font-medium text-[var(--ejo-warning)]">Public holiday: {k.holiday.name}</span> : k.weekend ? <span className="ml-2 rounded-full bg-[var(--ejo-text-muted)]/15 px-2 py-0.5 text-[11px] font-medium text-[var(--ejo-text-muted)]">Weekend</span> : null}
+          {k.holiday ? <span className="ml-2 rounded-full bg-[var(--ejo-warning)]/15 px-2 py-0.5 text-[11px] font-medium text-[var(--ejo-warning)]">Public holiday: {k.holiday.name}</span> : k.weekend ? <span className="ml-2 rounded-full bg-[var(--ejo-text-muted)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--ejo-text-muted)]">Weekend</span> : null}
         </p>
         <RoomGrid grid={o.grid} />
       </div>
