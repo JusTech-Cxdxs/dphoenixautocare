@@ -1121,7 +1121,7 @@ export default async function JobCardDetailPage({
                 <FormPendingOverlay />
                 <input type="hidden" name="jobCardId" value={jobCard.id} />
                 <div className="flex-1 min-w-[180px]">
-                  <label className="mb-1 block text-[11px] text-[var(--ejo-text-muted)]">Notify supervisor (optional note)</label>
+                  <label htmlFor="jc-note-supervisor" className="mb-1 block text-[11px] text-[var(--ejo-text-muted)]">Notify supervisor (optional note)</label>
                   <input id="jc-note-supervisor"
                     name="note"
                     placeholder="e.g. Compressor priced, ready to check"
@@ -1142,7 +1142,7 @@ export default async function JobCardDetailPage({
                 <FormPendingOverlay />
                 <input type="hidden" name="jobCardId" value={jobCard.id} />
                 <div className="flex-1 min-w-[180px]">
-                  <label className="mb-1 block text-[11px] text-[var(--ejo-text-muted)]">Notify technician (optional note)</label>
+                  <label htmlFor="jc-note-technician" className="mb-1 block text-[11px] text-[var(--ejo-text-muted)]">Notify technician (optional note)</label>
                   <input id="jc-note-technician"
                     name="note"
                     placeholder="e.g. Please add the AC compressor price"
@@ -1434,7 +1434,7 @@ export default async function JobCardDetailPage({
                             ]
                       }
                     />
-                    <select
+                    <select aria-label="Payment method"
                       name="method"
                       required
                       defaultValue="BANK_TRANSFER"
@@ -1615,7 +1615,7 @@ export default async function JobCardDetailPage({
                 <form action={reassignSupervisorFormAction} className="mt-3 space-y-2">
                   <FormPendingOverlay />
                   <input type="hidden" name="jobCardId" value={jobCard.id} />
-                  <select
+                  <select aria-label="Supervisor"
                     name="supervisorId"
                     required
                     defaultValue=""
@@ -1758,10 +1758,10 @@ export default async function JobCardDetailPage({
                       <FormPendingOverlay />
                       <input type="hidden" name="jobCardId" value={jobCard.id} />
                       <input type="hidden" name="status" value="CHECKED_OUT" />
-                      <label className="block text-xs font-medium text-[var(--ejo-text-muted)]">
+                      <label htmlFor="workshop-job-cards-collectedByName" className="block text-xs font-medium text-[var(--ejo-text-muted)]">
                         {isCancelled ? 'Hand the vehicle back — collected by (full name)' : 'Collected by (full name)'}
                       </label>
-                      <input
+                      <input id="workshop-job-cards-collectedByName"
                         name="collectedByName"
                         required
                         defaultValue={jobCard.customer.fullName}
@@ -1848,7 +1848,7 @@ export default async function JobCardDetailPage({
               <form action={assignTechnicianFormAction} className="mt-4 space-y-3">
                 <FormPendingOverlay />
               <input type="hidden" name="jobCardId" value={jobCard.id} />
-              <select
+              <select aria-label="Technician"
                 name="technicianId"
                 defaultValue={jobCard.assignedTechnician?.id ?? ''}
                 className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]"

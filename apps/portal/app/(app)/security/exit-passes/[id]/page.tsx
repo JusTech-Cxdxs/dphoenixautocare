@@ -113,7 +113,7 @@ export default async function ExitPassPage({ params, searchParams }: { params: P
             <form action={extendExitPassFormAction} className="flex flex-wrap gap-2 border-t border-[var(--ejo-border)] pt-3">
               <FormPendingOverlay />
               <input type="hidden" name="passId" value={p.id} />
-              <select name="extraMinutes" required defaultValue="" className={input}>
+              <select aria-label="Extra time" name="extraMinutes" required defaultValue="" className={input}>
                 <option value="" disabled>Extend return by…</option>
                 {[15, 30, 60, 90, 120, 180, 240].map((m) => <option key={m} value={m}>{durationText(m)}</option>)}
               </select>

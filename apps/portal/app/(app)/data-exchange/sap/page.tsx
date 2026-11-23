@@ -23,7 +23,7 @@ export default async function SapPostingsPage() {
       {scopes.length === 0 ? <EmptyState icon="inbox" title="No branch you send to SAP." /> : scopes.map((s) => (
         <SectionCard key={s.id} icon={s.id === 'organisation' ? 'users' : 'building'} title={s.name}
           description={s.start ? `Postings since ${formatDateTimeCompact(s.start)} (signed off as cut over)${s.sapPlant ? ` · SAP plant ${s.sapPlant}` : ''}.` : s.id === 'organisation' ? 'Postings start the day the first branch is signed off as cut over.' : 'Postings start the day this branch is signed off as cut over (Data Exchange → Cut-over checklist).'}>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Table">
             <table className="w-full min-w-[36rem] text-left text-sm" data-testid="posting-tally">
               <thead className="text-xs text-[var(--ejo-text-muted)]">
                 <tr><th className="py-1 pr-3 font-medium">Kind</th><th className="py-1 pr-3 font-medium">Not in a file yet</th><th className="py-1 pr-3 font-medium">Sent, waiting for SAP</th><th className="py-1 pr-3 font-medium">Posted</th><th className="py-1 pr-3 font-medium">Rejected</th></tr>

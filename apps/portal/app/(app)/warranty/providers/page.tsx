@@ -54,7 +54,7 @@ export default async function WarrantyProvidersPage({ searchParams }: { searchPa
           <form className="mb-3 flex gap-2" action="/warranty/providers">
             {state ? <input type="hidden" name="state" value={state} /> : null}
             <LiveSearchInput type="search" name="q" defaultValue={q ?? ''} placeholder="Search by name, contact, email or phone…" className={input} />
-            <select name="type" defaultValue={type ?? ''} className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]">
+            <select aria-label="Provider type" name="type" defaultValue={type ?? ''} className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]">
               <option value="">All types</option>
               {Object.entries(PROVIDER_TYPE_LABEL).map(([v, t]) => <option key={v} value={v}>{t}</option>)}
             </select>
@@ -111,24 +111,24 @@ export default async function WarrantyProvidersPage({ searchParams }: { searchPa
             <form action={createWarrantyProviderFormAction} className="space-y-3">
             <FormPendingOverlay />
             
-            <div><label className={label}>Name</label><input name="name" required placeholder="Foton International" className={input} /></div>
+            <div><label htmlFor="warranty-providers-name" className={label}>Name</label><input id="warranty-providers-name" name="name" required placeholder="Foton International" className={input} /></div>
             <div>
-              <label className={label}>Type</label>
-              <select name="type" required defaultValue="" className={input}>
+              <label htmlFor="warranty-providers-type" className={label}>Type</label>
+              <select id="warranty-providers-type" name="type" required defaultValue="" className={input}>
                 <option value="" disabled>Choose a type…</option>
                 {Object.entries(PROVIDER_TYPE_LABEL).map(([v, t]) => <option key={v} value={v}>{t}</option>)}
               </select>
             </div>
-            <div><label className={label}>Contact name</label><input name="contactName" className={input} /></div>
+            <div><label htmlFor="warranty-providers-contactName" className={label}>Contact name</label><input id="warranty-providers-contactName" name="contactName" className={input} /></div>
             <div className="grid grid-cols-2 gap-2">
-              <div><label className={label}>Email</label><input name="email" type="email" className={input} /></div>
-              <div><label className={label}>Phone</label><input name="phone" className={input} /></div>
+              <div><label htmlFor="warranty-providers-email" className={label}>Email</label><input id="warranty-providers-email" name="email" type="email" className={input} /></div>
+              <div><label htmlFor="warranty-providers-phone" className={label}>Phone</label><input id="warranty-providers-phone" name="phone" className={input} /></div>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <div><label className={label}>Claim within (days)</label><input name="claimSubmissionDays" type="number" min={1} className={input} /></div>
-              <div><label className={label}>Keep failed parts (days)</label><input name="partRetentionDays" type="number" min={1} className={input} /></div>
+              <div><label htmlFor="warranty-providers-claimSubmissionDays" className={label}>Claim within (days)</label><input id="warranty-providers-claimSubmissionDays" name="claimSubmissionDays" type="number" min={1} className={input} /></div>
+              <div><label htmlFor="warranty-providers-partRetentionDays" className={label}>Keep failed parts (days)</label><input id="warranty-providers-partRetentionDays" name="partRetentionDays" type="number" min={1} className={input} /></div>
             </div>
-            <div><label className={label}>Notes</label><textarea id="warranty-providers-text-1" name="notes" rows={2} className={input} />
+            <div><label htmlFor="warranty-providers-text-1" className={label}>Notes</label><textarea id="warranty-providers-text-1" name="notes" rows={2} className={input} />
             <RefineTextButton targetId="warranty-providers-text-1" /></div>
             <SubmitButton label="Add provider" pendingLabel="Adding…" className="w-full rounded-[var(--ejo-radius-md)] bg-[var(--ejo-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90" />
           </form>

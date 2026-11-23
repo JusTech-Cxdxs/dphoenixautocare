@@ -115,7 +115,7 @@ export default async function JobCardMatchingPage({
                   <FormPendingOverlay />
                   <input type="hidden" name="lineItemId" value={line.id} />
                   <input type="hidden" name="jobCardId" value={jobCard.id} />
-                  <select
+                  <select aria-label="Part"
                     name="partId"
                     required
                     className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]"

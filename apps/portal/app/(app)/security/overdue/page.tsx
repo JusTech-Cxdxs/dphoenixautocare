@@ -39,7 +39,7 @@ export default async function OverduePage({ searchParams }: { searchParams: Prom
       <input type="hidden" name={kind === 'visit' ? 'visitId' : 'passId'} value={id} />
       {kind === 'visit' ? <input type="hidden" name="action" value="extend" /> : null}
       <input type="hidden" name="returnTo" value="/security/overdue" />
-      <select name="extraMinutes" required defaultValue="" className={input}>
+      <select aria-label="Extra time" name="extraMinutes" required defaultValue="" className={input}>
         <option value="" disabled>Extend by…</option>
         {EXTRA.map((m) => <option key={m} value={m}>{durationText(m)}</option>)}
       </select>
@@ -128,7 +128,7 @@ export default async function OverduePage({ searchParams }: { searchParams: Prom
                       <input type="hidden" name="permitId" value={r.id} />
                       <input type="hidden" name="action" value="extend" />
                       <input type="hidden" name="returnTo" value="/security/overdue" />
-                      <select name="extraMinutes" required defaultValue="" className={input}><option value="" disabled>Extend by…</option>{[15, 30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{durationText(m)}</option>)}</select>
+                      <select aria-label="Extra time" name="extraMinutes" required defaultValue="" className={input}><option value="" disabled>Extend by…</option>{[15, 30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{durationText(m)}</option>)}</select>
                       <input name="reason" required placeholder="Reason" className={`${input} min-w-0 flex-1`} />
                       <SubmitButton label="Extend" pendingLabel="…" className={small} />
                     </form>

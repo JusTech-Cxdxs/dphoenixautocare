@@ -46,8 +46,8 @@ export function ExitPassForm({ me, action, search, loadDefaultOptions }: { me: {
       <FormPendingOverlay />
       <input type="hidden" name="me" value={me.id} />
       <div>
-        <label className={label}>Who is going out?</label>
-        <select name="who" required value={who} onChange={(e) => setWho(e.target.value)} className={input}>
+        <label htmlFor="exit-pass-form-who" className={label}>Who is going out?</label>
+        <select id="exit-pass-form-who" name="who" required value={who} onChange={(e) => setWho(e.target.value)} className={input}>
           <option value="" disabled>Choose…</option>
           <option value="ME">Just me ({me.name})</option>
           <option value="WITH_OTHERS">Me and others</option>
@@ -78,22 +78,22 @@ export function ExitPassForm({ me, action, search, loadDefaultOptions }: { me: {
       ) : null}
       {who && (!needOthers || rows.length > 0) ? (
         <>
-          <div><label className={label}>Reason for going out</label><textarea id="exitpassform-text-1" name="reason" required rows={3} className={input} />
+          <div><label htmlFor="exitpassform-text-1" className={label}>Reason for going out</label><textarea id="exitpassform-text-1" name="reason" required rows={3} className={input} />
           <RefineTextButton targetId="exitpassform-text-1" /></div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className={label}>When are you leaving?</label>
-              <select name="leaveWhen" required value={leaveWhen} onChange={(e) => setLeaveWhen(e.target.value)} className={input}>
+              <label htmlFor="exit-pass-form-leaveWhen" className={label}>When are you leaving?</label>
+              <select id="exit-pass-form-leaveWhen" name="leaveWhen" required value={leaveWhen} onChange={(e) => setLeaveWhen(e.target.value)} className={input}>
                 <option value="" disabled>Choose…</option>
                 <option value="NOW">As soon as it is approved</option>
                 <option value="LATER">At a set time today</option>
               </select>
             </div>
-            {leaveWhen === 'LATER' ? <div><label className={label}>Leaving at</label><input name="leaveTime" type="time" required value={leaveTime} onChange={(e) => setLeaveTime(e.target.value)} className={input} /></div> : null}
+            {leaveWhen === 'LATER' ? <div><label htmlFor="exit-pass-form-leaveTime" className={label}>Leaving at</label><input id="exit-pass-form-leaveTime" name="leaveTime" type="time" required value={leaveTime} onChange={(e) => setLeaveTime(e.target.value)} className={input} /></div> : null}
           </div>
           <div>
-            <label className={label}>Coming back today?</label>
-            <select name="returning" required value={returning} onChange={(e) => setReturning(e.target.value)} className={input}>
+            <label htmlFor="exit-pass-form-returning" className={label}>Coming back today?</label>
+            <select id="exit-pass-form-returning" name="returning" required value={returning} onChange={(e) => setReturning(e.target.value)} className={input}>
               <option value="" disabled>Choose…</option>
               <option value="yes">Return — coming back</option>
               <option value="no">No return</option>
@@ -103,11 +103,11 @@ export function ExitPassForm({ me, action, search, loadDefaultOptions }: { me: {
             <div>
               <label className={label}>How long will {who === 'ME' ? 'you' : 'they'} be out?</label>
               <div className="grid grid-cols-2 gap-3">
-                <select name="outHours" required value={hours} onChange={(e) => setHours(e.target.value)} className={input}>
+                <select aria-label="Hours out" name="outHours" required value={hours} onChange={(e) => setHours(e.target.value)} className={input}>
                   <option value="" disabled>Hours…</option>
                   {Array.from({ length: 10 }, (_, h) => <option key={h} value={h}>{h} {h === 1 ? 'hour' : 'hours'}</option>)}
                 </select>
-                <select name="outMinutes" required value={minutes} onChange={(e) => setMinutes(e.target.value)} className={input}>
+                <select aria-label="Minutes out" name="outMinutes" required value={minutes} onChange={(e) => setMinutes(e.target.value)} className={input}>
                   <option value="" disabled>Minutes…</option>
                   {[0, 15, 30, 45].map((m) => <option key={m} value={m}>{m} min</option>)}
                 </select>

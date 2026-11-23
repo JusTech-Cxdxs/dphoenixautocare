@@ -98,7 +98,7 @@ export async function WebsiteSection() {
         { name: 'Chatted with Enyo', color: 'var(--ejo-success)', values: w.days.map((d) => d.chatted) },
       ]} />
       <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Top pages">
           <table className="w-full min-w-[420px] text-left text-sm">
             <caption className="mb-1 text-left text-xs font-semibold uppercase tracking-wide text-[var(--ejo-text-muted)]">Top pages</caption>
             <thead><tr className="text-[11px] uppercase tracking-wide text-[var(--ejo-text-muted)]"><th className="py-1.5 font-semibold">Page</th><th className="px-2 py-1.5 text-right font-semibold">Views</th><th className="px-2 py-1.5 text-right font-semibold">Visitors</th><th className="py-1.5 text-right font-semibold">Time on page</th></tr></thead>

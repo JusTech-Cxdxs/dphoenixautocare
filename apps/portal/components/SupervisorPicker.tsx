@@ -62,7 +62,7 @@ export function SupervisorPicker({ vehicleType, defaultSupervisorId }: { vehicle
           No eligible supervisor is currently active.
         </p>
       ) : (
-        <select
+        <select aria-label="Supervisor"
           name="supervisorId"
           required
           defaultValue={defaultSupervisorId && supervisors.some((s) => s.id === defaultSupervisorId) ? defaultSupervisorId : ''}

@@ -59,7 +59,7 @@ export function Sidebar({
   const linkBase = 'group relative flex items-center rounded-[var(--ejo-radius-md)] text-sm font-medium transition-colors';
 
   return (
-    <aside className={`flex h-full flex-col border-r border-[var(--ejo-border)] bg-[var(--ejo-surface)] transition-[width] duration-200 ${mini ? 'w-[76px]' : 'w-72 lg:w-64'}`}>
+    <aside aria-label="Sidebar" className={`flex h-full flex-col border-r border-[var(--ejo-border)] bg-[var(--ejo-surface)] transition-[width] duration-200 ${mini ? 'w-[76px]' : 'w-72 lg:w-64'}`}>
       <div className={`flex h-16 shrink-0 items-center border-b border-[var(--ejo-border)] ${mini ? 'justify-center px-2' : 'justify-between gap-2 px-4'}`}>
         {mini ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -78,7 +78,7 @@ export function Sidebar({
         {grouped(items).map((g) => (
           <div key={g.title} className="mb-3">
             {mini ? <div className="mx-3 mb-2 mt-1 h-px bg-[var(--ejo-border)] first:hidden" aria-hidden="true" /> : (
-              <p className="px-3 pb-1.5 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ejo-text-muted)]/80">{g.title}</p>
+              <p className="px-3 pb-1.5 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--ejo-text-muted)]">{g.title}</p>
             )}
             <div className="space-y-0.5">
               {g.items.map((mod) => {

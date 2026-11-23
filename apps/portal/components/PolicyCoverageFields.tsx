@@ -22,8 +22,8 @@ export function PolicyCoverageFields({
         <label className="flex items-center gap-2"><input type="checkbox" className="h-4 w-4 accent-[var(--ejo-success)]" name="coversLogistics" value="true" defaultChecked={coversLogistics} /> Logistics (freight)</label>
       </div>
       <p className="text-[11px] text-[var(--ejo-text-muted)]">Logistics = shipping the replacement in and the failed part back.</p>
-      <label className="block text-xs font-medium text-[var(--ejo-text-muted)]">How they usually make it right</label>
-      <select name="defaultRemedy" required defaultValue={defaultRemedy ?? ''} className={input}>
+      <label htmlFor="policy-coverage-fields-defaultRemedy" className="block text-xs font-medium text-[var(--ejo-text-muted)]">How they usually make it right</label>
+      <select id="policy-coverage-fields-defaultRemedy" name="defaultRemedy" required defaultValue={defaultRemedy ?? ''} className={input}>
         <option value="" disabled>Choose a remedy…</option>
         <option value="REIMBURSEMENT">Reimbursement — they pay or credit us</option>
         <option value="REPLACEMENT">Replacement — they send a new part</option>

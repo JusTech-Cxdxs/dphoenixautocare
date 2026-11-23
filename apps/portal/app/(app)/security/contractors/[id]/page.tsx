@@ -69,7 +69,7 @@ export default async function ContractorPassPage({ params, searchParams }: { par
           {p.state === 'ACTIVE' && roles.isGate ? (
             <form action={contractorActionFormAction} className="flex flex-wrap gap-2">
               <Hidden action="sign_in" />
-              <select name="workersPresent" required defaultValue="" className={`${input} min-w-0 flex-1`}>
+              <select aria-label="Workers present" name="workersPresent" required defaultValue="" className={`${input} min-w-0 flex-1`}>
                 <option value="" disabled>How many came today?</option>
                 {Array.from({ length: p.teamSize }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{pluralize(n, 'person', 'people')}</option>)}
               </select>

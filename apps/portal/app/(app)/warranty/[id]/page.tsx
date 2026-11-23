@@ -307,7 +307,7 @@ export default async function WarrantyDetailPage({ params, searchParams }: { par
               <form action={setWarrantyStatusFormAction} className="mt-3 space-y-2">
                 <FormPendingOverlay />
                 <input type="hidden" name="warrantyId" value={w.id} />
-                <select name="status" required className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]">
+                <select aria-label="Status" name="status" required className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]">
                   {w.status === 'SUSPENDED' ? <option value="ACTIVE">Reinstate</option> : null}
                   {w.status !== 'SUSPENDED' && w.status !== 'PENDING_VERIFICATION' ? <option value="SUSPENDED">Suspend</option> : null}
                   <option value="VOID">Void</option>

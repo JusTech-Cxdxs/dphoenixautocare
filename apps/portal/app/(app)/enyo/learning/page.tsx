@@ -198,7 +198,7 @@ export default async function EnyoLearningPage({ searchParams }: { searchParams:
             <LearningAccuracyChartLazy data={d.summary.weeks} />
             <details className="mt-3 text-xs text-[var(--ejo-text-muted)]">
               <summary className="inline-flex min-h-11 cursor-pointer items-center font-medium text-[var(--ejo-primary)] sm:min-h-8">Show the figures</summary>
-              <div className="mt-2 overflow-x-auto">
+              <div className="mt-2 overflow-x-auto" tabIndex={0} role="region" aria-label="Table">
                 <table className="w-full min-w-[32rem] text-left">
                   <thead><tr className="border-b border-[var(--ejo-border)]"><th className="py-1.5 pr-3 font-medium">Week of</th><th className="py-1.5 pr-3 font-medium">Checked</th><th className="py-1.5 pr-3 font-medium">Precision</th><th className="py-1.5 pr-3 font-medium">Recall</th><th className="py-1.5 pr-3 font-medium">Lines kept</th><th className="py-1.5 pr-3 font-medium">Lines missed</th><th className="py-1.5 font-medium">Labour error</th></tr></thead>
                   <tbody>

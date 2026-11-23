@@ -45,7 +45,7 @@ export default async function TeamPerformancePage({ searchParams }: { searchPara
 
       <SectionCard icon="users" title="Everyone, most work first" description="Open a person to see each kind of step. Times run from when the step reached them to when they did it." flush>
         {t.people.length ? (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Team performance">
             <table className="w-full min-w-[880px] text-left text-sm">
               <caption className="sr-only">Team performance, {t.period.label}</caption>
               <thead>

@@ -130,36 +130,36 @@ export default async function WarrantyPolicyPage({ params, searchParams }: { par
               <input type="hidden" name="policyId" value={policy.id} />
               <h2 className="text-sm font-semibold text-[var(--ejo-text)]">Edit policy {policy.code}</h2>
               <div className="grid grid-cols-2 gap-2">
-                <div><label className={label}>Name</label><input name="name" required defaultValue={policy.name} className={input} /></div>
+                <div><label htmlFor="warranty-policies-name" className={label}>Name</label><input id="warranty-policies-name" name="name" required defaultValue={policy.name} className={input} /></div>
                 <div>
-                  <label className={label}>Applies to</label>
-                  <select name="kind" defaultValue={policy.kind} className={input}><option value="ASSET">Vehicle</option><option value="PART">Part</option></select>
+                  <label htmlFor="warranty-policies-kind" className={label}>Applies to</label>
+                  <select id="warranty-policies-kind" name="kind" defaultValue={policy.kind} className={input}><option value="ASSET">Vehicle</option><option value="PART">Part</option></select>
                 </div>
               </div>
               <div>
-                <label className={label}>Provider</label>
-                <select name="providerId" defaultValue={policy.providerId} className={input}>
+                <label htmlFor="warranty-policies-providerId" className={label}>Provider</label>
+                <select id="warranty-policies-providerId" name="providerId" defaultValue={policy.providerId} className={input}>
                   {providers.filter((p: (typeof providers)[number]) => p.isActive || p.id === policy.providerId).map((p: (typeof providers)[number]) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div><label className={label}>Brand</label><input name="brand" defaultValue={policy.brand ?? ''} className={input} /></div>
-                <div><label className={label}>Model</label><input name="model" defaultValue={policy.model ?? ''} className={input} /></div>
+                <div><label htmlFor="warranty-policies-brand" className={label}>Brand</label><input id="warranty-policies-brand" name="brand" defaultValue={policy.brand ?? ''} className={input} /></div>
+                <div><label htmlFor="warranty-policies-model" className={label}>Model</label><input id="warranty-policies-model" name="model" defaultValue={policy.model ?? ''} className={input} /></div>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div><label className={label}>Duration</label><input name="durationMonths" type="number" min={1} max={3650} required defaultValue={policy.durationMonths} className={input} /></div>
+                <div><label htmlFor="warranty-policies-durationMonths" className={label}>Duration</label><input id="warranty-policies-durationMonths" name="durationMonths" type="number" min={1} max={3650} required defaultValue={policy.durationMonths} className={input} /></div>
                 <div>
-                  <label className={label}>In</label>
-                  <select name="durationUnit" required defaultValue={policy.durationUnit} className={input}>
+                  <label htmlFor="warranty-policies-durationUnit" className={label}>In</label>
+                  <select id="warranty-policies-durationUnit" name="durationUnit" required defaultValue={policy.durationUnit} className={input}>
                     <option value="" disabled>Choose…</option>
                     <option value="DAYS">Days</option>
                     <option value="WORKING_DAYS">Working days (Mon–Fri)</option>
                     <option value="MONTHS">Months</option>
                   </select>
                 </div>
-                <div><label className={label}>Km limit (blank = none)</label><input name="distanceLimit" type="number" min={1} defaultValue={policy.distanceLimit ?? ''} className={input} /></div>
+                <div><label htmlFor="warranty-policies-distanceLimit" className={label}>Km limit (blank = none)</label><input id="warranty-policies-distanceLimit" name="distanceLimit" type="number" min={1} defaultValue={policy.distanceLimit ?? ''} className={input} /></div>
               </div>
               <PolicyCoverageFields coversParts={policy.coversParts} coversLabour={policy.coversLabour} coversLogistics={policy.coversLogistics} defaultRemedy={policy.defaultRemedy} />
               <div><label className={label}>What is covered</label><LineItemsInput name="coverageItem" required initialItems={splitLines(policy.coverageSummary)} placeholder="e.g. Engine" addLabel="+ Add covered item" /></div>

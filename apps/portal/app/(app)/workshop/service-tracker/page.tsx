@@ -108,7 +108,7 @@ export default async function ServiceTrackerPage({
           <p className="mt-1 max-w-3xl text-sm text-[var(--ejo-text-muted)]">
             Vehicles that have left the workshop: when each is next due (mileage or date, whichever comes first),
             where it stands now, and the reminders sent. Vehicles still with us are on{' '}
-            <LoadingLink href={separateVehicleServiceOn() ? '/workshop/vehicle-service-custody' : '/workshop/custody'} className="text-[var(--ejo-primary)] hover:underline">
+            <LoadingLink href={separateVehicleServiceOn() ? '/workshop/vehicle-service-custody' : '/workshop/custody'} className="font-medium text-[var(--ejo-primary)] underline underline-offset-2 hover:no-underline">
               Vehicles In Custody
             </LoadingLink>
             .
@@ -171,7 +171,7 @@ export default async function ServiceTrackerPage({
 
       <form className="mb-4 flex gap-2" action="/workshop/service-tracker">
         {filter !== 'all' ? <input type="hidden" name="filter" value={filter} /> : null}
-        <select
+        <select aria-label="Vehicle type"
           name="type"
           defaultValue={vehicleType ?? ''}
           className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]"

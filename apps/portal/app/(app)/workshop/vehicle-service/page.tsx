@@ -93,8 +93,8 @@ export default async function VehicleServicePage({
               <FormPendingOverlay />
               <input type="hidden" name="organisationId" value={organisation.id} />
               <div>
-                <label className="mb-1 block text-[10px] text-[var(--ejo-text-muted)]">Every (km)</label>
-                <input
+                <label htmlFor="workshop-vehicle-service-primaryServiceIntervalKm" className="mb-1 block text-[10px] text-[var(--ejo-text-muted)]">Every (km)</label>
+                <input id="workshop-vehicle-service-primaryServiceIntervalKm"
                   name="primaryServiceIntervalKm"
                   type="number"
                   min="0"
@@ -104,8 +104,8 @@ export default async function VehicleServicePage({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-[10px] text-[var(--ejo-text-muted)]">Every (days)</label>
-                <input
+                <label htmlFor="workshop-vehicle-service-primaryServiceIntervalDays" className="mb-1 block text-[10px] text-[var(--ejo-text-muted)]">Every (days)</label>
+                <input id="workshop-vehicle-service-primaryServiceIntervalDays"
                   name="primaryServiceIntervalDays"
                   type="number"
                   min="0"
@@ -277,8 +277,8 @@ export default async function VehicleServicePage({
             <FormPendingOverlay />
             <CustomerVehiclePicker />
             <div>
-              <label className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Mileage at check-in (km)</label>
-              <input name="mileageAtCheckIn" type="number" min="0" className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]" />
+              <label htmlFor="workshop-vehicle-service-mileageAtCheckIn" className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Mileage at check-in (km)</label>
+              <input id="workshop-vehicle-service-mileageAtCheckIn" name="mileageAtCheckIn" type="number" min="0" className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]" />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Reason for visit</label>

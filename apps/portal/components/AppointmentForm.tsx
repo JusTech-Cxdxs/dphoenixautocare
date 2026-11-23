@@ -64,22 +64,22 @@ export function AppointmentForm({
         </>
       ) : (
         <div>
-          <label className={label}>Whose calendar</label>
-          <select name="ownerId" required defaultValue={defaults?.ownerId ?? ''} className={input}>
+          <label htmlFor="appointment-form-ownerId" className={label}>Whose calendar</label>
+          <select id="appointment-form-ownerId" name="ownerId" required defaultValue={defaults?.ownerId ?? ''} className={input}>
             <option value="" disabled>Choose…</option>
             {owners.map((o) => <option key={o.id} value={o.id}>{o.fullName}{o.mine ? ' (mine)' : ''}</option>)}
           </select>
         </div>
       )}
-      <div><label className={label}>Title</label><input name="title" required defaultValue={defaults?.title ?? ''} placeholder="e.g. Supplier meeting — ABC Motors" className={input} /></div>
-      <div><label className={label}>Agenda (optional)</label><textarea id="appointmentform-text-1" name="agenda" rows={2} defaultValue={defaults?.agenda ?? ''} className={input} />
+      <div><label htmlFor="appointment-form-title" className={label}>Title</label><input id="appointment-form-title" name="title" required defaultValue={defaults?.title ?? ''} placeholder="e.g. Supplier meeting — ABC Motors" className={input} /></div>
+      <div><label htmlFor="appointmentform-text-1" className={label}>Agenda (optional)</label><textarea id="appointmentform-text-1" name="agenda" rows={2} defaultValue={defaults?.agenda ?? ''} className={input} />
       <RefineTextButton targetId="appointmentform-text-1" /></div>
       <div className="grid gap-3 sm:grid-cols-3">
-        <div><label className={label}>Date</label><input name="date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} className={input} /></div>
-        <div><label className={label}>Start time</label><input name="time" type="time" required value={time} onChange={(e) => setTime(e.target.value)} className={input} /></div>
+        <div><label htmlFor="appointment-form-date" className={label}>Date</label><input id="appointment-form-date" name="date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} className={input} /></div>
+        <div><label htmlFor="appointment-form-time" className={label}>Start time</label><input id="appointment-form-time" name="time" type="time" required value={time} onChange={(e) => setTime(e.target.value)} className={input} /></div>
         <div>
-          <label className={label}>Duration</label>
-          <select name="duration" required value={duration} onChange={(e) => setDuration(e.target.value)} className={input}>
+          <label htmlFor="appointment-form-duration" className={label}>Duration</label>
+          <select id="appointment-form-duration" name="duration" required value={duration} onChange={(e) => setDuration(e.target.value)} className={input}>
             <option value="" disabled>Choose…</option>
             {(defaults && !DURATIONS.includes(defaults.duration) ? [...DURATIONS, defaults.duration].sort((a, b) => a - b) : DURATIONS).map((m) => <option key={m} value={m}>{dLabel(m)}</option>)}
           </select>
@@ -87,8 +87,8 @@ export function AppointmentForm({
       </div>
       {note ? <p className="-mt-2 text-xs text-[var(--ejo-warning)]">{note} You can still book it.</p> : null}
       <div>
-        <label className={label}>Where</label>
-        <select name="where" required value={where} onChange={(e) => setWhere(e.target.value)} className={input}>
+        <label htmlFor="appointment-form-where" className={label}>Where</label>
+        <select id="appointment-form-where" name="where" required value={where} onChange={(e) => setWhere(e.target.value)} className={input}>
           <option value="" disabled>Choose…</option>
           <option value="ROOM" disabled={rooms.length === 0}>A meeting room{rooms.length === 0 ? ' (none set up yet)' : ''}</option>
           <option value="OFFICE">The host&apos;s office</option>
@@ -97,14 +97,14 @@ export function AppointmentForm({
       </div>
       {where === 'ROOM' ? (
         <div>
-          <label className={label}>Meeting room</label>
-          <select name="roomId" required defaultValue={defaults?.roomId ?? ''} className={input}>
+          <label htmlFor="appointment-form-roomId" className={label}>Meeting room</label>
+          <select id="appointment-form-roomId" name="roomId" required defaultValue={defaults?.roomId ?? ''} className={input}>
             <option value="" disabled>Choose…</option>
             {rooms.map((r) => <option key={r.id} value={r.id}>{r.name}{r.capacity ? ` — seats ${r.capacity}` : ''}{r.location ? ` · ${r.location}` : ''}</option>)}
           </select>
         </div>
       ) : where === 'OTHER' ? (
-        <div><label className={label}>Location</label><input name="location" required defaultValue={defaults?.location ?? ''} placeholder="e.g. MD's office, site visit at Apapa, video call" className={input} /></div>
+        <div><label htmlFor="appointment-form-location" className={label}>Location</label><input id="appointment-form-location" name="location" required defaultValue={defaults?.location ?? ''} placeholder="e.g. MD's office, site visit at Apapa, video call" className={input} /></div>
       ) : null}
       <div className="space-y-2">
         <p className={label}>Staff taking part (optional)</p>
@@ -123,8 +123,8 @@ export function AppointmentForm({
         <p className="text-xs text-[var(--ejo-text-muted)]">Visitor groups are added, changed or removed on the appointment page.</p>
       ) : (
       <div>
-        <label className={label}>Any visitors from outside?</label>
-        <select name="hasVisitors" required value={hasVisitors} onChange={(e) => setHasVisitors(e.target.value)} className={input}>
+        <label htmlFor="appointment-form-hasVisitors" className={label}>Any visitors from outside?</label>
+        <select id="appointment-form-hasVisitors" name="hasVisitors" required value={hasVisitors} onChange={(e) => setHasVisitors(e.target.value)} className={input}>
           <option value="" disabled>Choose…</option>
           <option value="no">No — staff only</option>
           <option value="yes">Yes — Security will expect them</option>

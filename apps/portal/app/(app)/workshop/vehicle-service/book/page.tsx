@@ -71,8 +71,8 @@ export default async function BookVehicleServicePage({ searchParams }: { searchP
             <input type="hidden" name="customerId" value={vehicle.customerId} />
             <input type="hidden" name="vehicleId" value={vehicle.id} />
             <div>
-              <label className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Supervisor</label>
-              <select
+              <label htmlFor="vehicle-service-book-supervisorId" className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Supervisor</label>
+              <select id="vehicle-service-book-supervisorId"
                 name="supervisorId"
                 required
                 className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]"
@@ -88,8 +88,8 @@ export default async function BookVehicleServicePage({ searchParams }: { searchP
               ) : null}
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Mileage at check-in (km)</label>
-              <input
+              <label htmlFor="vehicle-service-book-mileageAtCheckIn" className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Mileage at check-in (km)</label>
+              <input id="vehicle-service-book-mileageAtCheckIn"
                 name="mileageAtCheckIn"
                 type="number"
                 min={vehicle.mileage ?? 0}

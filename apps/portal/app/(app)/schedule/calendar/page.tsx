@@ -69,7 +69,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           <form className="flex w-full gap-2 sm:ml-auto sm:w-auto">
             <input type="hidden" name="date" value={base} />
             <input type="hidden" name="view" value={isWeek ? 'week' : 'day'} />
-            <select name="owner" defaultValue={owner ?? ''} className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-1.5 text-sm text-[var(--ejo-text)] sm:w-auto">
+            <select aria-label="Whose calendar" name="owner" defaultValue={owner ?? ''} className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-1.5 text-sm text-[var(--ejo-text)] sm:w-auto">
               <option value="">All calendars I can see</option>
               {access.owners.map((o) => <option key={o.id} value={o.id}>{o.fullName}{o.mine ? ' (mine)' : ''}</option>)}
             </select>

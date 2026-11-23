@@ -25,7 +25,7 @@
   --ejo-surface-alt: #f1f5f9;
   --ejo-border: #e2e8f0;
   --ejo-text: #0a1628;
-  --ejo-text-muted: #64748b;
+  --ejo-text-muted: #5b6779;
   --ejo-text-on-dark: #f8fafc;
   --ejo-text-on-dark-muted: rgba(248, 250, 252, 0.7);
 
@@ -222,10 +222,10 @@ html, body { overscroll-behavior-x: none; }
    Brand colours from the website: navy #0A1628, orange #F09E2C (hover
    #D48E1B), logo gold #D6890B. The orange is light, so anything written on
    it is navy (8.3:1, never white at 2.2:1), and orange used as text takes a
-   deeper shade on light screens (4.7:1) and the brand orange on dark ones.
+   deeper shade on light screens (5:1 even on orange-tinted panels) and the brand orange on dark ones.
    One layer here instead of edits across the shared components, so updates
    to EJO 100 still apply cleanly. */
-:root { --ejo-on-primary: #0a1628; --ejo-primary-text: #a8620c; }
+:root { --ejo-on-primary: #0a1628; --ejo-primary-text: #965509; }
 /* The customer site's dark theme is the .dark class (it follows the device
    unless the customer chose); orange text is the light orange only there. */
 .dark { --ejo-primary-text: #f09e2c; }
@@ -240,3 +240,16 @@ html, body { overscroll-behavior-x: none; }
 /* Anything that turns orange on hover reads in navy, never white on orange. */
 [class~="hover:bg-[var(--ejo-primary)]"]:hover,
 [class~="group-hover:bg-[var(--ejo-primary)]"]:is(.group:hover *) { color: var(--ejo-on-primary); }
+
+/* Status colours as text. Green, blue, red and amber stay the fill colours
+   of buttons and dots; written as text (often on their own pale tint) they
+   take a deeper shade on light screens and a lighter one on dark screens,
+   so every chip and hint reads at 4.5:1 or better. */
+:root { --ejo-success-text: #166534; --ejo-info-text: #1e40af; --ejo-error-text: #991b1b; --ejo-warning-text: #92400e; }
+.dark { --ejo-success-text: #4ade80; --ejo-info-text: #60a5fa; --ejo-error-text: #f87171; --ejo-warning-text: #fbbf24; --ejo-error: #dc2626; --ejo-info: #2563eb; }
+[class~="text-[var(--ejo-success)]"], [class~="hover:text-[var(--ejo-success)]"]:hover { color: var(--ejo-success-text); }
+[class~="text-[var(--ejo-info)]"], [class~="hover:text-[var(--ejo-info)]"]:hover { color: var(--ejo-info-text); }
+[class~="text-[var(--ejo-error)]"], [class~="hover:text-[var(--ejo-error)]"]:hover { color: var(--ejo-error-text); }
+[class~="text-[var(--ejo-warning)]"], [class~="hover:text-[var(--ejo-warning)]"]:hover { color: var(--ejo-warning-text); }
+/* Amber is light: anything written on it is navy, like the orange. */
+[class~="bg-[var(--ejo-warning)]"][class~="text-white"] { color: var(--ejo-on-primary); }

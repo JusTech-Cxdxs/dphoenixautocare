@@ -45,8 +45,9 @@ export default async function IncidentPage({ params, searchParams }: { params: P
       {status && DONE[status] ? <div className="mb-6 max-w-2xl"><FormFeedbackBanner kind="success" message={DONE[status]!} /></div> : null}
       {error ? <div className="mb-6 max-w-2xl"><FormFeedbackBanner kind="error" message={error} /></div> : null}
       <div className="mb-6 grid gap-6 lg:grid-cols-2">
-        <dl className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-4 sm:p-6">
+        <div className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-4 sm:p-6">
           <p className="mb-3 whitespace-pre-line text-sm text-[var(--ejo-text)]">{inc.description}</p>
+          <dl>
           <Row k="People involved" val={inc.peopleInvolved} />
           <Row k="Vehicle" val={inc.vehiclePlate} />
           <Row k="Action taken" val={inc.actionTaken} />
@@ -54,15 +55,16 @@ export default async function IncidentPage({ params, searchParams }: { params: P
           <Row k="Assigned to" val={inc.assignedTo?.fullName} />
           <Row k="Resolution" val={inc.resolution} />
           <Row k="Closed" val={inc.closedAt ? `${formatDateTime(inc.closedAt)}${inc.closedBy ? ` · ${inc.closedBy.fullName}` : ''}` : null} />
+          </dl>
           {inc.relatedType && inc.relatedId ? <p className="mt-2 text-xs"><LoadingLink href={`${HREF[inc.relatedType] ?? '/security/register?q='}${inc.relatedId}`} className="text-[var(--ejo-primary)] hover:underline">Related: {inc.relatedNumber} →</LoadingLink></p> : null}
-        </dl>
+        </div>
         <div className="h-fit space-y-3 rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-4 sm:p-6">
           <h2 className="text-sm font-semibold text-[var(--ejo-text)]">Actions</h2>
           {isChief && inc.status !== 'CLOSED' ? (
             <>
               <form action={incidentActionFormAction} className="flex flex-wrap gap-2">
                 <Hidden action="assign" />
-                <select name="assigneeId" required defaultValue="" className={`${input} min-w-0 flex-1`}>
+                <select aria-label="Assign to" name="assigneeId" required defaultValue="" className={`${input} min-w-0 flex-1`}>
                   <option value="" disabled>Assign to…</option>
                   {staff.map((s) => <option key={s.id} value={s.id}>{s.fullName}</option>)}
                 </select>

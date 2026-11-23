@@ -101,7 +101,7 @@ export default async function RoadTestPage({ params, searchParams }: { params: P
             <>
               <form action={roadTestActionFormAction} className="space-y-2"><Hidden action="gate_in" /><p className="text-xs text-[var(--ejo-text-muted)]">Read the <b>odometer</b> now (total km). It went out at {r.startOdometer !== null ? `${r.startOdometer.toLocaleString('en-NG')} km` : '—'}.</p><div className="flex flex-wrap gap-2"><input aria-label="Odometer reading now (km)" placeholder="Odometer reading now (km)" name="odometer" type="number" min={r.startOdometer ?? 0} step={1} required className={`${input} min-w-0 flex-1`} /><input name="notes" placeholder="Notes (optional)" className={`${input} min-w-0 flex-1`} /></div><SubmitButton label="Record time in" pendingLabel="Saving…" className={btn} /></form>
               <form action={roadTestActionFormAction} className="flex flex-wrap gap-2 border-t border-[var(--ejo-border)] pt-3"><Hidden action="extend" />
-                <select name="extraMinutes" required defaultValue="" className={input}><option value="" disabled>Extend by…</option>{[15, 30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{durationText(m)}</option>)}</select>
+                <select aria-label="Extra time" name="extraMinutes" required defaultValue="" className={input}><option value="" disabled>Extend by…</option>{[15, 30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{durationText(m)}</option>)}</select>
                 <input name="reason" required placeholder="Reason" className={`${input} min-w-0 flex-1`} /><SubmitButton label="Extend" pendingLabel="Saving…" className={line} />
               </form>
             </>

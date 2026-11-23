@@ -107,7 +107,7 @@ export default async function RegisterWarrantyPage({ searchParams }: { searchPar
                   <LoadingLink href="/warranty/policies" className="text-[var(--ejo-primary)] hover:underline">Policies</LoadingLink>.
                 </p>
               ) : (
-                <select name="policyId" required className={input}>
+                <select aria-label="Warranty policy" name="policyId" required className={input}>
                   {active.map((p: (typeof active)[number]) => (
                     <option key={p.id} value={p.id}>
                       {p.name} — {durationLabel(p)}{p.distanceLimit ? ` / ${p.distanceLimit.toLocaleString('en-NG')} km` : ''} ({p.provider.name}){p.isSample ? ' — SAMPLE' : ''}
@@ -118,16 +118,16 @@ export default async function RegisterWarrantyPage({ searchParams }: { searchPar
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Delivery date (warranty start)</label>
-                <input type="date" name="startsAt" required className={input} />
+                <label htmlFor="warranty-register-startsAt" className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Delivery date (warranty start)</label>
+                <input id="warranty-register-startsAt" type="date" name="startsAt" required className={input} />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Odometer at delivery (km)</label>
-                <input type="number" name="startReading" min={0} placeholder="e.g. 12" className={input} />
+                <label htmlFor="warranty-register-startReading" className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Odometer at delivery (km)</label>
+                <input id="warranty-register-startReading" type="number" name="startReading" min={0} placeholder="e.g. 12" className={input} />
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Evidence</label>
+              <label htmlFor="warranty-register-text-1" className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Evidence</label>
               <textarea id="warranty-register-text-1" name="evidenceNote" required rows={3} placeholder="e.g. Sales invoice INV-0098 dated 25 Sep 2026; delivery note DN-0431" className={input} />
               <RefineTextButton targetId="warranty-register-text-1" />
             </div>

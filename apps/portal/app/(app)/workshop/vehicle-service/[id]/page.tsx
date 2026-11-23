@@ -1075,7 +1075,7 @@ export default async function VehicleServiceDetailPage({
                       <FormPendingOverlay />
                       <input type="hidden" name="vehicleServiceId" value={service.id} />
                       <div className="min-w-[180px] flex-1">
-                        <label className="mb-1 block text-[11px] text-[var(--ejo-text-muted)]">Notify supervisor (optional note)</label>
+                        <label htmlFor="vs-note-supervisor" className="mb-1 block text-[11px] text-[var(--ejo-text-muted)]">Notify supervisor (optional note)</label>
                         <input id="vs-note-supervisor"
                           name="note"
                           placeholder="e.g. Parts priced, ready to check"
@@ -1096,7 +1096,7 @@ export default async function VehicleServiceDetailPage({
                       <FormPendingOverlay />
                       <input type="hidden" name="vehicleServiceId" value={service.id} />
                       <div className="min-w-[180px] flex-1">
-                        <label className="mb-1 block text-[11px] text-[var(--ejo-text-muted)]">Notify technician (optional note)</label>
+                        <label htmlFor="vs-note-technician" className="mb-1 block text-[11px] text-[var(--ejo-text-muted)]">Notify technician (optional note)</label>
                         <input id="vs-note-technician"
                           name="note"
                           placeholder="e.g. Please add the pricing"
@@ -1284,7 +1284,7 @@ export default async function VehicleServiceDetailPage({
                             ]
                       }
                     />
-                    <select
+                    <select aria-label="Payment method"
                       name="method"
                       required
                       defaultValue="BANK_TRANSFER"
@@ -1464,8 +1464,8 @@ export default async function VehicleServiceDetailPage({
                     </div>
                   ) : (
                     <div>
-                      <label className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Odometer (km)</label>
-                      <input
+                      <label htmlFor="workshop-vehicle-service-odometerAtService" className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Odometer (km)</label>
+                      <input id="workshop-vehicle-service-odometerAtService"
                         name="odometerAtService"
                         type="number"
                         min="0"
@@ -1479,7 +1479,7 @@ export default async function VehicleServiceDetailPage({
                 {nextAction.status === 'COMPLETED' ? (
                   <>
                     <div>
-                      <label className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Technician Notes</label>
+                      <label htmlFor="vs-technician-notes" className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Technician Notes</label>
                       <textarea id="vs-technician-notes"
                         name="technicianNotes"
                         rows={3}
@@ -1497,8 +1497,8 @@ export default async function VehicleServiceDetailPage({
                 ) : null}
                 {nextAction.status === 'COLLECTED' ? (
                   <div>
-                    <label className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Collected by (full name)</label>
-                    <input
+                    <label htmlFor="workshop-vehicle-service-collectedByName" className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Collected by (full name)</label>
+                    <input id="workshop-vehicle-service-collectedByName"
                       name="collectedByName"
                       required
                       defaultValue={service.customer.fullName}
@@ -1613,7 +1613,7 @@ export default async function VehicleServiceDetailPage({
               <form action={assignTechnicianToVehicleServiceFormAction} className="mt-4 space-y-3">
                 <FormPendingOverlay />
                 <input type="hidden" name="serviceId" value={service.id} />
-                <select
+                <select aria-label="Technician"
                   name="technicianId"
                   defaultValue={service.assignedTechnician?.id ?? ''}
                   className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]"
@@ -1737,8 +1737,8 @@ export default async function VehicleServiceDetailPage({
                 <form action={handBackCancelledVehicleServiceFormAction} className="mt-3 space-y-2">
                   <FormPendingOverlay />
                   <input type="hidden" name="serviceId" value={service.id} />
-                  <label className="block text-xs font-medium text-[var(--ejo-text-muted)]">Hand the vehicle back — collected by (full name)</label>
-                  <input name="collectedByName" required defaultValue={service.customer.fullName} className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]" />
+                  <label htmlFor="workshop-vehicle-service-collectedByName-2" className="block text-xs font-medium text-[var(--ejo-text-muted)]">Hand the vehicle back — collected by (full name)</label>
+                  <input id="workshop-vehicle-service-collectedByName-2" name="collectedByName" required defaultValue={service.customer.fullName} className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]" />
                   <SubmitButton label="Hand vehicle back" pendingLabel="Saving…" className="w-full rounded-[var(--ejo-radius-md)] bg-[var(--ejo-success)] px-4 py-2 text-sm font-medium text-white hover:opacity-90" />
                 </form>
               )}

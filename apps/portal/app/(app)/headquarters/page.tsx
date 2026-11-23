@@ -47,14 +47,14 @@ function WeeklySales({ weeks }: { weeks: { label: string; sales: number }[] }) {
         })}
       </svg>
       <figcaption className="mt-1 flex flex-wrap justify-between gap-2 text-xs text-[var(--ejo-text-muted)]"><span>Highest week {naira(max)}</span><span>The paler bar is this week, so far</span></figcaption>
-      <table className="sr-only"><caption>Sales per week</caption><tbody>{weeks.map((w) => <tr key={w.label}><th>{w.label}</th><td>{naira(w.sales)}</td></tr>)}</tbody></table>
+      <table className="sr-only"><caption>Revenue per week</caption><tbody>{weeks.map((w) => <tr key={w.label}><th>{w.label}</th><td>{naira(w.sales)}</td></tr>)}</tbody></table>
     </figure>
   );
 }
 
 function BranchTable({ rows, period }: { rows: HqRow[]; period: string }) {
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Branches side by side">
       <table className="w-full min-w-[860px] text-left text-sm">
         <caption className="sr-only">Branches side by side, {period}</caption>
         <thead>

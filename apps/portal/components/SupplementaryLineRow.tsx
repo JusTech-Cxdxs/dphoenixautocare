@@ -58,7 +58,7 @@ export function SupplementaryLineRow({
       <FormPendingOverlay />
       <input type="hidden" name="requestId" value={requestId} />
       <input type="hidden" name="lineId" value={lineId} />
-      <input
+      <input aria-label="Description"
         name="description"
         defaultValue={description}
         required
@@ -66,7 +66,7 @@ export function SupplementaryLineRow({
         className="flex-1 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-2 py-1 text-xs text-[var(--ejo-text)]"
         style={{ minWidth: '120px' }}
       />
-      <input
+      <input aria-label="Amount (₦)"
         name="amount"
         type="number"
         step="0.01"

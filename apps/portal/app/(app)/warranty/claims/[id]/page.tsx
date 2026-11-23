@@ -307,7 +307,7 @@ export default async function WarrantyClaimPage({ params, searchParams }: { para
               <form action={recordCustomerResolutionFormAction} className="space-y-2 pt-1">
                 <FormPendingOverlay />
                 <input type="hidden" name="claimId" value={c.id} />
-                <select name="resolution" required defaultValue="" className={input}>
+                <select aria-label="Resolution" name="resolution" required defaultValue="" className={input}>
                   <option value="" disabled>{c.customerResolution ? 'Change to…' : 'Choose…'}</option>
                   {Object.entries(CUSTOMER_RESOLUTION_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
@@ -362,7 +362,7 @@ export default async function WarrantyClaimPage({ params, searchParams }: { para
                 <form action={recordWarrantyClaimDecisionFormAction} className="space-y-2">
                   <FormPendingOverlay />
                   <input type="hidden" name="claimId" value={c.id} />
-                  <select name="decision" required className={input}>
+                  <select aria-label="Decision" name="decision" required className={input}>
                     <option value="ACCEPTED">Accepted in full ({naira(claimed)})</option>
                     <option value="PARTIALLY_ACCEPTED">Partially accepted</option>
                     <option value="REJECTED">Rejected</option>
@@ -417,7 +417,7 @@ export default async function WarrantyClaimPage({ params, searchParams }: { para
                 <FormPendingOverlay />
                 <input type="hidden" name="claimId" value={c.id} />
                 <p className="text-xs text-[var(--ejo-text-muted)]">When the money (or credit note) arrives, record it. Approved: {naira(approved ?? 0)}.</p>
-                <input name="amount" type="number" step="0.01" min={0} required defaultValue={approved ?? undefined} className={input} />
+                <input aria-label="Amount (₦)" name="amount" type="number" step="0.01" min={0} required defaultValue={approved ?? undefined} className={input} />
                 <input name="reference" placeholder="Payment / credit note reference" className={input} />
                 <SubmitButton label="Record settlement" pendingLabel="Saving…" className={btn} />
               </form>

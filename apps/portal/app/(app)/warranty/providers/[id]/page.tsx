@@ -99,19 +99,19 @@ export default async function WarrantyProviderPage({ params, searchParams }: { p
               <FormPendingOverlay />
               <input type="hidden" name="providerId" value={p.id} />
               <div className="grid grid-cols-2 gap-2">
-                <div><label className={label}>Name</label><input name="name" required defaultValue={p.name} className={input} /></div>
-                <div><label className={label}>Type</label><select name="type" defaultValue={p.type} className={input}>{Object.entries(PROVIDER_TYPE_LABEL).map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select></div>
+                <div><label htmlFor="warranty-providers-name" className={label}>Name</label><input id="warranty-providers-name" name="name" required defaultValue={p.name} className={input} /></div>
+                <div><label htmlFor="warranty-providers-type" className={label}>Type</label><select id="warranty-providers-type" name="type" defaultValue={p.type} className={input}>{Object.entries(PROVIDER_TYPE_LABEL).map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select></div>
               </div>
-              <div><label className={label}>Contact name</label><input name="contactName" defaultValue={p.contactName ?? ''} className={input} /></div>
+              <div><label htmlFor="warranty-providers-contactName" className={label}>Contact name</label><input id="warranty-providers-contactName" name="contactName" defaultValue={p.contactName ?? ''} className={input} /></div>
               <div className="grid grid-cols-2 gap-2">
-                <div><label className={label}>Email</label><input name="email" type="email" defaultValue={p.email ?? ''} className={input} /></div>
-                <div><label className={label}>Phone</label><input name="phone" defaultValue={p.phone ?? ''} className={input} /></div>
+                <div><label htmlFor="warranty-providers-email" className={label}>Email</label><input id="warranty-providers-email" name="email" type="email" defaultValue={p.email ?? ''} className={input} /></div>
+                <div><label htmlFor="warranty-providers-phone" className={label}>Phone</label><input id="warranty-providers-phone" name="phone" defaultValue={p.phone ?? ''} className={input} /></div>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div><label className={label}>Claim within (days)</label><input name="claimSubmissionDays" type="number" min={1} defaultValue={p.claimSubmissionDays ?? ''} className={input} /></div>
-                <div><label className={label}>Keep failed parts (days)</label><input name="partRetentionDays" type="number" min={1} defaultValue={p.partRetentionDays ?? ''} className={input} /></div>
+                <div><label htmlFor="warranty-providers-claimSubmissionDays" className={label}>Claim within (days)</label><input id="warranty-providers-claimSubmissionDays" name="claimSubmissionDays" type="number" min={1} defaultValue={p.claimSubmissionDays ?? ''} className={input} /></div>
+                <div><label htmlFor="warranty-providers-partRetentionDays" className={label}>Keep failed parts (days)</label><input id="warranty-providers-partRetentionDays" name="partRetentionDays" type="number" min={1} defaultValue={p.partRetentionDays ?? ''} className={input} /></div>
               </div>
-              <div><label className={label}>Notes</label><textarea id="warranty-providers-id-text-1" name="notes" rows={2} defaultValue={p.notes ?? ''} className={input} />
+              <div><label htmlFor="warranty-providers-id-text-1" className={label}>Notes</label><textarea id="warranty-providers-id-text-1" name="notes" rows={2} defaultValue={p.notes ?? ''} className={input} />
               <RefineTextButton targetId="warranty-providers-id-text-1" /></div>
               <p className="text-[11px] text-[var(--ejo-text-muted)]">Claims already opened keep their deadline; new rules apply to claims opened from now on.</p>
               <div className="flex gap-2">

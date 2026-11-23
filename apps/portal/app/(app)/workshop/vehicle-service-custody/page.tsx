@@ -177,7 +177,7 @@ export default async function VehicleServiceCustodyPage({
       ) : null}
 
       <form className="mb-8 flex gap-2" action="/workshop/vehicle-service-custody">
-        <select
+        <select aria-label="Vehicle type"
           name="type"
           defaultValue={vehicleType ?? ''}
           className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]"

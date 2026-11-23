@@ -154,8 +154,8 @@ export function GoodsReceiptForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Quantity Received</label>
-          <input
+          <label htmlFor="goods-receipt-form-quantityReceivedInUnit" className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Quantity Received</label>
+          <input id="goods-receipt-form-quantityReceivedInUnit"
             name="quantityReceivedInUnit"
             type="number"
             step="0.0001"
@@ -166,8 +166,8 @@ export function GoodsReceiptForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Unit</label>
-          <input
+          <label htmlFor="goods-receipt-form-unitUsed" className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Unit</label>
+          <input id="goods-receipt-form-unitUsed"
             name="unitUsed"
             list="goods-receipt-unit-suggestions"
             required
@@ -187,13 +187,13 @@ export function GoodsReceiptForm({
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-[var(--ejo-text-muted)]">
+        <label htmlFor="goods-receipt-form-totalCost" className="mb-1 block text-xs text-[var(--ejo-text-muted)]">
           Total Cost
           {unitUsed
             ? ` (for the full ${quantity || '…'} ${quantity ? pluralizeWord(Number(quantity), unitUsed) : pluralizeWord(2, unitUsed)} received)`
             : ''}
         </label>
-        <input
+        <input id="goods-receipt-form-totalCost"
           name="totalCost"
           type="number"
           step="0.01"
@@ -217,8 +217,8 @@ export function GoodsReceiptForm({
 
       {selectedPart?.trackingType === 'BATCH' ? (
         <div>
-          <label className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Batch Number</label>
-          <input
+          <label htmlFor="goods-receipt-form-batchNumber" className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Batch Number</label>
+          <input id="goods-receipt-form-batchNumber"
             name="batchNumber"
             required
             placeholder="e.g. the lot/batch code printed on the delivery"
@@ -275,7 +275,7 @@ export function GoodsReceiptForm({
       ) : null}
 
       <div>
-        <label className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Notes (optional)</label>
+        <label htmlFor="goodsreceiptform-text-1" className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Notes (optional)</label>
         <textarea id="goodsreceiptform-text-1"
           name="notes"
           rows={2}

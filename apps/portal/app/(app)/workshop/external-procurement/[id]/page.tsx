@@ -279,8 +279,8 @@ export default async function ExternalProcurementDetailPage({
                 <FormPendingOverlay />
                 <input type="hidden" name="requestId" value={request.id} />
                 <div className="flex-1" style={{ minWidth: '160px' }}>
-                  <label className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Description</label>
-                  <input
+                  <label htmlFor="workshop-external-procurement-description" className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Description</label>
+                  <input id="workshop-external-procurement-description"
                     name="description"
                     required
                     placeholder="e.g. Transport, Logistics"
@@ -288,8 +288,8 @@ export default async function ExternalProcurementDetailPage({
                   />
                 </div>
                 <div className="w-32">
-                  <label className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Amount</label>
-                  <input
+                  <label htmlFor="workshop-external-procurement-amount" className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Amount</label>
+                  <input id="workshop-external-procurement-amount"
                     name="amount"
                     type="number"
                     step="0.01"
@@ -362,8 +362,8 @@ export default async function ExternalProcurementDetailPage({
                 <input type="hidden" name="requestId" value={request.id} />
                 <input type="hidden" name="jobCardId" value={request.jobCard.id} />
                 <div>
-                  <label className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Payment Method</label>
-                  <input
+                  <label htmlFor="workshop-external-procurement-paymentMethod" className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Payment Method</label>
+                  <input id="workshop-external-procurement-paymentMethod"
                     name="paymentMethod"
                     required
                     list="payment-method-suggestions"
@@ -377,14 +377,14 @@ export default async function ExternalProcurementDetailPage({
                   </datalist>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Payment Reference (optional — bank/transaction ref for a transfer)</label>
-                  <input
+                  <label htmlFor="workshop-external-procurement-paymentReference" className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Payment Reference (optional — bank/transaction ref for a transfer)</label>
+                  <input id="workshop-external-procurement-paymentReference"
                     name="paymentReference"
                     className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Notes (optional)</label>
+                  <label htmlFor="workshop-external-procurement-id-text-4" className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Notes (optional)</label>
                   <textarea id="workshop-external-procurement-id-text-4"
                     name="disbursementNotes"
                     rows={2}

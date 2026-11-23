@@ -56,8 +56,8 @@ export default async function AidesPage({ searchParams }: { searchParams: Promis
               <><input type="hidden" name="ownerId" value={officials[0]!.id} /><p className="text-sm text-[var(--ejo-text)]">For: <span className="font-medium">{officials[0]!.fullName}</span></p></>
             ) : (
               <div>
-                <label className={label}>Official</label>
-                <select name="ownerId" required defaultValue="" className={input}>
+                <label htmlFor="schedule-aides-ownerId" className={label}>Official</label>
+                <select id="schedule-aides-ownerId" name="ownerId" required defaultValue="" className={input}>
                   <option value="" disabled>Choose…</option>
                   {officials.map((o) => <option key={o.id} value={o.id}>{o.fullName}</option>)}
                 </select>

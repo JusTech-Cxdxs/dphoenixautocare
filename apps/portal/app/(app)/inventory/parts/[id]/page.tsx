@@ -689,7 +689,7 @@ export default async function PartDetailPage({
                       <th className="px-2 py-1.5">Model</th>
                       <th className="px-2 py-1.5">Engine</th>
                       <th className="px-2 py-1.5">Years</th>
-                      <th className="px-2 py-1.5" />
+                      <th className="px-2 py-1.5"><span className="sr-only">Actions</span></th>
                     </tr>
                   </thead>
                   <tbody>

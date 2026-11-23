@@ -38,21 +38,21 @@ export function VisitArrivalFields({ fromOrganisation, group }: { fromOrganisati
   return (
     <div className="space-y-4">
       <div>
-        <label className={label}>{group ? "ID shown by the group lead (they vouch for the group)" : 'ID the visitor showed'}</label>
-        <select name="idType" required value={idType} onChange={(e) => setIdType(e.target.value)} className={input}>
+        <label htmlFor="visit-arrival-fields-idType" className={label}>{group ? "ID shown by the group lead (they vouch for the group)" : 'ID the visitor showed'}</label>
+        <select id="visit-arrival-fields-idType" name="idType" required value={idType} onChange={(e) => setIdType(e.target.value)} className={input}>
           <option value="" disabled>Tap to choose the ID…</option>
           {ids.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
         </select>
       </div>
       {idType === 'OTHER' ? (
-        <div><label className={label}>Name of the ID document</label><input name="idTypeOther" required placeholder="e.g. Bank ID card, Church ID" className={input} /></div>
+        <div><label htmlFor="visit-arrival-fields-idTypeOther" className={label}>Name of the ID document</label><input id="visit-arrival-fields-idTypeOther" name="idTypeOther" required placeholder="e.g. Bank ID card, Church ID" className={input} /></div>
       ) : null}
       {idType ? (
-        <div><label className={label}>ID number</label><input name="idNumber" required placeholder={example} className={input} autoComplete="off" /></div>
+        <div><label htmlFor="visit-arrival-fields-idNumber" className={label}>ID number</label><input id="visit-arrival-fields-idNumber" name="idNumber" required placeholder={example} className={input} autoComplete="off" /></div>
       ) : null}
       <div>
-        <label className={label}>How did {group ? 'they' : 'the visitor'} come?</label>
-        <select name="vehicleType" required value={vehicle} onChange={(e) => setVehicle(e.target.value)} className={input}>
+        <label htmlFor="visit-arrival-fields-vehicleType" className={label}>How did {group ? 'they' : 'the visitor'} come?</label>
+        <select id="visit-arrival-fields-vehicleType" name="vehicleType" required value={vehicle} onChange={(e) => setVehicle(e.target.value)} className={input}>
           <option value="" disabled>Tap to choose…</option>
           {VEHICLES.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
         </select>

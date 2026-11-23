@@ -80,7 +80,7 @@ export default async function WarrantyPoliciesPage({
           <form className="mb-3 flex gap-2" action="/warranty/policies">
             {state ? <input type="hidden" name="state" value={state} /> : null}
             <LiveSearchInput type="search" name="q" defaultValue={q ?? ''} placeholder="Search by code, name, brand, model or provider…" className={input} />
-            <select name="kind" defaultValue={kind ?? ''} className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]">
+            <select aria-label="Policy type" name="kind" defaultValue={kind ?? ''} className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]">
               <option value="">Vehicle &amp; part</option>
               <option value="ASSET">Vehicle</option>
               <option value="PART">Part</option>
@@ -164,17 +164,17 @@ export default async function WarrantyPoliciesPage({
               </p>
             ) : null}
             <div className="grid grid-cols-2 gap-2">
-              <div><label className={label}>Code</label><input name="code" required placeholder="FOTON-VEH-36" className={input} /></div>
+              <div><label htmlFor="warranty-policies-code" className={label}>Code</label><input id="warranty-policies-code" name="code" required placeholder="FOTON-VEH-36" className={input} /></div>
               <div>
-                <label className={label}>Applies to</label>
-                <select name="kind" required defaultValue="" className={input}>
+                <label htmlFor="warranty-policies-kind" className={label}>Applies to</label>
+                <select id="warranty-policies-kind" name="kind" required defaultValue="" className={input}>
                   <option value="" disabled>Choose…</option>
                   <option value="ASSET">Vehicle</option>
                   <option value="PART">Part</option>
                 </select>
               </div>
             </div>
-            <div><label className={label}>Name</label><input name="name" required placeholder="Foton new vehicle warranty" className={input} /></div>
+            <div><label htmlFor="warranty-policies-name" className={label}>Name</label><input id="warranty-policies-name" name="name" required placeholder="Foton new vehicle warranty" className={input} /></div>
             <div>
               <label className={label}>Provider</label>
               <SearchableSelect
@@ -189,21 +189,21 @@ export default async function WarrantyPoliciesPage({
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <div><label className={label}>Brand (vehicle)</label><input name="brand" placeholder="Foton" className={input} /></div>
-              <div><label className={label}>Model (optional)</label><input name="model" placeholder="Tunland" className={input} /></div>
+              <div><label htmlFor="warranty-policies-brand" className={label}>Brand (vehicle)</label><input id="warranty-policies-brand" name="brand" placeholder="Foton" className={input} /></div>
+              <div><label htmlFor="warranty-policies-model" className={label}>Model (optional)</label><input id="warranty-policies-model" name="model" placeholder="Tunland" className={input} /></div>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              <div><label className={label}>Duration</label><input name="durationMonths" type="number" min={1} max={3650} required className={input} /></div>
+              <div><label htmlFor="warranty-policies-durationMonths" className={label}>Duration</label><input id="warranty-policies-durationMonths" name="durationMonths" type="number" min={1} max={3650} required className={input} /></div>
               <div>
-                <label className={label}>In</label>
-                <select name="durationUnit" required defaultValue="" className={input}>
+                <label htmlFor="warranty-policies-durationUnit" className={label}>In</label>
+                <select id="warranty-policies-durationUnit" name="durationUnit" required defaultValue="" className={input}>
                   <option value="" disabled>Choose…</option>
                   <option value="DAYS">Days</option>
                   <option value="WORKING_DAYS">Working days (Mon–Fri)</option>
                   <option value="MONTHS">Months</option>
                 </select>
               </div>
-              <div className="col-span-2 sm:col-span-1"><label className={label}>Km limit (blank = none)</label><input name="distanceLimit" type="number" min={1} className={input} /></div>
+              <div className="col-span-2 sm:col-span-1"><label htmlFor="warranty-policies-distanceLimit" className={label}>Km limit (blank = none)</label><input id="warranty-policies-distanceLimit" name="distanceLimit" type="number" min={1} className={input} /></div>
             </div>
             <PolicyCoverageFields />
             <div><label className={label}>What is covered</label><LineItemsInput name="coverageItem" required placeholder="e.g. Engine" addLabel="+ Add covered item" /></div>

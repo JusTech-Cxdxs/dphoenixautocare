@@ -65,8 +65,8 @@ export function VisitorRegisterForm({
       {booking ? <input type="hidden" name="visitId" value={booking.visitId} /> : null}
       {canGate && !editing ? (
         <div>
-          <label className={label}>Type</label>
-          <select name="mode" required value={mode} onChange={(e) => setMode(e.target.value)} className={input}>
+          <label htmlFor="visitor-register-form-mode" className={label}>Type</label>
+          <select id="visitor-register-form-mode" name="mode" required value={mode} onChange={(e) => setMode(e.target.value)} className={input}>
             <option value="" disabled>Choose…</option>
             <option value="ARRIVED">At the gate now</option>
             <option value="EXPECTED">Book a visit for later</option>
@@ -78,16 +78,16 @@ export function VisitorRegisterForm({
       {mode ? (
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className={label}>How many people?</label>
-            <select name="party" required value={party} onChange={(e) => setParty(e.target.value)} className={input}>
+            <label htmlFor="visitor-register-form-party" className={label}>How many people?</label>
+            <select id="visitor-register-form-party" name="party" required value={party} onChange={(e) => setParty(e.target.value)} className={input}>
               <option value="" disabled>Choose…</option>
               <option value="ONE">One person</option>
               <option value="GROUP">A group (2 or more)</option>
             </select>
           </div>
           <div>
-            <label className={label}>Coming as</label>
-            <select name="affiliation" required value={affiliation} onChange={(e) => setAffiliation(e.target.value)} className={input}>
+            <label htmlFor="visitor-register-form-affiliation" className={label}>Coming as</label>
+            <select id="visitor-register-form-affiliation" name="affiliation" required value={affiliation} onChange={(e) => setAffiliation(e.target.value)} className={input}>
               <option value="" disabled>Choose…</option>
               <option value="INDIVIDUAL">Private individual{group ? 's' : ''}</option>
               <option value="ORGANISATION">From an organisation</option>
@@ -99,27 +99,27 @@ export function VisitorRegisterForm({
         <>
           {group ? (
             <div>
-              <label className={label}>Number of people in the group</label>
-              <input name="partySize" type="number" min={2} max={50} required value={size} onChange={(e) => setSize(Number(e.target.value))} className={`${input} sm:w-40`} />
+              <label htmlFor="visitor-register-form-partySize" className={label}>Number of people in the group</label>
+              <input id="visitor-register-form-partySize" name="partySize" type="number" min={2} max={50} required value={size} onChange={(e) => setSize(Number(e.target.value))} className={`${input} sm:w-40`} />
             </div>
           ) : null}
           {affiliation === 'ORGANISATION' ? (
-            <div><label className={label}>Organisation name</label><input name="company" required defaultValue={booking?.company ?? ''} placeholder="e.g. ABC Motors Ltd" className={input} /></div>
+            <div><label htmlFor="visitor-register-form-company" className={label}>Organisation name</label><input id="visitor-register-form-company" name="company" required defaultValue={booking?.company ?? ''} placeholder="e.g. ABC Motors Ltd" className={input} /></div>
           ) : null}
           <div className="space-y-2">
-            <label className={label}>{group ? `Names — ${count} people, one per box (the lead first)` : "Visitor's full name"}</label>
-            <input name="visitorName" required defaultValue={booking?.visitorName ?? ''} placeholder={group ? '1. Lead — the person whose ID is taken' : 'e.g. Adebayo Johnson'} className={input} />
+            <label htmlFor="visitor-register-form-visitorName" className={label}>{group ? `Names — ${count} people, one per box (the lead first)` : "Visitor's full name"}</label>
+            <input id="visitor-register-form-visitorName" name="visitorName" required defaultValue={booking?.visitorName ?? ''} placeholder={group ? '1. Lead — the person whose ID is taken' : 'e.g. Adebayo Johnson'} className={input} />
             {group
               ? Array.from({ length: count - 1 }, (_, i) => (
                   <input key={i} name="memberName" required defaultValue={booking?.memberNames[i] ?? ''} placeholder={`${i + 2}. Full name`} className={input} />
                 ))
               : null}
           </div>
-          <div><label className={label}>{group ? "Lead's phone number" : 'Phone number'}</label><input name="phone" type="tel" inputMode="tel" defaultValue={booking?.phone ?? ''} placeholder="e.g. 0803 123 4567" className={input} /></div>
+          <div><label htmlFor="visitor-register-form-phone" className={label}>{group ? "Lead's phone number" : 'Phone number'}</label><input id="visitor-register-form-phone" name="phone" type="tel" inputMode="tel" defaultValue={booking?.phone ?? ''} placeholder="e.g. 0803 123 4567" className={input} /></div>
           {arrived ? <VisitArrivalFields fromOrganisation={affiliation === 'ORGANISATION'} group={group} /> : null}
           <div>
-            <label className={label}>Purpose of the visit</label>
-            <input name="purpose" required list="visit-purposes" defaultValue={booking?.purpose ?? ''} placeholder="Tap to choose or type" className={input} />
+            <label htmlFor="visitor-register-form-purpose" className={label}>Purpose of the visit</label>
+            <input id="visitor-register-form-purpose" name="purpose" required list="visit-purposes" defaultValue={booking?.purpose ?? ''} placeholder="Tap to choose or type" className={input} />
             <datalist id="visit-purposes">{PURPOSES.map((p) => <option key={p} value={p} />)}</datalist>
           </div>
           {isFrontDesk ? (
@@ -131,16 +131,16 @@ export function VisitorRegisterForm({
             <input type="hidden" name="hostUserId" value={booking?.hostUserId ?? meId} />
           )}
           <div className="grid gap-3 sm:grid-cols-2">
-            {!arrived ? <div><label className={label}>Expected arrival</label><input name="expectedAt" type="datetime-local" required defaultValue={booking?.expectedAt ?? ''} className={input} /></div> : null}
+            {!arrived ? <div><label htmlFor="visitor-register-form-expectedAt" className={label}>Expected arrival</label><input id="visitor-register-form-expectedAt" name="expectedAt" type="datetime-local" required defaultValue={booking?.expectedAt ?? ''} className={input} /></div> : null}
             <div>
-              <label className={label}>Expected stay</label>
-              <select name="expectedMinutes" required defaultValue={booking?.expectedDurationMinutes ? String(booking.expectedDurationMinutes) : ''} className={input}>
+              <label htmlFor="visitor-register-form-expectedMinutes" className={label}>Expected stay</label>
+              <select id="visitor-register-form-expectedMinutes" name="expectedMinutes" required defaultValue={booking?.expectedDurationMinutes ? String(booking.expectedDurationMinutes) : ''} className={input}>
                 <option value="" disabled>Choose…</option>
                 {STAY.map((m) => <option key={m} value={m}>{stayLabel(m)}</option>)}
               </select>
             </div>
           </div>
-          <div><label className={label}>Notes (optional)</label><input name="notes" defaultValue={booking?.notes ?? ''} className={input} /></div>
+          <div><label htmlFor="visitor-register-form-notes" className={label}>Notes (optional)</label><input id="visitor-register-form-notes" name="notes" defaultValue={booking?.notes ?? ''} className={input} /></div>
           <SubmitButton label={editing ? 'Save booking' : arrived ? 'Register and issue pass' : 'Book the visit'} pendingLabel="Saving…" className="w-full rounded-[var(--ejo-radius-md)] bg-[var(--ejo-primary)] px-4 py-3 text-sm font-medium text-white hover:opacity-90" />
         </>
       ) : null}

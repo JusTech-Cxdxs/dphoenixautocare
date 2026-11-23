@@ -50,9 +50,9 @@ export default async function RoomsPage({ searchParams }: { searchParams: Promis
           <form action={saveRoomFormAction} className="space-y-3">
             <FormPendingOverlay />
             {editing ? <input type="hidden" name="roomId" value={editing.id} /> : null}
-            <div><label className={label}>Name</label><input name="name" required defaultValue={editing?.name ?? ''} placeholder="e.g. Boardroom" className={input} /></div>
-            <div><label className={label}>Where (optional)</label><input name="location" defaultValue={editing?.location ?? ''} placeholder="e.g. Admin block, 1st floor" className={input} /></div>
-            <div><label className={label}>Seats (optional)</label><input name="capacity" type="number" min={1} defaultValue={editing?.capacity ?? ''} className={input} /></div>
+            <div><label htmlFor="schedule-rooms-name" className={label}>Name</label><input id="schedule-rooms-name" name="name" required defaultValue={editing?.name ?? ''} placeholder="e.g. Boardroom" className={input} /></div>
+            <div><label htmlFor="schedule-rooms-location" className={label}>Where (optional)</label><input id="schedule-rooms-location" name="location" defaultValue={editing?.location ?? ''} placeholder="e.g. Admin block, 1st floor" className={input} /></div>
+            <div><label htmlFor="schedule-rooms-capacity" className={label}>Seats (optional)</label><input id="schedule-rooms-capacity" name="capacity" type="number" min={1} defaultValue={editing?.capacity ?? ''} className={input} /></div>
             <SubmitButton label={editing ? 'Save room' : 'Add room'} pendingLabel="Saving…" className="w-full rounded-[var(--ejo-radius-md)] bg-[var(--ejo-primary)] px-4 py-2.5 text-sm font-medium text-white hover:opacity-90" />
           </form>
           </RevealPanel>

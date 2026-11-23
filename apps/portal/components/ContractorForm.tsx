@@ -20,13 +20,13 @@ export function ContractorForm({ isFrontDesk, action, search, loadDefaultOptions
   return (
     <form action={action} className="space-y-4">
       <FormPendingOverlay />
-      <div><label className={label}>Contractor company</label><input name="company" required placeholder="e.g. Bright Electricals Ltd" className={input} /></div>
-      <div><label className={label}>Work to be done</label><textarea id="contractorform-text-1" name="work" required rows={2} placeholder="e.g. Rewire workshop bay 2 and install new sockets" className={input} />
+      <div><label htmlFor="contractor-form-company" className={label}>Contractor company</label><input id="contractor-form-company" name="company" required placeholder="e.g. Bright Electricals Ltd" className={input} /></div>
+      <div><label htmlFor="contractorform-text-1" className={label}>Work to be done</label><textarea id="contractorform-text-1" name="work" required rows={2} placeholder="e.g. Rewire workshop bay 2 and install new sockets" className={input} />
       <RefineTextButton targetId="contractorform-text-1" /></div>
-      <div><label className={label}>Where on site</label><input name="workArea" required placeholder="e.g. Workshop bay 2" className={input} /></div>
+      <div><label htmlFor="contractor-form-workArea" className={label}>Where on site</label><input id="contractor-form-workArea" name="workArea" required placeholder="e.g. Workshop bay 2" className={input} /></div>
       <div>
-        <label className={label}>How many people?</label>
-        <select name="party" required value={party} onChange={(e) => setParty(e.target.value)} className={input}>
+        <label htmlFor="contractor-form-party" className={label}>How many people?</label>
+        <select id="contractor-form-party" name="party" required value={party} onChange={(e) => setParty(e.target.value)} className={input}>
           <option value="" disabled>Choose…</option>
           <option value="ONE">One person</option>
           <option value="GROUP">A team (2 or more)</option>
@@ -34,16 +34,16 @@ export function ContractorForm({ isFrontDesk, action, search, loadDefaultOptions
       </div>
       {party ? (
         <>
-          {team ? <div><label className={label}>Number of people in the team</label><input type="number" min={2} max={50} required value={count} onChange={(e) => setCount(Number(e.target.value))} className={`${input} sm:w-40`} /></div> : null}
+          {team ? <div><label htmlFor="contractor-form-field" className={label}>Number of people in the team</label><input id="contractor-form-field" type="number" min={2} max={50} required value={count} onChange={(e) => setCount(Number(e.target.value))} className={`${input} sm:w-40`} /></div> : null}
           <div className="space-y-2">
-            <label className={label}>{team ? `Names — ${n} people, one per box (the lead first)` : 'Full name'}</label>
-            <input name="leadName" required placeholder={team ? '1. Team lead' : 'e.g. Chinedu Okeke'} className={input} />
+            <label htmlFor="contractor-form-leadName" className={label}>{team ? `Names — ${n} people, one per box (the lead first)` : 'Full name'}</label>
+            <input id="contractor-form-leadName" name="leadName" required placeholder={team ? '1. Team lead' : 'e.g. Chinedu Okeke'} className={input} />
             {team ? Array.from({ length: n - 1 }, (_, i) => <input key={i} name="memberName" required placeholder={`${i + 2}. Full name`} className={input} />) : null}
           </div>
-          <div><label className={label}>{team ? "Lead's phone number" : 'Phone number'}</label><input name="phone" type="tel" inputMode="tel" placeholder="e.g. 0803 123 4567" className={input} /></div>
+          <div><label htmlFor="contractor-form-phone" className={label}>{team ? "Lead's phone number" : 'Phone number'}</label><input id="contractor-form-phone" name="phone" type="tel" inputMode="tel" placeholder="e.g. 0803 123 4567" className={input} /></div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div><label className={label}>First day</label><input name="validFrom" type="date" required min={today} value={from} onChange={(e) => setFrom(e.target.value)} className={input} /></div>
-            <div><label className={label}>Last day</label><input name="validUntil" type="date" required min={from || today} className={input} /></div>
+            <div><label htmlFor="contractor-form-validFrom" className={label}>First day</label><input id="contractor-form-validFrom" name="validFrom" type="date" required min={today} value={from} onChange={(e) => setFrom(e.target.value)} className={input} /></div>
+            <div><label htmlFor="contractor-form-validUntil" className={label}>Last day</label><input id="contractor-form-validUntil" name="validUntil" type="date" required min={from || today} className={input} /></div>
           </div>
           {isFrontDesk ? (
             <div>

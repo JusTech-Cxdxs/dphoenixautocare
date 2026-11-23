@@ -52,18 +52,18 @@ export default async function NewRoadTestPage({ searchParams }: { searchParams: 
           <label className={label}>Driver (staff)</label>
           <SearchableSelect name="driverId" required search={searchStaffOptions} loadDefaultOptions={loadStaffOptions} defaultOptionsLabel="Staff" placeholder="Search staff by name or ID…" emptyMessage="No active staff match." minQueryLength={1} />
         </div>
-        <div><label className={label}>What the road test is checking</label><input name="purpose" required placeholder="e.g. brake repair — braking under load, noise" className={input} /></div>
-        <div><label className={label}>Staff going along (optional — any number)</label>
-          <select name="companionIds" multiple size={5} className={input} aria-describedby="companions-hint">
+        <div><label htmlFor="road-tests-new-purpose" className={label}>What the road test is checking</label><input id="road-tests-new-purpose" name="purpose" required placeholder="e.g. brake repair — braking under load, noise" className={input} /></div>
+        <div><label htmlFor="road-tests-new-companionIds" className={label}>Staff going along (optional — any number)</label>
+          <select id="road-tests-new-companionIds" name="companionIds" multiple size={5} className={input} aria-describedby="companions-hint">
             {staffForCompanions.map((s) => <option key={s.value} value={s.value}>{s.label}{s.sublabel ? ` — ${s.sublabel}` : ''}</option>)}
           </select>
           <p id="companions-hint" className="mt-1 text-[11px] text-[var(--ejo-text-muted)]">Hold Ctrl (or ⌘) to choose more than one. The driver is already included.</p></div>
-        <div><label className={label}>Other people going along (optional — one name per line)</label><textarea id="security-road-tests-new-text-1" name="otherCompanions" rows={2} placeholder="e.g. Customer's representative" className={input} />
+        <div><label htmlFor="security-road-tests-new-text-1" className={label}>Other people going along (optional — one name per line)</label><textarea id="security-road-tests-new-text-1" name="otherCompanions" rows={2} placeholder="e.g. Customer's representative" className={input} />
         <RefineTextButton targetId="security-road-tests-new-text-1" /></div>
-        <div><label className={label}>Route (optional)</label><input name="route" placeholder="e.g. Victoria Island → Lekki toll gate and back" className={input} /></div>
+        <div><label htmlFor="road-tests-new-route" className={label}>Route (optional)</label><input id="road-tests-new-route" name="route" placeholder="e.g. Victoria Island → Lekki toll gate and back" className={input} /></div>
         <div>
-          <label className={label}>Expected duration</label>
-          <select name="expectedMinutes" required defaultValue="" className={input}>
+          <label htmlFor="road-tests-new-expectedMinutes" className={label}>Expected duration</label>
+          <select id="road-tests-new-expectedMinutes" name="expectedMinutes" required defaultValue="" className={input}>
             <option value="" disabled>Choose…</option>
             {DURATIONS.map((m) => <option key={m} value={m}>{durationText(m)}</option>)}
           </select>

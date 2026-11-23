@@ -154,7 +154,7 @@ export default async function ItControlRoomPage() {
       <Suspense fallback={<SectionCard icon="globe" title="Website visitors"><p className="text-sm text-[var(--ejo-text-muted)]">Loading the website report…</p></SectionCard>}><WebsiteSection /></Suspense>
 
       <SectionCard icon="clock" title="Scheduled jobs" description="Every background job, when it last ran, and runs in the last seven days" flush>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Table">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead><tr className="text-[11px] uppercase tracking-wide text-[var(--ejo-text-muted)]"><th className="px-4 py-2 font-semibold">Job</th><th className="px-3 py-2 font-semibold">When</th><th className="px-3 py-2 font-semibold">Last run</th><th className="px-3 py-2 text-right font-semibold">Runs 7 d</th><th className="px-4 py-2 font-semibold">Status</th></tr></thead>
             <tbody>{it.jobs.map((j) => <tr key={j.key} className="border-t border-[var(--ejo-border)]"><td className="px-4 py-2 font-medium">{j.name}</td><td className="px-3 py-2 text-xs text-[var(--ejo-text-muted)]">{j.when}</td><td className="px-3 py-2 text-xs">{j.lastRun ? formatRelative(j.lastRun) : 'Never'}</td><td className="px-3 py-2 text-right tabular-nums">{j.runs7d}</td><td className="px-4 py-2"><StatusChip tone={j.late ? 'warning' : 'success'} label={j.late ? 'Not on time' : 'On time'} /></td></tr>)}</tbody>

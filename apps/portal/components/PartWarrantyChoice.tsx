@@ -26,8 +26,8 @@ export function PartWarrantyChoice({
   const input = 'w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]';
   return (
     <div className="space-y-2 rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] p-3">
-      <label className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Does this part carry a warranty?</label>
-      <select name="warrantyChoice" required value={choice} onChange={(e) => setChoice(e.target.value)} className={input}>
+      <label htmlFor="part-warranty-choice-warrantyChoice" className="mb-1 block text-xs text-[var(--ejo-text-muted)]">Does this part carry a warranty?</label>
+      <select id="part-warranty-choice-warrantyChoice" name="warrantyChoice" required value={choice} onChange={(e) => setChoice(e.target.value)} className={input}>
         <option value="" disabled>Choose…</option>
         <option value="YES">Yes — it carries a warranty</option>
         <option value="NO">No warranty</option>

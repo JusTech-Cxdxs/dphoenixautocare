@@ -31,7 +31,7 @@ export default async function SecurityRegisterPage({ searchParams }: { searchPar
       <SecurityNav active="/security/register" />
       <form className="mb-4 flex flex-wrap gap-2">
         <LiveSearchInput name="q" defaultValue={q ?? ''} placeholder="Search any number (VIS, VP, EP, RT, VX, DLV, CTR, INC), name, plate…" className="w-full max-w-md rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]" />
-        <select name="type" defaultValue={t} className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]">
+        <select aria-label="Record type" name="type" defaultValue={t} className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]">
           {TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
         <button type="submit" className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] px-4 py-2 text-sm text-[var(--ejo-text)]">Search</button>

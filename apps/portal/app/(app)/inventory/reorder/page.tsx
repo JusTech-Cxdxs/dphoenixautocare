@@ -47,7 +47,7 @@ export default async function ReorderSuggestionsPage() {
         ) : list.rows.length === 0 ? (
           <EmptyState icon="check-circle" title="Nothing to reorder">Every forecast part in your branches is above its reorder point.</EmptyState>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Table">
             <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-[var(--ejo-border)] text-left text-xs text-[var(--ejo-text-muted)]">

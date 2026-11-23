@@ -121,7 +121,7 @@ export function CustomerVehiclePicker({
             first.
           </p>
         ) : (
-          <select
+          <select aria-label="Vehicle"
             name="vehicleId"
             required
             value={selectedVehicleId}
@@ -166,7 +166,7 @@ export function CustomerVehiclePicker({
               until at least one exists.
             </p>
           ) : (
-            <select
+            <select aria-label="Supervisor"
               name="supervisorId"
               required
               defaultValue=""

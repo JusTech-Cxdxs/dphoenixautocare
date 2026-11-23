@@ -56,8 +56,8 @@ export default async function ReleaseVehiclePage({ params, searchParams }: { par
               <h2 className="text-sm font-semibold text-[var(--ejo-text)]">Confirm exit through the gate</h2>
               <input type="hidden" name="kind" value={kind} />
               <input type="hidden" name="recordId" value={v.id} />
-              <div><label className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Collected by (person taking the vehicle out)</label><input name="collectedBy" defaultValue={v.collectedBy ?? ''} required className={input} /></div>
-              <div><label className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Notes (optional)</label><input name="notes" placeholder="e.g. plate and VIN checked" className={input} /></div>
+              <div><label htmlFor="vehicles-release-collectedBy" className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Collected by (person taking the vehicle out)</label><input id="vehicles-release-collectedBy" name="collectedBy" defaultValue={v.collectedBy ?? ''} required className={input} /></div>
+              <div><label htmlFor="vehicles-release-notes" className="mb-1 block text-xs font-medium text-[var(--ejo-text-muted)]">Notes (optional)</label><input id="vehicles-release-notes" name="notes" placeholder="e.g. plate and VIN checked" className={input} /></div>
               <p className="text-xs text-[var(--ejo-text-muted)]">Check the plate and VIN on the vehicle against this record before confirming.</p>
               <SubmitButton label="Confirm exit" pendingLabel="Recording…" className="rounded-[var(--ejo-radius-md)] bg-[var(--ejo-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90" />
             </form>

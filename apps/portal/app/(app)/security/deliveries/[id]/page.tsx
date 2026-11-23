@@ -64,7 +64,7 @@ export default async function DeliveryPage({ params, searchParams }: { params: P
           {d.status === 'AT_GATE' && store ? (
             <form action={deliveryActionFormAction} className="space-y-2">
               <Hidden action="receive" />
-              <select name="goodsReceiptId" defaultValue="" className={`${input} w-full`}>
+              <select aria-label="Goods receipt" name="goodsReceiptId" defaultValue="" className={`${input} w-full`}>
                 <option value="">Link a goods receipt (optional)…</option>
                 {grns.map((g) => <option key={g.id} value={g.id}>{g.referenceNumber} — {g.supplierName} ({formatDateOnly(g.receivedAt)})</option>)}
               </select>

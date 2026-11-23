@@ -94,7 +94,7 @@ export default async function VisitPage({ params, searchParams }: { params: Prom
           {v.status === 'CHECKED_IN' && roles.isFrontDesk ? (
             <form action={visitActionFormAction} className="flex flex-wrap gap-2">
               <Hidden action="extend" />
-              <select name="extraMinutes" required defaultValue="" className={input}>
+              <select aria-label="Extra time" name="extraMinutes" required defaultValue="" className={input}>
                 <option value="" disabled>Extend by…</option>
                 {EXTRA.map((m) => <option key={m} value={m}>{durationText(m)}</option>)}
               </select>

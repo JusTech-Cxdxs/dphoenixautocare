@@ -28,7 +28,7 @@ export default async function AvailabilityPage({ searchParams }: { searchParams:
         <LoadingLink href={`/schedule/availability?date=${shift(-1)}`} className={btn}>← Previous day</LoadingLink>
         <LoadingLink href={`/schedule/availability?date=${today}`} className={btn}>Today</LoadingLink>
         <LoadingLink href={`/schedule/availability?date=${shift(1)}`} className={btn}>Next day →</LoadingLink>
-        <form className="flex gap-2"><input name="date" type="date" defaultValue={day} className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-1.5 text-sm text-[var(--ejo-text)]" /><button type="submit" className={btn}>Show</button></form>
+        <form className="flex gap-2"><input aria-label="Day" name="date" type="date" defaultValue={day} className="rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-1.5 text-sm text-[var(--ejo-text)]" /><button type="submit" className={btn}>Show</button></form>
       </div>
       <div className="rounded-[var(--ejo-radius-lg)] border border-[var(--ejo-border)] bg-[var(--ejo-surface)] p-4 sm:p-5">
         <p className="mb-3 text-sm font-semibold text-[var(--ejo-text)]">
