@@ -37,7 +37,7 @@ export function JobCardStatusForm({
         className="w-full rounded-[var(--ejo-radius-md)] border border-[var(--ejo-border)] bg-[var(--ejo-bg)] px-3 py-2 text-sm text-[var(--ejo-text)]"
       >
         {selectableStatuses.map((s) => (
-          <option key={s} value={s} style={s === 'CANCELLED' ? { color: 'var(--ejo-error)' } : undefined}>
+          <option key={s} value={s} style={s === 'CANCELLED' ? { color: 'var(--ejo-error-text)' } : undefined}>
             {statusLabels[s]}
           </option>
         ))}

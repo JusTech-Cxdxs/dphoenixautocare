@@ -30,6 +30,7 @@ the code are right.
 | [DPHOENIX_SETUP.md](DPHOENIX_SETUP.md) | Setting up D'Phoenix Autocare from an empty account: hosting, the first sign-in, staff, billing, bringing in the Zoho and Excel records, email, and going live. |
 | [DPHOENIX_DEMO.md](DPHOENIX_DEMO.md) | The D'Phoenix Autocare demo: how to switch it on, who to sign in as, a 15-minute tour and what each scenario shows. **Generated file**: do not edit by hand. Change `apps/portal/lib/demo/tour.ts` or `people.ts` and run `npm run demo:tour-doc`; a test fails if the file and the code differ. |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | How the system is built: the three applications, how a request flows, the organisation and branch fences, how to add a module, coding rules. |
+| [ACCESSIBILITY.md](ACCESSIBILITY.md) | The accessibility standard (WCAG 2.2 AA): field labels, the text colours that keep 4.5:1 in light and dark, lists, tables, headings and landmarks, and how to check a change. |
 
 ## How it works
 

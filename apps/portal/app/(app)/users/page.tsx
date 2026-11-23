@@ -82,9 +82,9 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
 
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label="People" value={counts.total} />
-        <Stat label="Active" value={counts.active} tone="var(--ejo-success)" />
+        <Stat label="Active" value={counts.active} tone="var(--ejo-success-text)" />
         <Stat label="Switched off" value={counts.off} tone={counts.off ? 'var(--ejo-text-muted)' : undefined} />
-        <Stat label="Without employee ID" value={counts.withoutId} tone={counts.withoutId ? 'var(--ejo-warning)' : undefined} />
+        <Stat label="Without employee ID" value={counts.withoutId} tone={counts.withoutId ? 'var(--ejo-warning-text)' : undefined} />
       </div>
 
       {/* Find people */}
